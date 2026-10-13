@@ -15,7 +15,8 @@ PC de jeu. Spécification complète : [CAHIER_DES_CHARGES.md](CAHIER_DES_CHARGES
 | L4 | Décisions et économie CS2 : ouvertures, rotations, saves, après pose, clutchs, achats, stratégie | Codé et testé sur scénarios synthétiques ; **jamais exécuté sur une vraie démo** |
 | L5 | Débrief : 3 priorités chiffrées, preuves, rédaction Gemini / locale contrôlée, coût | Codé et testé avec réponses simulées ; **aucun appel Gemini réel, coût réel non mesuré** |
 | L6 | Interface web et PWA : parties, débrief, progression, chaleur, replay radar 2D | Vérifiée dans le navigateur (PC et format téléphone) sur données de démonstration ; **pas encore installée sur le téléphone, radars officiels absents** |
-| L7–L10 | Second écran, GD, LoL/TFT, 3D | À faire |
+| L7 | Second écran CS2 (Game State Integration) : état en direct, conseil d'achat, rappel des priorités | Vérifié avec un flux GSI simulé ; **jamais branché sur une vraie partie** |
+| L8–L10 | Geometry Dash, LoL/TFT, 3D | À faire |
 
 Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée de Mathieu :
 [A_VALIDER.md](A_VALIDER.md).
@@ -37,6 +38,8 @@ Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée
 - Une interface web (`http://<PC>:8765/`, installable sur le téléphone en HTTPS) :
   parties, import par glisser-déposer, débrief avec moments cliquables, progression,
   cartes de chaleur, replay radar 2D.
+- Un second écran CS2 (`/direct`) alimenté par Game State Integration : score, argent,
+  conseil d'achat pendant le freeze, rappel des priorités du dernier débrief.
 - Une API locale JSON (parties, fiches, mesures, progression) sert l'interface à venir et
   Jarvis : [docs/API.md](docs/API.md).
 
@@ -72,6 +75,7 @@ Ligne de commande (`.venv\Scripts\python -m postgame …`) :
 | `debrief <partie> [--sans-modele]` | (Re)génère le débrief d'une partie |
 | `fiabilite <mesure> [--non]` | Marque une mesure vérifiée à la main : elle entre dans le débrief |
 | `couts` | Coût cumulé des débriefs rédigés |
+| `gsi-config [--hote IP]` | Écrit la config Game State Integration de CS2 (second écran) |
 | `verifier <partie>` | Fiche de vérification manuelle : 5 moments par mesure, avec la commande CS2 pour y aller |
 | `diagnostic <demo.dem>` | Décrit une démo (en-tête, évènements, fiche) dans un JSON |
 
@@ -114,6 +118,7 @@ src/postgame/
   mesures.py       registre des mesures (nom, version, unité, fiabilité) et preuves
   verification.py  fiche de vérification manuelle d'une partie
   debrief/         constats priorisés, cibles, rédaction par modèle de langage
+  live/            second écran : réception GSI, conseil d'achat CS2
   surveillance.py  scrutation des dossiers surveillés
   api.py           API HTTP (FastAPI)
   games/           un module par jeu derrière une interface commune (base.py)

@@ -69,6 +69,10 @@ l'historique, COM-08), une unité et un contexte JSON (arme, camp, taille d'éch
 | GET | `/api/cs2/replay/{id}/round/{n}` | Round à 16 images/s : `ticks, joueurs {id: {equipe, x[], y[], yaw[], vivant[], arme[]}}, tirs, morts, grenades, bombe` |
 | GET | `/api/cs2/radar/{carte}.png` | Image du radar officiel si Mathieu l'a exportée dans `data/radars/` |
 
+| POST | `/api/cs2/gsi` | Point d'arrivée du flux Game State Integration (appelé par CS2, jeton obligatoire) |
+| GET | `/api/cs2/live` | État en direct : `carte, round, phase_round, camp, score, joueur {argent, argent_si_defaite, vie, armure, armes, kills…}, recommandation {type, titre, raison}, coequipiers (si fournis), rappel (priorités du dernier débrief)` |
+| WS | `/api/cs2/live/ws` | Même contenu, poussé à chaque message GSI |
+
 Toute autre adresse hors `/api/` sert l'interface web (`web/dist`).
 
 ## Pour Jarvis

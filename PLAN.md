@@ -101,7 +101,18 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 - [ ] Critère de fin : utilisable au quotidien sur PC et téléphone
 
 ## L7 — Second écran CS2 (CS-LIVE-01)
-- [ ] GSI en direct
+- [x] Réception GSI (`POST /api/cs2/gsi`) avec jeton, journal brut du flux (data/gsi/)
+- [x] Résumé : carte, round, score, argent, vie, armes, stats du match ; argent des
+      coéquipiers seulement si GSI le fournit (spectateur)
+- [x] Recommandation d'achat (économie MR12, série de défaites de l'équipe), pendant la
+      phase d'achat uniquement
+- [x] Diffusion WebSocket (`/api/cs2/live/ws`) + page « En direct » (écran maintenu allumé),
+      rappel des 3 priorités du dernier débrief
+- [x] Commande `gsi-config` (fichier ASCII sans BOM), simulateur `scripts/simuler_gsi.py`
+- [x] Vérifié dans le navigateur avec une séquence GSI **simulée** ; poussée locale < 0,5 s
+- [ ] Flux réel jamais reçu : journaliser une vraie partie, vérifier ce que GSI expose
+- [ ] Latence jeu → téléphone < 500 ms à mesurer sur le PC de jeu (NF-03)
+- [ ] Critère de fin : fonctionne pendant une vraie partie
 
 ## L8 — Geometry Dash (GD-*)
 - [ ] Mod Geode + analyses + replay
@@ -154,3 +165,7 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 | 2026-10-13 | L6 | Service worker écrit à la main (navigation réseau d'abord, fichiers versionnés en cache) | Pas de plugin supplémentaire ; une première version « cache d'abord » servait une page périmée après mise à jour (défaut trouvé au test et corrigé) |
 | 2026-10-13 | L6 | HTTPS local par certificat mkcert (ou Tailscale) | Un service worker n'est accepté qu'en HTTPS hors localhost : sans HTTPS, pas d'installation sur le téléphone |
 | 2026-10-13 | L6 | Graphiques en SVG maison, pas de bibliothèque de graphiques | Une courbe et une moyenne glissante suffisent ; 90 Ko compressés pour toute l'appli |
+| 2026-10-13 | L7 | Conseil d'achat sur l'argent de Mathieu et la série de défaites de l'équipe (`map.team_*.consecutive_round_losses`) | GSI ne fournit pas l'argent des coéquipiers à un joueur (wiki Valve : `allplayers_*` réservé aux spectateurs) |
+| 2026-10-13 | L7 | Conseil affiché seulement pendant le freeze | Constaté au test : un conseil « Éco » en plein round, après l'achat, n'a pas de sens |
+| 2026-10-13 | L7 | « Tout dépenser » seulement au dernier round d'une moitié ou sur balle de match adverse | Sur sa propre balle de match, perdre ne termine pas le match : l'argent compte encore |
+| 2026-10-13 | L7 | Jeton GSI aléatoire stocké dans data/ (ignoré par git) | Le point d'arrivée est sur le réseau local : un jeton évite les messages parasites |

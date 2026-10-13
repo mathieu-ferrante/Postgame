@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config";
 // En développement, l'API tourne sur le service Python (port 8765).
 export default defineConfig({
   plugins: [react()],
-  server: { proxy: { "/api": "http://localhost:8765" } },
+  server: { proxy: { "/api": { target: "http://localhost:8765", ws: true } } },
   build: { outDir: "dist", emptyOutDir: true },
   test: { environment: "node" },
 });

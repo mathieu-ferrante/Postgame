@@ -8,6 +8,7 @@
 - debrief     : (re)génère le débrief d'une partie
 - fiabilite   : marque une mesure vérifiée à la main (elle entre alors dans le débrief)
 - couts       : coût cumulé des débriefs rédigés
+- gsi-config  : écrit la config Game State Integration de CS2 (second écran)
 - verifier    : fiche de vérification manuelle des mesures d'une partie (5 cas par mesure)
 - diagnostic  : décrit une démo CS2 (en-tête, évènements, fiche) dans un fichier JSON
 """
@@ -61,6 +62,14 @@ def main(argv: list[str] | None = None) -> int:
     p_fiab.add_argument("--note", default="")
 
     sous.add_parser("couts", help="coût cumulé des débriefs rédigés")
+
+    p_gsi = sous.add_parser("gsi-config", help="écrit la config Game State Integration de CS2")
+    p_gsi.add_argument(
+        "--hote",
+        default="127.0.0.1",
+        help="adresse du service vue depuis le jeu (127.0.0.1 si même PC)",
+    )
+    p_gsi.add_argument("--sortie", type=Path, help="fichier .cfg à écrire")
 
     p_verif = sous.add_parser("verifier", help="fiche de vérification manuelle d'une partie")
     p_verif.add_argument("partie_id", type=int)
@@ -173,6 +182,30 @@ def main(argv: list[str] | None = None) -> int:
             f"{c['nb']} débrief(s), {c['entree']} + {c['sortie']} jetons, "
             f"{c['total']:.4f} $ au total, {c['moyen']:.5f} $ par débrief rédigé"
         )
+        return 0
+
+    if args.commande == "gsi-config":
+        from postgame.live.gsi_cs2 import jeton_gsi, texte_config
+
+        schema = "https" if cfg.certificat else "http"
+        uri = f"{schema}://{args.hote}:{cfg.port}/api/cs2/gsi"
+        sortie = args.sortie
+        if sortie is None:
+            dossier_cfg = next(
+                (
+                    d.parent / "cfg"
+                    for d in cfg.dossiers_cs2
+                    if d.name == "replays" and (d.parent / "cfg").is_dir()
+                ),
+                None,
+            )
+            dossier_cfg = dossier_cfg or cfg.dossier_donnees
+            sortie = dossier_cfg / "gamestate_integration_postgame.cfg"
+        sortie.parent.mkdir(parents=True, exist_ok=True)
+        # ASCII sans BOM : CS2 ignore un fichier qui commence par un BOM.
+        sortie.write_bytes(texte_config(uri, jeton_gsi(cfg.dossier_donnees)).encode("ascii"))
+        print(f"Config GSI écrite dans {sortie} (adresse {uri}).")
+        print("Elle doit se trouver dans ...\\game\\csgo\\cfg\\ ; relancer CS2 pour la charger.")
         return 0
 
     if args.commande == "verifier":

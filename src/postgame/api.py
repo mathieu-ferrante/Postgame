@@ -15,7 +15,15 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query, UploadFile
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -30,6 +38,7 @@ from postgame.games.cs2 import radar as radar_cs2
 from postgame.games.cs2 import replay as replay_cs2
 from postgame.games.cs2.donnees import extraire_match
 from postgame.importation import importer
+from postgame.live.gsi_cs2 import RecepteurGSI, jeton_gsi
 from postgame.mesures import DEFINITIONS
 from postgame.surveillance import Surveillant
 
@@ -280,6 +289,51 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
             replay_cs2.ecrire_cache(cache, donnees)
         return donnees
 
+    # --- Second écran CS2 (Game State Integration) ---------------------------------------
+
+    recepteur = RecepteurGSI(cfg.dossier_donnees, jeton_gsi(cfg.dossier_donnees))
+    abonnes: set[WebSocket] = set()
+    app.state.recepteur_gsi = recepteur
+
+    def message_live() -> dict[str, Any]:
+        return {**recepteur.resume, "rappel": rappel_priorites(base)}
+
+    @app.post("/api/cs2/gsi", tags=["cs2"], include_in_schema=False)
+    async def gsi(requete: Request) -> dict[str, str]:
+        """Point d'arrivée du flux GSI envoyé par CS2 (config gamestate_integration)."""
+        try:
+            charge = await requete.json()
+        except ValueError as exc:
+            raise HTTPException(400, "JSON invalide") from exc
+        if not recepteur.recevoir(charge):
+            raise HTTPException(401, "jeton GSI invalide")
+        message = message_live()
+        for ws in list(abonnes):
+            try:
+                await ws.send_json(message)
+            except Exception:
+                abonnes.discard(ws)
+        return {"statut": "ok"}
+
+    @app.get("/api/cs2/live", tags=["cs2"])
+    def live() -> dict[str, Any]:
+        """Dernier état de la partie en cours (CS-LIVE-01) et rappel des priorités."""
+        return message_live()
+
+    @app.websocket("/api/cs2/live/ws")
+    async def live_ws(ws: WebSocket) -> None:
+        """Même contenu que /api/cs2/live, poussé à chaque message GSI."""
+        await ws.accept()
+        abonnes.add(ws)
+        try:
+            await ws.send_json(message_live())
+            while True:
+                await ws.receive_text()  # garde la connexion ouverte
+        except WebSocketDisconnect:
+            pass
+        finally:
+            abonnes.discard(ws)
+
     @app.get("/api/mesures", tags=["mesures"])
     def noms_mesures() -> list[str]:
         """Noms des mesures disponibles en base."""
@@ -310,6 +364,28 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         return FileResponse(dossier_web / "index.html", headers={"Cache-Control": "no-cache"})
 
     return app
+
+
+def rappel_priorites(base: Base) -> list[dict[str, Any]]:
+    """Les priorités du dernier débrief CS2 : à garder en tête pendant la partie."""
+    derniere = base.lister_parties(jeu="cs2", limite=1)
+    if not derniere:
+        return []
+    debrief = base.dernier_debrief(derniere[0].id)
+    if debrief is None:
+        return []
+    return [
+        {
+            "id": c["id"],
+            "mesure": c["mesure"],
+            "libelle": c["libelle"],
+            "valeur": c["valeur"],
+            "unite": c["unite"],
+            "cible": c["cible"],
+            "reference": c["reference"],
+        }
+        for c in debrief["contenu"].get("priorites", [])
+    ]
 
 
 def _resume(p) -> dict[str, Any]:

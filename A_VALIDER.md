@@ -176,3 +176,25 @@ Dépend du point L0-3 (une démo de DM enregistrée) et du SteamID (L0-2).
 - **Attendu** : l'icône Postgame sur l'écran d'accueil ; l'appli s'ouvre en plein écran,
   les débriefs et le replay sont lisibles au doigt.
 - Me dire ce qui gêne au quotidien (lisibilité, boutons trop petits, pages lentes).
+
+## L7 — Second écran CS2
+
+### 17. Installer la config GSI et journaliser une vraie partie (PC de jeu)
+- [ ] Service lancé, puis `.venv\Scripts\python -m postgame gsi-config` : écrit
+      `gamestate_integration_postgame.cfg` directement dans `game\csgo\cfg\` si le
+      dossier est trouvé (sinon dans `data\`, à copier dans `game\csgo\cfg\`).
+- [ ] Relancer CS2, jouer une partie Premier (ou compétitive) en entier.
+- **Attendu** :
+  - `http://localhost:8765/direct` (et sur le téléphone) affiche carte, score, argent, vie,
+    et pendant chaque phase d'achat un conseil (Achat complet / Force possible / Éco…) ;
+  - un journal `data\gsi\journal_<date>.jsonl` existe : **me l'envoyer** (il contient le
+    pseudo et le SteamID de Mathieu, rien d'autre de personnel). Il dira ce que GSI expose
+    vraiment (risque du cahier des charges : l'argent des coéquipiers n'est probablement
+    pas fourni).
+- [ ] Juger le conseil d'achat sur quelques rounds : est-il cohérent avec ce que l'équipe
+      a fait ? Me dire les cas faux.
+
+### 18. Mesurer le retard du second écran (PC de jeu + téléphone)
+- [ ] Pendant un achat, comparer l'argent affiché en jeu et sur le téléphone : le
+      téléphone doit suivre en moins d'une demi-seconde (NF-03). Une vidéo au ralenti du
+      téléphone posé devant l'écran donne une mesure précise.
