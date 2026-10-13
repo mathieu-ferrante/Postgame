@@ -53,6 +53,10 @@ class Scenario:
         self.grenades: list[dict] = []
         self.lancers: list[dict] = []
         self.inventaires: list[dict] = []
+        self.gagnants: dict[int, int] = {}
+        self.bombe: list[dict] = []
+        self.economie: list[dict] = []
+        self.lieux: list[dict] = []
 
     def joueur(self, steamid: str, equipe: int = 2, nom: str | None = None, **etat) -> None:
         valeurs = {**DEFAUT, **etat}
@@ -144,6 +148,20 @@ class Scenario:
     def inventaire(self, steamid: str, tick: int, grenades: list[str]) -> None:
         self.inventaires.append({"tick": tick, "steamid": steamid, "grenades": grenades})
 
+    def eco(self, steamid: str, tick: int, argent: int, valeur: int, depense: int = 0) -> None:
+        self.economie.append(
+            {
+                "tick": tick,
+                "steamid": steamid,
+                "argent": argent,
+                "valeur_equipement": valeur,
+                "depense_round": depense,
+            }
+        )
+
+    def lieu(self, steamid: str, tick: int, lieu: str) -> None:
+        self.lieux.append({"tick": tick, "steamid": steamid, "lieu": lieu})
+
     def donnees(self, moi: str = MOI) -> DonneesMatch:
         ticks = pd.concat(self._tables.values(), ignore_index=True)[COLONNES_TICKS]
         return DonneesMatch(
@@ -156,7 +174,7 @@ class Scenario:
             morts=pd.DataFrame(
                 self.morts, columns=["tick", "attaquant", "victime", "arme", "headshot"]
             ),
-            rounds=construire_rounds(self.debuts_rounds, self.fins_rounds),
+            rounds=construire_rounds(self.debuts_rounds, self.fins_rounds, self.gagnants),
             carte="de_test",
             aveuglements=pd.DataFrame(
                 self.aveuglements, columns=["tick", "attaquant", "victime", "duree"]
@@ -166,4 +184,10 @@ class Scenario:
             ),
             lancers=pd.DataFrame(self.lancers, columns=["tick", "steamid", "type"]),
             inventaires=pd.DataFrame(self.inventaires, columns=["tick", "steamid", "grenades"]),
+            lieux=pd.DataFrame(self.lieux, columns=["tick", "steamid", "lieu"]),
+            bombe=pd.DataFrame(self.bombe, columns=["tick", "evenement", "steamid"]),
+            economie=pd.DataFrame(
+                self.economie,
+                columns=["tick", "steamid", "argent", "valeur_equipement", "depense_round"],
+            ),
         )

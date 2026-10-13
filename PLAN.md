@@ -63,7 +63,17 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
       référence, sur un vrai match
 
 ## L4 — Décisions et économie (CS-DEC-*, CS-ECO-01, CS-STR-01)
-- [ ] Duels d'ouverture, rotations, saves, retakes, clutchs, économie, stratégie
+- [x] Extraction : vainqueur des rounds, bombe, économie, lieu à la pose
+- [x] Déroulé des rounds (vivants par équipe à chaque mort)
+- [~] Duels d'ouverture (CS-DEC-01) — scénarios synthétiques uniquement
+- [~] Rotations après la pose (CS-DEC-02) — idem
+- [~] Sauver ou rejouer (CS-DEC-03) — idem
+- [~] Après pose et retakes (CS-DEC-04) — idem
+- [~] Clutchs (CS-DEC-05) — idem
+- [~] Économie : achats désynchronisés, victoire par type d'achat, valeur perdue (CS-ECO-01) — idem
+- [~] Stratégie : sites de pose, répétitions, adversaires, moitiés (CS-STR-01) — idem
+- [x] Analyse complète d'un match synthétique de 24 rounds : 1,9 s hors lecture de la démo
+- [ ] Critère de fin : mesures produites et vérifiées sur 3 vrais matchs
 
 ## L5 — Débrief (COM-04/05/06)
 - [ ] Rédaction, priorisation, liens vers les preuves, coût mesuré
@@ -111,3 +121,7 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 | 2026-10-13 | L3 | Observations brutes stockées par démo pro, catalogue recalculé à chaque ajout | Ajout incrémental de démos ; seuils ajustables sans relire les démos |
 | 2026-10-13 | L3 | Smoke reconnue < 150 u, ratée < 400 u, hors référence au-delà | Une smoke CS2 fait ~144 u de rayon : à 150 u, elle couvre encore l'essentiel de la zone visée |
 | 2026-10-13 | L3 | « Ligne de vue utile » approchée en 2D (segment adversaire–allié traversant la smoke) | Pas de géométrie de carte disponible ; le lancer de rayons reste une piste (CS-AIM-05) |
+| 2026-10-13 | L4 | Round « perdu d'avance » = Mathieu vivant, équipe ≤ 2, adversaires ≥ équipe + 2 | Définition simple et vérifiable à l'œil ; à ajuster après vérification |
+| 2026-10-13 | L4 | Rotation déclenchée par la pose seulement | La démo ne contient ni les annonces vocales ni les pings |
+| 2026-10-13 | L4 | Types d'achat : éco < 1 500 $, partiel < 4 000 $, complet au-delà ; rounds 1 et 13 = pistolet | Seuils usuels ; MR12 en Premier et compétitif |
+| 2026-10-13 | L4 | Site de pose déduit du lieu du poseur (« BombsiteA » → A) | `bomb_planted.site` est un index d'entité, pas une lettre |

@@ -12,7 +12,8 @@ PC de jeu. Spécification complète : [CAHIER_DES_CHARGES.md](CAHIER_DES_CHARGES
 | L1 | Mécanique CS2 : contre-strafe, première balle, spray, réaction, placement du viseur, armes | Codé et testé sur scénarios synthétiques ; **jamais exécuté sur une vraie démo, aucune mesure vérifiée à la main** |
 | L2 | Utilitaires et positionnement CS2 : flashs, HE, molotovs, gaspillage, chaleur, morts isolées, trades | Codé et testé sur scénarios synthétiques ; **jamais exécuté sur une vraie démo** |
 | L3 | Références pros : catalogue de lancers et positions appris sur démos pros, rattachement des smokes | Codé et testé sur données synthétiques ; **aucune démo pro lue, catalogue vide** |
-| L4–L10 | Décisions, débrief, interface, second écran, GD, LoL/TFT, 3D | À faire |
+| L4 | Décisions et économie CS2 : ouvertures, rotations, saves, après pose, clutchs, achats, stratégie | Codé et testé sur scénarios synthétiques ; **jamais exécuté sur une vraie démo** |
+| L5–L10 | Débrief, interface, second écran, GD, LoL/TFT, 3D | À faire |
 
 Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée de Mathieu :
 [A_VALIDER.md](A_VALIDER.md).
@@ -24,7 +25,8 @@ Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée
   terminée. Import manuel possible par l'API.
 - Chaque démo est archivée dans `data/archives/` et produit une fiche : carte, mode,
   résultat, score, durée (**lecture CS2 pas encore vérifiée sur une vraie démo**).
-- Chaque démo est analysée : mécanique, utilitaires, positionnement (méthode : [docs/MESURES_CS2.md](docs/MESURES_CS2.md))
+- Chaque démo est analysée : mécanique, utilitaires, positionnement, références pros,
+  décisions, économie (méthode : [docs/MESURES_CS2.md](docs/MESURES_CS2.md))
   et preuves (moments précis du replay). `verifier <partie>` produit la fiche de
   vérification manuelle des mesures.
 - Une API locale JSON (parties, fiches, mesures, progression) sert l'interface à venir et
@@ -88,7 +90,7 @@ src/postgame/
   games/           un module par jeu derrière une interface commune (base.py)
     cs2/           lecture des démos (demoparser2), diagnostic, armes, géométrie,
                    analyses (mecanique.py, utilitaires.py, positionnement.py,
-                   references.py)
+                   references.py, decisions.py, economie.py)
 config/cs2/        config d'enregistrement des démos DM
 scripts/           installation et lancement sur le PC de jeu
 tests/             tests ; tests/donnees/ (ignoré par git) pour les vraies démos

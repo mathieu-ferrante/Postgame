@@ -85,3 +85,27 @@ chaque lieu est tenu à l'installation, par carte et par camp.
 | `cs2.smoke.part_ligne_coupee` | Smoke qui, pendant sa durée (échantillonnée toutes les 0,5 s), traverse au moins une ligne adversaire–allié de moins de 3000 u (distance du centre au segment ≤ 144 u). | Approximation 2D sans murs : une ligne déjà bloquée par un mur compte comme coupée. Calculée même sans catalogue. |
 | `cs2.molotov.part_reconnues` | Idem pour les molotovs. | |
 | `cs2.position.part_positions_pro` | Rounds où le lieu tenu par Mathieu 20 s après le freeze est tenu par les pros (même carte, même camp) dans au moins 5 % des rounds. Les preuves citent les 3 lieux pros les plus courants quand Mathieu en est loin. | Granularité du lieu (un nom de zone, pas un point précis). |
+
+## L4 — Décisions, économie, stratégie (CS-DEC-*, CS-ECO-01, CS-STR-01)
+
+Données supplémentaires : vainqueur de chaque round (`round_end.winner`), bombe
+(`bomb_planted`, `bomb_defused`, `bomb_exploded`), argent et valeur d'équipement
+(`balance`, `current_equip_value`, `cash_spent_this_round`) 20 s après le freeze, avant
+chaque mort et en fin de round ; lieu du poseur à la pose (site A / B).
+
+Le déroulé d'un round suit les morts : on sait à chaque mort qui reste en vie dans chaque
+équipe. Rien n'est calculé en deathmatch.
+
+| Mesure | Calcul | Limites connues |
+|---|---|---|
+| `cs2.ouverture.part_impliquee`, `.taux_victoire` | Premier duel du round (première mort impliquant un adversaire) : Mathieu tue ou meurt. | |
+| `cs2.ouverture.rounds_gagnes_apres_victoire / _defaite` | Taux de victoire de l'équipe selon l'issue du duel d'ouverture de Mathieu. | Petits échantillons sur un seul match : à lire sur plusieurs matchs. |
+| `cs2.rotation.delai_median`, `.part_arrivee` | CT vivant à plus de 1200 u de la bombe au moment de la pose : délai pour arriver à moins de 1000 u. | L'information « site appelé » (voix, radar) n'est pas dans la démo : seule la pose sert de déclencheur. |
+| `cs2.save.situations`, `.part_sauvegardes`, `.part_morts_inutiles`, `.valeur_perdue` | Round « perdu d'avance » : Mathieu vivant, son équipe à 2 ou moins, les adversaires au moins 2 de plus. Issue : survie (sauvegarde), mort sans kill dans un round perdu (inutile), ou rejoué avec kill / round gagné. | |
+| `cs2.apres_pose.*` (T), `cs2.retake.*` (CT) | Rounds avec pose où Mathieu est vivant à la pose : victoire, survie, kills après la pose. Les preuves donnent le site et le lieu de Mathieu. | |
+| `cs2.clutch.situations`, `.taux_victoire` | Mathieu seul vivant de son équipe contre X adversaires (X ≥ 1) ; aussi par X. | |
+| `cs2.eco.part_achats_desynchronises` | Rounds hors pistolet où le type d'achat de Mathieu (éco < 1 500 $, partiel < 4 000 $, complet) diffère de celui de son équipe (valeur moyenne). | Seuils fixes, indépendants de l'arme. |
+| `cs2.eco.taux_victoire_type`, `.part_rounds_type` | Victoire selon le type d'achat de l'équipe ; répartition des rounds de Mathieu. | |
+| `cs2.eco.valeur_perdue_moyenne`, `.argent_restant_moyen` | Valeur d'équipement à la mort ; argent gardé dans les rounds d'achat complet de l'équipe. | |
+| `cs2.strat.part_poses_site`, `.taux_victoire_site`, `.repetition_max` | Rounds T de l'équipe : site de pose (A, B ou aucune pose), victoire par site, plus longue série sur le même site. | Une exécution sans pose (round perdu avant) compte « aucune pose ». |
+| `cs2.strat.adverse_part_poses_site`, `.taux_victoire_moitie` | Sites de pose des adversaires ; victoire par moitié (MR12) et prolongation. | |

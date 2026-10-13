@@ -101,3 +101,15 @@ Dépend du point L0-3 (une démo de DM enregistrée) et du SteamID (L0-2).
 - **Attendu** : une smoke « reconnue : smoke Window depuis TSpawn » est bien la smoke
   fenêtre classique ; une smoke « ratée de 220 u » est visiblement à côté ; une smoke
   « hors référence » n'est pas une smoke usuelle.
+
+## L4 — Décisions et économie CS2
+
+### 10. Vérifier sur 3 matchs Premier (PC de jeu)
+- [ ] Pour 3 matchs importés : `verifier <numéro>`, sections `cs2.ouverture.*`,
+      `cs2.rotation.*`, `cs2.save.*`, `cs2.apres_pose.*` / `cs2.retake.*`, `cs2.clutch.*`,
+      `cs2.eco.*`, `cs2.strat.*`.
+- **Attendu** : les rounds cités correspondent (ex. « Round 7 : 1v3 perdu, 1 kill » : c'est
+  bien le round 7 du tableau des scores ; « Mathieu en achat complet (4 700 $) alors que
+  l'équipe est en éco » : vrai dans le tableau d'achat du jeu).
+- Point particulier : la numérotation des rounds suit les fins de freeze vues dans la
+  démo ; si un round d'échauffement ou une pause technique décale tout d'un cran, le dire.

@@ -9,12 +9,15 @@ ticks   : tick, steamid (str), nom, equipe, x, y, z, vx, vy, pitch, yaw, vivant 
 tirs    : tick, steamid, arme                                  (weapon_fire)
 degats  : tick, attaquant, victime, arme, degats, zone         (player_hurt ; zone 'tete'…)
 morts   : tick, attaquant, victime, arme, headshot (bool)      (player_death)
-rounds  : numero, debut, fin                                   (fin du freeze → fin du round)
+rounds  : numero, debut, fin, gagnant (2 = T, 3 = CT, ou None)  (fin du freeze → fin du round)
 aveuglements : tick, attaquant (lanceur), victime, duree (s)  (player_blind)
 grenades : tick, lanceur, type, x, y, z, entite, fin           (éclatement ; fin = fin d'effet)
 lancers  : tick, steamid, type                                 (grenade_thrown)
 inventaires : tick, steamid, grenades (liste de codes)         (début/fin de round, avant mort)
-lieux    : tick, steamid, lieu (nom de zone de la carte)       (installation, lancers)
+lieux    : tick, steamid, lieu (nom de zone de la carte)       (installation, lancers, pose)
+bombe    : tick, evenement (pose, desamorcee, explosee), steamid
+economie : tick, steamid, argent, valeur_equipement, depense_round
+           (fin des achats = installation, avant chaque mort, fin de round)
 
 Types de grenade : flash, he, smoke, molotov (incendiaire comprise), decoy.
 """
@@ -103,7 +106,7 @@ class DonneesMatch:
     degats: pd.DataFrame
     morts: pd.DataFrame
     rounds: pd.DataFrame = field(
-        default_factory=lambda: pd.DataFrame(columns=["numero", "debut", "fin"])
+        default_factory=lambda: pd.DataFrame(columns=["numero", "debut", "fin", "gagnant"])
     )
     carte: str = ""
     aveuglements: pd.DataFrame = field(
@@ -122,6 +125,14 @@ class DonneesMatch:
     )
     lieux: pd.DataFrame = field(
         default_factory=lambda: pd.DataFrame(columns=["tick", "steamid", "lieu"])
+    )
+    bombe: pd.DataFrame = field(
+        default_factory=lambda: pd.DataFrame(columns=["tick", "evenement", "steamid"])
+    )
+    economie: pd.DataFrame = field(
+        default_factory=lambda: pd.DataFrame(
+            columns=["tick", "steamid", "argent", "valeur_equipement", "depense_round"]
+        )
     )
 
     def numero_round(self, tick: int) -> int | None:
@@ -231,6 +242,9 @@ EVENEMENTS = [
     "inferno_startburn",
     "inferno_expire",
     "decoy_started",
+    "bomb_planted",
+    "bomb_defused",
+    "bomb_exploded",
 ]
 
 # Noms d'inventaire (propriété « inventory ») et d'évènements → code de grenade.
@@ -342,8 +356,15 @@ def extraire_match(chemin: Path, steamid: str) -> DonneesMatch:
 
     vide = pd.DataFrame(columns=["tick"])
     debuts = sorted(evts.get("round_freeze_end", vide)["tick"].astype(int).tolist())
-    fins = sorted(evts.get("round_end", vide)["tick"].astype(int).tolist())
-    rounds = construire_rounds(debuts, fins)
+    fins_df = evts.get("round_end", vide)
+    fins = sorted(fins_df["tick"].astype(int).tolist())
+    gagnants = (
+        {int(r["tick"]): equipe_gagnante(r["winner"]) for _, r in fins_df.iterrows()}
+        if "winner" in fins_df
+        else {}
+    )
+    rounds = construire_rounds(debuts, fins, gagnants)
+    bombe = extraire_bombe(evts)
 
     # Inventaires aux moments utiles : début et fin de round, juste avant chaque mort.
     moments = set(debuts) | set(fins) | {max(0, int(t) - 1) for t in morts["tick"]}
@@ -362,7 +383,11 @@ def extraire_match(chemin: Path, steamid: str) -> DonneesMatch:
             pass  # inventaire indisponible : les mesures de gaspillage seront absentes
 
     # Noms de lieux (callouts de la carte) à l'installation de chaque round et aux lancers.
-    instants = {t + DELAI_INSTALLATION_TICKS for t in debuts} | set(lancers["tick"].astype(int))
+    instants = (
+        {t + DELAI_INSTALLATION_TICKS for t in debuts}
+        | set(lancers["tick"].astype(int))
+        | set(bombe["tick"].astype(int))
+    )
     lieux = pd.DataFrame(columns=["tick", "steamid", "lieu"])
     if instants:
         try:
@@ -377,6 +402,28 @@ def extraire_match(chemin: Path, steamid: str) -> DonneesMatch:
         except Exception:
             pass  # lieux indisponibles : positions de référence non calculées
 
+    # Économie : après la période d'achat, juste avant chaque mort, en fin de round.
+    moments_eco = (
+        {t + DELAI_INSTALLATION_TICKS for t in debuts}
+        | set(fins)
+        | {max(0, int(t) - 1) for t in morts["tick"]}
+    )
+    economie = pd.DataFrame(columns=COLONNES_ECONOMIE)
+    if moments_eco:
+        try:
+            brut_eco = parser.parse_ticks(PROPS_ECONOMIE, ticks=sorted(moments_eco))
+            economie = pd.DataFrame(
+                {
+                    "tick": brut_eco["tick"].astype("int64"),
+                    "steamid": _steamid(brut_eco["steamid"]),
+                    "argent": brut_eco["balance"].fillna(0).astype(int),
+                    "valeur_equipement": brut_eco["current_equip_value"].fillna(0).astype(int),
+                    "depense_round": brut_eco["cash_spent_this_round"].fillna(0).astype(int),
+                }
+            )
+        except Exception:
+            pass  # économie indisponible : mesures d'économie absentes
+
     return DonneesMatch(
         moi=moi,
         ticks=normaliser_ticks(brut, moi),
@@ -390,7 +437,39 @@ def extraire_match(chemin: Path, steamid: str) -> DonneesMatch:
         lancers=lancers,
         inventaires=inventaires,
         lieux=lieux,
+        bombe=bombe,
+        economie=economie,
     )
+
+
+PROPS_ECONOMIE = ["balance", "current_equip_value", "cash_spent_this_round"]
+COLONNES_ECONOMIE = ["tick", "steamid", "argent", "valeur_equipement", "depense_round"]
+COLONNES_BOMBE = ["tick", "evenement", "steamid"]
+
+
+def extraire_bombe(evts: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    """Évènements de la bombe : pose, désamorçage, explosion (avec le joueur concerné)."""
+    morceaux = []
+    for nom, evenement in (
+        ("bomb_planted", "pose"),
+        ("bomb_defused", "desamorcee"),
+        ("bomb_exploded", "explosee"),
+    ):
+        df = evts.get(nom)
+        if df is None or not len(df):
+            continue
+        morceaux.append(
+            pd.DataFrame(
+                {
+                    "tick": _tick(df),
+                    "evenement": evenement,
+                    "steamid": _steamid(_col(df, "user_steamid", "")),
+                }
+            )
+        )
+    if not morceaux:
+        return pd.DataFrame(columns=COLONNES_BOMBE)
+    return pd.concat(morceaux, ignore_index=True).sort_values("tick").reset_index(drop=True)
 
 
 COLONNES_GRENADES = ["tick", "lanceur", "type", "x", "y", "z", "entite", "fin"]
@@ -478,17 +557,34 @@ def extraire_grenades(evts: dict[str, pd.DataFrame]) -> pd.DataFrame:
     return grenades[COLONNES_GRENADES].sort_values("tick").reset_index(drop=True)
 
 
-def construire_rounds(debuts: list[int], fins: list[int]) -> pd.DataFrame:
+def construire_rounds(
+    debuts: list[int], fins: list[int], gagnants: dict[int, int] | None = None
+) -> pd.DataFrame:
     """Associe chaque fin de freeze à la fin de round suivante. Un round sans fin connue
-    (deathmatch, démo coupée) court jusqu'au début suivant, ou à l'infini."""
+    (deathmatch, démo coupée) court jusqu'au début suivant, ou à l'infini.
+    `gagnants` : équipe gagnante (2 = T, 3 = CT) par tick de fin de round."""
+    gagnants = gagnants or {}
     lignes = []
     for i, debut in enumerate(debuts):
         suivant = debuts[i + 1] if i + 1 < len(debuts) else None
         fin = next((f for f in fins if f > debut and (suivant is None or f <= suivant)), None)
+        gagnant = gagnants.get(fin) if fin is not None else None
         if fin is None:
             fin = suivant if suivant is not None else np.iinfo(np.int64).max
-        lignes.append({"numero": i + 1, "debut": debut, "fin": fin})
-    return pd.DataFrame(lignes, columns=["numero", "debut", "fin"])
+        lignes.append({"numero": i + 1, "debut": debut, "fin": fin, "gagnant": gagnant})
+    return pd.DataFrame(lignes, columns=["numero", "debut", "fin", "gagnant"])
+
+
+def equipe_gagnante(valeur: Any) -> int | None:
+    """round_end.winner : 2 / 3, ou « T » / « CT » selon les versions."""
+    if valeur is None or (isinstance(valeur, float) and np.isnan(valeur)):
+        return None
+    texte = str(valeur).strip().upper()
+    if texte in ("T", "TERRORIST", "2"):
+        return 2
+    if texte in ("CT", "3"):
+        return 3
+    return None
 
 
 class Positions:
