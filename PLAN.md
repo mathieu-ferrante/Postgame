@@ -242,8 +242,9 @@ Exigences nouvelles, au même rang que le cahier des charges :
         gardés dans la fiche — à confirmer sur vraies démos
   - [~] FACEIT : récupération des démos par l'API officielle FACEIT (CS-SRC-03, avancé) —
         codé, testé sur API simulée ; clés à fournir
-  - [ ] mesures et cibles distinguées par mode quand le mode change le jeu (Wingman : 2v2,
-        MR8, cartes réduites)
+  - [x] mesures distinguées par mode quand le mode change le jeu : en Wingman (2v2, MR8,
+        cartes réduites), trades, isolement, économie, stratégie, utilitaires portent
+        « mode: wingman » (moyennes et cibles à part) ; la mécanique de tir reste commune
 
 - [~] **AUTO-01 — Tout automatique de A à Z** : FACEIT (Data API + Downloads API) et codes
       de partage Steam codés et testés sur API simulées ; démos DM : rappel F8 sur le second

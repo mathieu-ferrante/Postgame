@@ -164,3 +164,22 @@ def test_demo_gotv_de_tournoi_sans_round_end():
     fiche = construire_fiche(donnees, MOI)
     assert fiche.mode == "competitif" and fiche.details["nb_rounds"] == 21
     assert (fiche.resultat, fiche.score_joueur, fiche.score_adverse) == ("victoire", 13, 8)
+
+
+def test_mesures_wingman_jugees_a_part():
+    from postgame.db import Mesure
+    from postgame.importation import contexte_du_mode
+    from postgame.mesures import ResultatAnalyse
+
+    def resultat():
+        r = ResultatAnalyse()
+        r.mesures = [
+            Mesure("cs2.trades.part_morts_tradees", 1, 40.0, "%", {"n": 5}),
+            Mesure("cs2.contre_strafe.part_tirs_precis", 1, 80.0, "%", {"arme": "ak47"}),
+        ]
+        return r
+
+    w = contexte_du_mode("cs2", "wingman", resultat()).mesures
+    # Trades en 2v2 : à part ; mécanique de tir : commune à tous les modes.
+    assert w[0].contexte == {"n": 5, "mode": "wingman"} and w[1].contexte == {"arme": "ak47"}
+    assert contexte_du_mode("cs2", "premier", resultat()).mesures[0].contexte == {"n": 5}

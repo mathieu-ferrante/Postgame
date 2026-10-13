@@ -108,7 +108,35 @@ def importer(
     return ResultatImport("importe", f"{module.libelle} — {fiche.carte}, {fiche.mode}", partie_id)
 
 
+# Modes qui changent le jeu (MODES-01) : en Wingman (2v2, petite carte), trades, isolement,
+# économie, stratégie… ne se comparent pas au 5v5. Ces mesures portent le mode dans leur
+# contexte, donc moyennes personnelles et cibles séparées. La mécanique de tir est commune.
+MODES_A_PART = {"wingman"}
+MECANIQUE_CS2 = (
+    "cs2.contre_strafe.",
+    "cs2.premiere_balle.",
+    "cs2.spray.",
+    "cs2.reaction.",
+    "cs2.ttk.",
+    "cs2.viseur.",
+    "cs2.armes.",
+    "cs2.sniper.",
+)
+
+
+def contexte_du_mode(jeu: str, mode: str, resultat: ResultatAnalyse) -> ResultatAnalyse:
+    if jeu != "cs2" or mode not in MODES_A_PART:
+        return resultat
+    for m in resultat.mesures:
+        if not m.nom.startswith(MECANIQUE_CS2):
+            m.contexte = {**m.contexte, "mode": mode}
+    return resultat
+
+
 def enregistrer_analyse(base: Base, partie_id: int, resultat: ResultatAnalyse) -> None:
+    partie = base.partie(partie_id)
+    if partie is not None:
+        resultat = contexte_du_mode(partie.jeu, partie.mode, resultat)
     base.remplacer_mesures(partie_id, resultat.mesures)
     base.remplacer_preuves(partie_id, resultat.preuves)
 
