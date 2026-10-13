@@ -24,6 +24,8 @@ interface Live {
   recommandation?: { type: string; titre: string; raison: string } | null;
   coequipiers?: { nom: string; argent: number; vie: number }[] | null;
   rappel?: { id: string; libelle: string; valeur: number; unite: string; cible: number | null }[];
+  alerte?: string;
+  mode?: string;
 }
 
 const COULEUR_RECO: Record<string, string> = {
@@ -81,6 +83,9 @@ export default function Direct() {
         <span className="badge">{connecte ? "connecté" : "connexion…"}</span>
         {age !== null && <span className="discret">dernier message il y a {age} s</span>}
       </div>
+      {live.alerte && (
+        <div className="carte" style={{ borderLeft: "6px solid var(--mal)", fontSize: "1.2rem" }}>{live.alerte}</div>
+      )}
       <DirectLoL />
       {!live.actif && (
         <p className="discret">

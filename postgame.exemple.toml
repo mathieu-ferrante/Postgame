@@ -31,6 +31,15 @@ dossiers_journaux = [
     "%LOCALAPPDATA%/GeometryDash/geode/mods/mathieu.postgame-journal/sessions",
 ]
 
+[faceit]
+# Pseudo FACEIT : les parties FACEIT sont récupérées automatiquement (clés dans secrets.toml).
+pseudo = ""
+
+[steam]
+# Codes de partage des parties Premier / compétitives : un code déjà connu sert de point de
+# départ (CS2 → Regarder → Vos matchs → partager, ou page d'aide Steam, voir A_VALIDER.md).
+code_connu = ""
+
 [riot]
 # Riot ID (League of Legends et TFT) ; la clé API va dans secrets.toml.
 riot_id = ""          # « Pseudo#TAG »

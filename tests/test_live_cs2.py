@@ -194,3 +194,10 @@ def test_websocket_pousse_chaque_message(client):
     assert recu["joueur"]["argent"] == 4000
     # Mesure locale seulement : la latence réelle jeu → téléphone se vérifie sur le PC de jeu.
     assert delai < 0.5
+
+
+def test_alerte_deathmatch_non_enregistre(client):
+    m = message(client.jeton)
+    m["map"]["mode"] = "deathmatch"
+    client.post("/api/cs2/gsi", json=m)
+    assert "F8" in client.get("/api/cs2/live").json()["alerte"]

@@ -47,6 +47,9 @@ class Config:
     dossiers_gd: list[Path] = field(
         default_factory=lambda: [Path(os.environ.get("LOCALAPPDATA", "")) / DOSSIER_GD]
     )
+    faceit_pseudo: str = ""
+    steam_code_connu: str = ""  # un code de partage déjà connu (point de départ de l'API)
+    sources_synchro_minutes: float = 10.0
     riot_id: str = ""  # « Pseudo#TAG »
     riot_plateforme: str = "euw1"
     riot_region: str = "europe"
@@ -114,6 +117,9 @@ def charger_config(chemin: Path | None = None) -> Config:
     gd = brut.get("gd", {})
     if "dossiers_journaux" in gd:
         cfg.dossiers_gd = [Path(os.path.expandvars(d)) for d in gd["dossiers_journaux"]]
+
+    cfg.faceit_pseudo = str(brut.get("faceit", {}).get("pseudo", "")).strip()
+    cfg.steam_code_connu = str(brut.get("steam", {}).get("code_connu", "")).strip()
 
     riot = brut.get("riot", {})
     cfg.riot_id = str(riot.get("riot_id", cfg.riot_id)).strip()

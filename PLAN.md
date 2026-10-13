@@ -174,11 +174,15 @@ Exigences nouvelles, au même rang que le cahier des charges :
   - [~] détection du mode par le type de classement du match (11 Premier, 6 compétitif,
         7 Wingman), le serveur (FACEIT) et la forme de la partie (DM) ; CS Rating / rang
         gardés dans la fiche — à confirmer sur vraies démos
-  - [ ] FACEIT : récupération des démos par l'API officielle FACEIT (CS-SRC-03, avancé)
+  - [~] FACEIT : récupération des démos par l'API officielle FACEIT (CS-SRC-03, avancé) —
+        codé, testé sur API simulée ; clés à fournir
   - [ ] mesures et cibles distinguées par mode quand le mode change le jeu (Wingman : 2v2,
         MR8, cartes réduites)
 
-- [ ] **AUTO-01 — Tout automatique de A à Z** : récupérer les démos sans action de Mathieu
+- [~] **AUTO-01 — Tout automatique de A à Z** : FACEIT (Data API + Downloads API) et codes
+      de partage Steam codés et testés sur API simulées ; démos DM : rappel F8 sur le second
+      écran ; reste : adresse des démos Premier via le coordinateur de jeu (question posée).
+      Détail : : récupérer les démos sans action de Mathieu
       (Premier / compétitif par les codes de partage Steam, FACEIT par son API, DM par la
       config F8 + rappel sur le second écran), importer, analyser, débriefer
 - [x] **PERF-01 — Aucune analyse pendant une partie** (codé et testé ; à mesurer en jeu) : import et analyse différés tant
@@ -242,3 +246,6 @@ Exigences nouvelles, au même rang que le cahier des charges :
 | 2026-10-13 | CTX-01 | Pool de cartes CS2 tenu à jour d'après les actualités officielles de Valve (API d'actualités Steam) ; base vérifiée au 9 juillet 2026 : Ancient, Anubis, Cache, Dust II, Inferno, Mirage, Nuke | Mathieu a relevé une liste périmée (Overpass) ; les notes officielles font foi et suivent chaque changement sans modifier le code |
 | 2026-10-13 | CTX-01 | Armes : notes de mise à jour de mars à octobre 2026 relues, aucun changement de vitesse, de prix ni d'économie (seul le rechargement de l'AUG) | Les seuils de contre-strafe et l'économie restent valables ; à revérifier à chaque mise à jour d'équilibrage |
 | 2026-10-13 | PERF-01 | Démos CS2 « lourdes » reportées tant qu'un jeu tourne (cs2.exe, League of Legends.exe, GeometryDash.exe ou GSI actif < 30 s) ; fichiers légers reportés seulement pendant CS2 ou LoL ; service en priorité basse | Demande de Mathieu : pas de perte de performance en partie ; le second écran reste actif car il ne fait que lire de petits messages |
+| 2026-10-13 | AUTO-01 | FACEIT par Data API v4 + Downloads API (lien signé), démos .gz / .zst décompressées | Seule voie officielle : les démos FACEIT sont privées |
+| 2026-10-13 | AUTO-01 | Premier / compétitif : codes de partage par l'API Web Steam ; pas de connexion automatisée au compte Steam | Saisir les identifiants de Mathieu est exclu ; le coordinateur de jeu exige le client Steam connecté |
+| 2026-10-13 | AUTO-01 | Pas d'enregistrement DM déclenché par Postgame (aucune touche simulée dans le jeu) ; rappel sur le second écran à la place | Rien qui touche au jeu (cahier des charges, anti-triche) |

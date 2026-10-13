@@ -249,3 +249,23 @@ Riot ID enregistré dans `postgame.toml` (local) : `iamheremyfriend#hiii`.
 - [ ] Pendant une partie LoL, ouvrir « En direct » sur le téléphone : le panneau LoL doit
       apparaître au chargement de la partie (API locale du client).
 - Me dire ce qui est faux ou inutile.
+
+## Récupération automatique des parties CS2 (AUTO-01)
+
+### 24. FACEIT
+- [ ] Me donner le pseudo FACEIT (ou le mettre dans `postgame.toml`, `[faceit] pseudo`).
+- [ ] developers.faceit.com → créer une application → clé « Server side » : `secrets.toml`,
+      `[faceit] cle = "…"`.
+- [ ] Demander l'accès à la **Downloads API** (formulaire FACEIT, réponse en ~30 jours),
+      puis mettre le jeton dans `[faceit] jeton_telechargement`.
+- **Attendu** : les parties FACEIT apparaissent seules dans Postgame après chaque match
+  (`http://localhost:8765/api/sources/etat`).
+
+### 25. Codes de partage Steam (Premier / compétitif)
+- [ ] Clé API Web Steam : steamcommunity.com/dev/apikey → `[steam] cle` dans `secrets.toml`.
+- [ ] Code d'authentification de l'historique des matchs : page d'aide Steam « Counter-Strike 2
+      → Je souhaite gérer mon code d'authentification de l'historique des matchs » →
+      `[steam] code_historique`.
+- [ ] Un code de partage récent (CS2 → Regarder → Vos matchs → icône de partage) dans
+      `postgame.toml`, `[steam] code_connu = "CSGO-…"`.
+- **Attendu** : Postgame liste chaque nouvelle partie classée, même sans démo téléchargée.

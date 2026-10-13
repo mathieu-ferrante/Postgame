@@ -74,6 +74,13 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
             if cfg.riot_id and cfg.secret("riot", "cle", "RIOT_API_KEY"):
                 app.state.collecteur_riot.demarrer()
             app.state.scruteur_lol.demarrer()
+            if cfg.faceit_pseudo or cfg.steam_code_connu:
+                threading.Thread(
+                    target=app.state.boucle_sources,
+                    args=(app.state.arret,),
+                    daemon=True,
+                    name="sources-cs2",
+                ).start()
             if not cfg.hors_ligne:
                 from postgame.games.cs2 import cartes
 
@@ -85,6 +92,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
                 ).start()
         yield
         app.state.scruteur_lol.arreter()
+        app.state.arret.set()
         surveillant.arreter()
         app.state.collecteur_riot.arreter()
 
@@ -435,6 +443,53 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         except (WebSocketDisconnect, RuntimeError):
             pass
 
+    # --- Récupération automatique des parties CS2 (AUTO-01) ------------------------------
+
+    etat_sources: dict[str, Any] = {"faceit": None, "steam": None, "derniere_synchro": None}
+
+    def synchroniser_sources() -> dict[str, Any]:
+        from postgame.db import maintenant
+        from postgame.games.cs2.sources import CodesSteam, CollecteurFaceit, ErreurSource
+
+        if cfg.faceit_pseudo:
+            try:
+                etat_sources["faceit"] = CollecteurFaceit(base, cfg).synchroniser()
+            except (ErreurSource, Exception) as exc:  # réseau, clé… : on réessaiera
+                etat_sources["faceit"] = {"erreur": str(exc)}
+        if cfg.steam_code_connu:
+            try:
+                codes = CodesSteam(cfg)
+                etat_sources["steam"] = {
+                    "nouveaux": codes.synchroniser(),
+                    "sans_demo": len(codes.sans_demo()),
+                }
+            except (ErreurSource, Exception) as exc:
+                etat_sources["steam"] = {"erreur": str(exc)}
+        etat_sources["derniere_synchro"] = maintenant()
+        return etat_sources
+
+    def boucle_sources(arret: threading.Event) -> None:
+        while not arret.is_set():
+            if not garde.doit_attendre("leger"):
+                synchroniser_sources()
+            arret.wait(cfg.sources_synchro_minutes * 60)
+
+    app.state.boucle_sources = boucle_sources
+    app.state.arret = threading.Event()
+
+    @app.get("/api/sources/etat", tags=["import"])
+    def sources_etat() -> dict[str, Any]:
+        """Récupération automatique : FACEIT, codes de partage Steam (parties sans démo)."""
+        return {
+            "faceit_pseudo": cfg.faceit_pseudo or None,
+            "steam_configure": bool(cfg.steam_code_connu),
+            **etat_sources,
+        }
+
+    @app.post("/api/sources/synchroniser", tags=["import"])
+    def sources_synchroniser() -> dict[str, Any]:
+        return synchroniser_sources()
+
     # --- Second écran CS2 (Game State Integration) ---------------------------------------
 
     recepteur = RecepteurGSI(cfg.dossier_donnees, jeton_gsi(cfg.dossier_donnees))
@@ -442,7 +497,13 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
     app.state.recepteur_gsi = recepteur
 
     def message_live() -> dict[str, Any]:
-        return {**recepteur.resume, "rappel": rappel_priorites(base)}
+        message = {**recepteur.resume, "rappel": rappel_priorites(base)}
+        # Deathmatch sans démo en cours d'écriture : rappeler la touche d'enregistrement.
+        enregistre = any(Path(c).name.startswith("postgame_") for c in surveillant.en_attente())
+        if (message.get("mode") == "deathmatch" and message.get("phase_match") == "live"
+                and not enregistre):
+            message["alerte"] = "Deathmatch non enregistré : appuie sur F8 pour l'analyser ensuite."
+        return message
 
     @app.post("/api/cs2/gsi", tags=["cs2"], include_in_schema=False)
     async def gsi(requete: Request) -> dict[str, str]:
