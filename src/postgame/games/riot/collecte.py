@@ -32,8 +32,9 @@ def client_configure(cfg: Config) -> ClientRiot:
 
 
 class CollecteurRiot:
-    def __init__(self, base: Base, cfg: Config, client: ClientRiot | None = None):
+    def __init__(self, base: Base, cfg: Config, client: ClientRiot | None = None, garde=None):
         self.base, self.cfg = base, cfg
+        self.garde = garde  # PERF-01 : pas de synchronisation pendant une partie
         self._client = client
         self.dossier = cfg.dossier_donnees / "riot"
         self.etat: dict[str, Any] = {"derniere_synchro": None, "erreur": None, "importees": 0}
@@ -139,6 +140,9 @@ class CollecteurRiot:
 
     def _boucle(self) -> None:
         while not self._arret.is_set():
+            if self.garde is not None and self.garde.doit_attendre("leger"):
+                self._arret.wait(60)
+                continue
             try:
                 bilan = self.synchroniser()
                 journal.info(

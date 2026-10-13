@@ -116,6 +116,7 @@ class ModuleLoL:
     nom = "lol"
     libelle = "League of Legends"
     extensions = (".lol",)
+    cout = "leger"
 
     def dossiers_surveilles(self, cfg: Config) -> list[Path]:
         return []  # les parties arrivent par l'API Riot, pas par un dossier du jeu

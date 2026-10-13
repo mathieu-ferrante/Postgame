@@ -143,6 +143,7 @@ class ModuleTFT:
     nom = "tft"
     libelle = "Teamfight Tactics"
     extensions = (".tft",)
+    cout = "leger"
 
     def dossiers_surveilles(self, cfg: Config) -> list[Path]:
         return []

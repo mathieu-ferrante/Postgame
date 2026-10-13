@@ -181,7 +181,7 @@ Exigences nouvelles, au même rang que le cahier des charges :
 - [ ] **AUTO-01 — Tout automatique de A à Z** : récupérer les démos sans action de Mathieu
       (Premier / compétitif par les codes de partage Steam, FACEIT par son API, DM par la
       config F8 + rappel sur le second écran), importer, analyser, débriefer
-- [ ] **PERF-01 — Aucune analyse pendant une partie** : import et analyse différés tant
+- [x] **PERF-01 — Aucune analyse pendant une partie** (codé et testé ; à mesurer en jeu) : import et analyse différés tant
       qu'un jeu tourne (processus du jeu ou flux GSI actif), service en priorité basse ; seul
       le second écran (léger) tourne pendant la partie
 
@@ -241,3 +241,4 @@ Exigences nouvelles, au même rang que le cahier des charges :
 | 2026-10-13 | L9 | Second écran LoL par scrutation (0,5 s) de l'API locale, sans vérification du certificat de 127.0.0.1 | API officielle de Riot, locale ; certificat racine Riot non distribué avec Postgame |
 | 2026-10-13 | CTX-01 | Pool de cartes CS2 tenu à jour d'après les actualités officielles de Valve (API d'actualités Steam) ; base vérifiée au 9 juillet 2026 : Ancient, Anubis, Cache, Dust II, Inferno, Mirage, Nuke | Mathieu a relevé une liste périmée (Overpass) ; les notes officielles font foi et suivent chaque changement sans modifier le code |
 | 2026-10-13 | CTX-01 | Armes : notes de mise à jour de mars à octobre 2026 relues, aucun changement de vitesse, de prix ni d'économie (seul le rechargement de l'AUG) | Les seuils de contre-strafe et l'économie restent valables ; à revérifier à chaque mise à jour d'équilibrage |
+| 2026-10-13 | PERF-01 | Démos CS2 « lourdes » reportées tant qu'un jeu tourne (cs2.exe, League of Legends.exe, GeometryDash.exe ou GSI actif < 30 s) ; fichiers légers reportés seulement pendant CS2 ou LoL ; service en priorité basse | Demande de Mathieu : pas de perte de performance en partie ; le second écran reste actif car il ne fait que lire de petits messages |

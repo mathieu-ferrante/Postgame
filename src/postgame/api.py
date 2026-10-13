@@ -45,6 +45,7 @@ from postgame.importation import importer
 from postgame.live.gsi_cs2 import RecepteurGSI, jeton_gsi
 from postgame.live.lol import ScruteurLoL
 from postgame.mesures import DEFINITIONS
+from postgame.performance import Garde, abaisser_priorite
 from postgame.surveillance import Surveillant
 
 PERIODES = {"7j": timedelta(days=7), "30j": timedelta(days=30), "tout": None}
@@ -58,11 +59,17 @@ class CorpsFiabilite(BaseModel):
 
 def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) -> FastAPI:
     base = base or Base(cfg.chemin_base)
-    surveillant = Surveillant(base, cfg)
+    garde = Garde(
+        dernier_gsi=lambda: (
+            getattr(app.state, "recepteur_gsi", None) and app.state.recepteur_gsi.dernier_recu
+        )
+    )
+    surveillant = Surveillant(base, cfg, garde=garde if surveiller else None)
 
     @asynccontextmanager
     async def cycle_de_vie(_app: FastAPI):
         if surveiller:
+            abaisser_priorite()
             surveillant.demarrer()
             if cfg.riot_id and cfg.secret("riot", "cle", "RIOT_API_KEY"):
                 app.state.collecteur_riot.demarrer()
@@ -128,6 +135,8 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         derniere = surveillant.derniere_passe
         return {
             "surveillance_active": surveiller,
+            "jeux_en_cours": sorted(garde.jeux_en_cours()) if surveiller else [],
+            "reportes_fin_de_partie": sorted(surveillant.reportes),
             "derniere_passe": datetime.fromtimestamp(derniere, UTC).isoformat()
             if derniere
             else None,
@@ -355,7 +364,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
 
     # --- Riot : LoL et TFT ---------------------------------------------------------------
 
-    collecteur = CollecteurRiot(base, cfg)
+    collecteur = CollecteurRiot(base, cfg, garde=garde if surveiller else None)
     app.state.collecteur_riot = collecteur
 
     @app.get("/api/riot/etat", tags=["riot"])

@@ -17,6 +17,7 @@ class ModuleCS2:
     nom = "cs2"
     libelle = "Counter-Strike 2"
     extensions = (".dem",)
+    cout = "lourd"  # lecture complète de la démo : jamais pendant une partie (PERF-01)
 
     def dossiers_surveilles(self, cfg: Config) -> list[Path]:
         return list(cfg.dossiers_cs2)

@@ -30,9 +30,11 @@ class _EnAttente:
 
 
 class Surveillant:
-    def __init__(self, base: Base, cfg: Config, horloge=time.monotonic):
+    def __init__(self, base: Base, cfg: Config, horloge=time.monotonic, garde=None):
         self.base = base
         self.cfg = cfg
+        self.garde = garde  # PERF-01 : reporte les imports pendant une partie
+        self.reportes: set[str] = set()
         self._horloge = horloge
         self._attente: dict[str, _EnAttente] = {}
         self._arret = threading.Event()
@@ -74,6 +76,11 @@ class Surveillant:
                     continue
                 if maintenant - attente.stable_depuis < self.cfg.delai_stabilite_s:
                     continue
+                cout = getattr(MODULES[nom_jeu], "cout", "leger")
+                if self.garde is not None and self.garde.doit_attendre(cout):
+                    self.reportes.add(cle)  # importé dès la fin de la partie
+                    continue
+                self.reportes.discard(cle)
                 del self._attente[cle]
                 resultat = importer(chemin, self.base, self.cfg)
                 self.base.noter_fichier(

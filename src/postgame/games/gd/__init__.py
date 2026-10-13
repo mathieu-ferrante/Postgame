@@ -81,6 +81,7 @@ class ModuleGD:
     nom = "gd"
     libelle = "Geometry Dash"
     extensions = (".gdsession",)
+    cout = "leger"
 
     def dossiers_surveilles(self, cfg: Config) -> list[Path]:
         return list(cfg.dossiers_gd)
