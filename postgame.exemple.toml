@@ -1,0 +1,25 @@
+# Configuration locale de Postgame.
+# Copier ce fichier en « postgame.toml » (ignoré par git) et l'adapter.
+# Aucun secret ne doit être mis dans le fichier d'exemple.
+
+[service]
+hote = "0.0.0.0"          # 0.0.0.0 = joignable depuis le téléphone et le Mac du réseau local
+port = 8765
+dossier_donnees = "data"  # base SQLite + copies archivées des démos
+
+[joueur]
+# SteamID64 de Mathieu (17 chiffres, ex. 7656119xxxxxxxxxx) : sert à savoir quel joueur
+# analyser dans une démo. Visible sur steamid.io ou dans l'URL de son profil Steam.
+steamid = ""
+
+[cs2]
+# Dossiers surveillés : les démos Premier téléchargées depuis le jeu atterrissent dans
+# « replays », les démos enregistrées avec « record » dans « game\csgo ».
+dossiers_demos = [
+    "C:/Program Files (x86)/Steam/steamapps/common/Counter-Strike Global Offensive/game/csgo/replays",
+    "C:/Program Files (x86)/Steam/steamapps/common/Counter-Strike Global Offensive/game/csgo",
+]
+
+[surveillance]
+intervalle_s = 5          # période de scrutation des dossiers
+delai_stabilite_s = 10    # un fichier doit garder la même taille ce temps-là avant import

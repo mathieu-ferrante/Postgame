@@ -1,0 +1,27 @@
+# Environnement Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Configuration locale (chemins, SteamID, clés) — jamais commitée
+postgame.toml
+secrets.toml
+.env
+
+# Données locales : base, démos importées, journaux
+data/
+*.dem
+*.db
+*.sqlite
+
+# Interface web
+node_modules/
+web/dist/
+
+# Vraies démos et journaux de test (données personnelles)
+tests/donnees/*
+!tests/donnees/LISEZMOI.md
+*.diagnostic.json
