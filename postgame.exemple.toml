@@ -6,6 +6,9 @@
 hote = "0.0.0.0"          # 0.0.0.0 = joignable depuis le téléphone et le Mac du réseau local
 port = 8765
 dossier_donnees = "data"  # base SQLite + copies archivées des démos
+# HTTPS, pour installer l'interface sur le téléphone (voir A_VALIDER.md, mkcert) :
+# certificat = "certs/postgame.pem"
+# cle_privee = "certs/postgame-key.pem"
 
 [joueur]
 # SteamID64 de Mathieu (17 chiffres, ex. 7656119xxxxxxxxxx) : sert à savoir quel joueur

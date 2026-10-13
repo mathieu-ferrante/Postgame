@@ -17,6 +17,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from postgame import __version__
@@ -25,6 +26,9 @@ from postgame.db import Base
 from postgame.debrief import generer_debrief
 from postgame.debrief.constats import charger_definitions
 from postgame.games import MODULES
+from postgame.games.cs2 import radar as radar_cs2
+from postgame.games.cs2 import replay as replay_cs2
+from postgame.games.cs2.donnees import extraire_match
 from postgame.importation import importer
 from postgame.mesures import DEFINITIONS
 from postgame.surveillance import Surveillant
@@ -61,6 +65,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
     )
     app.state.base = base
     app.state.surveillant = surveillant
+    app.state.extraire_match = extraire_match  # remplaçable dans les tests
 
     @app.get("/api/sante", tags=["service"])
     def sante() -> dict[str, Any]:
@@ -233,6 +238,48 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
             "positions": json.loads(cat.positions.to_json(orient="records")),
         }
 
+    @app.get("/api/cs2/replay/{partie_id}", tags=["cs2"])
+    def replay_meta(partie_id: int) -> dict[str, Any]:
+        """Replay 2D (CS-RPL-01) : carte, joueurs, rounds, silhouette de la carte, radar."""
+        donnees = _replay(partie_id)
+        return {
+            **donnees["meta"],
+            "radar": radar_cs2.radar(cfg.dossier_donnees, donnees["meta"]["carte"]),
+        }
+
+    @app.get("/api/cs2/replay/{partie_id}/round/{numero}", tags=["cs2"])
+    def replay_round(partie_id: int, numero: int) -> dict[str, Any]:
+        """Positions (16 images/s) et évènements d'un round."""
+        donnees = _replay(partie_id)
+        r = donnees["rounds"].get(str(numero))
+        if r is None:
+            raise HTTPException(404, "round inconnu")
+        return r
+
+    @app.get("/api/cs2/radar/{carte}.png", tags=["cs2"])
+    def image_radar(carte: str) -> FileResponse:
+        image = radar_cs2.chemin_image(cfg.dossier_donnees, carte)
+        if image is None:
+            raise HTTPException(404, "radar absent : voir A_VALIDER.md")
+        return FileResponse(image, media_type="image/png")
+
+    def _replay(partie_id: int) -> dict[str, Any]:
+        p = base.partie(partie_id)
+        if p is None or p.jeu != "cs2":
+            raise HTTPException(404, "partie CS2 inconnue")
+        cache = replay_cs2.chemin_cache(cfg.dossier_donnees, partie_id)
+        donnees = replay_cs2.lire_cache(cache)
+        if donnees is None:
+            if not Path(p.fichier).exists():
+                raise HTTPException(410, "démo archivée introuvable")
+            try:
+                match = app.state.extraire_match(Path(p.fichier), cfg.steamid)
+            except Exception as exc:
+                raise HTTPException(422, f"démo illisible : {exc}") from exc
+            donnees = replay_cs2.construire_replay(match)
+            replay_cs2.ecrire_cache(cache, donnees)
+        return donnees
+
     @app.get("/api/mesures", tags=["mesures"])
     def noms_mesures() -> list[str]:
         """Noms des mesures disponibles en base."""
@@ -246,6 +293,18 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         duree = PERIODES[periode]
         depuis = (datetime.now(UTC) - duree).isoformat() if duree else None
         return {"nom": nom, "periode": periode, "points": base.serie_mesure(nom, depuis)}
+
+    # Interface web (web/dist) : fichiers statiques et routes de l'application (SPA).
+    dossier_web = cfg.dossier_web
+
+    @app.get("/{chemin:path}", include_in_schema=False)
+    def interface(chemin: str) -> FileResponse:
+        if chemin.startswith("api/") or not (dossier_web / "index.html").exists():
+            raise HTTPException(404, "introuvable")
+        fichier = (dossier_web / chemin).resolve()
+        if chemin and fichier.is_file() and fichier.is_relative_to(dossier_web.resolve()):
+            return FileResponse(fichier)
+        return FileResponse(dossier_web / "index.html")
 
     return app
 

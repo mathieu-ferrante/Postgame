@@ -11,6 +11,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+RACINE = Path(__file__).resolve().parents[2]
 DOSSIER_CS2 = (
     "C:/Program Files (x86)/Steam/steamapps/common/Counter-Strike Global Offensive/game/csgo"
 )
@@ -52,6 +53,12 @@ class Config:
             return os.environ[variable]
         return str(self.secrets.get(section, {}).get(cle, "")).strip()
 
+    # HTTPS (nécessaire pour installer l'interface comme appli sur le téléphone) :
+    # certificat et clé générés avec mkcert, voir A_VALIDER.md.
+    certificat: Path | None = None
+    cle_privee: Path | None = None
+    dossier_web: Path = RACINE / "web" / "dist"
+
     @property
     def chemin_base(self) -> Path:
         return self.dossier_donnees / "postgame.db"
@@ -79,6 +86,11 @@ def charger_config(chemin: Path | None = None) -> Config:
         dossier = Path(service["dossier_donnees"])
         # Un chemin relatif est relatif au fichier de configuration, pas au dossier courant.
         cfg.dossier_donnees = dossier if dossier.is_absolute() else chemin.parent / dossier
+
+    for nom in ("certificat", "cle_privee"):
+        if service.get(nom):
+            fichier = Path(service[nom])
+            setattr(cfg, nom, fichier if fichier.is_absolute() else chemin.parent / fichier)
 
     cfg.steamid = str(brut.get("joueur", {}).get("steamid", "")).strip()
 

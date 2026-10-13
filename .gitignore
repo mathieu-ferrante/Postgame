@@ -25,3 +25,7 @@ web/dist/
 tests/donnees/*
 !tests/donnees/LISEZMOI.md
 *.diagnostic.json
+
+# Certificats HTTPS locaux
+certs/
+*.pem

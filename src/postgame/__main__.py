@@ -82,7 +82,10 @@ def main(argv: list[str] | None = None) -> int:
         from postgame.api import creer_app
 
         app = creer_app(cfg, surveiller=not args.sans_surveillance)
-        uvicorn.run(app, host=cfg.hote, port=cfg.port)
+        tls = {}
+        if cfg.certificat and cfg.cle_privee:
+            tls = {"ssl_certfile": str(cfg.certificat), "ssl_keyfile": str(cfg.cle_privee)}
+        uvicorn.run(app, host=cfg.hote, port=cfg.port, **tls)
         return 0
 
     if args.commande == "diagnostic":
