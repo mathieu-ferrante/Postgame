@@ -6,7 +6,17 @@ import type { PointChaleur } from "../api";
 import { api } from "../api";
 import { Etat, useDonnee } from "../composants/Chargement";
 
-const CARTES = ["de_mirage", "de_inferno", "de_dust2", "de_nuke", "de_ancient", "de_anubis", "de_overpass", "de_train", "de_vertigo"];
+interface Cartes {
+  date: string;
+  source: string;
+  cartes: { code: string; nom: string; pool: boolean }[];
+}
+
+async function chargerCartes(): Promise<Cartes> {
+  const r = await fetch("/api/cs2/cartes");
+  if (!r.ok) throw new Error(String(r.status));
+  return r.json();
+}
 
 function cadrer(points: PointChaleur[], cote: number) {
   const xs = points.map((p) => p.x), ys = points.map((p) => p.y);
@@ -18,7 +28,9 @@ function cadrer(points: PointChaleur[], cote: number) {
 }
 
 export default function Chaleur() {
-  const [carte, setCarte] = useState("de_mirage");
+  const cartes = useDonnee(chargerCartes, []);
+  const [choix, setCarte] = useState<string | null>(null);
+  const carte = choix ?? cartes.donnee?.cartes[0]?.code ?? "de_mirage";
   const [type, setType] = useState("mort");
   const [camp, setCamp] = useState("");
   const [periode, setPeriode] = useState("tout");
@@ -75,7 +87,12 @@ export default function Chaleur() {
       <div className="carte">
         <div className="ligne">
           <select value={carte} onChange={(e) => setCarte(e.target.value)}>
-            {CARTES.map((c) => <option key={c}>{c}</option>)}
+            <optgroup label="Pool actif (Premier, compétitif)">
+              {cartes.donnee?.cartes.filter((c) => c.pool).map((c) => <option key={c.code} value={c.code}>{c.nom}</option>)}
+            </optgroup>
+            <optgroup label="Autres cartes jouées">
+              {cartes.donnee?.cartes.filter((c) => !c.pool).map((c) => <option key={c.code} value={c.code}>{c.nom}</option>)}
+            </optgroup>
           </select>
           <button className={type === "mort" ? "actif" : ""} onClick={() => setType("mort")}>Morts</button>
           <button className={type === "kill" ? "actif" : ""} onClick={() => setType("kill")}>Kills</button>
@@ -88,6 +105,7 @@ export default function Chaleur() {
         </div>
         <Etat erreur={donnees.erreur} chargement={donnees.chargement} />
         <p className="discret">{points.length} point(s). Cliquer un point ouvre le replay à ce moment.</p>
+        {cartes.donnee && <p className="discret">Pool actif d'après : {cartes.donnee.source}.</p>}
         <canvas ref={canevas} onClick={clic} style={{ width: "100%", maxWidth: 640, aspectRatio: "1", background: "#0e1013", borderRadius: 10 }} />
       </div>
     </>

@@ -5,7 +5,9 @@ colonnes sont décrites ci-dessous. Les tests fabriquent des `DonneesMatch` à l
 
 ticks   : tick, steamid (str), nom, equipe, x, y, z, vx, vy, pitch, yaw, vivant (bool),
           accroupi (bool), arme (code), vu_par_moi (bool : l'adversaire est « repéré » par
-          le joueur suivi), punch_pitch, punch_yaw
+          le joueur suivi), punch_pitch, punch_yaw, lunette (bool), en_l_air (bool),
+          repere_par (tuple des SteamID qui « repèrent » ce joueur ; sert à changer de
+          joueur suivi, ex. analyser chaque pro d'une démo)
 tirs    : tick, steamid, arme                                  (weapon_fire)
 degats  : tick, attaquant, victime, arme, degats, zone         (player_hurt ; zone 'tete'…)
 morts   : tick, attaquant, victime, arme, headshot (bool)      (player_death)
@@ -52,6 +54,8 @@ PROPS_TICKS = [
     "active_weapon_name",
     "approximate_spotted_by",
     "aim_punch_angle",
+    "is_scoped",
+    "is_airborne",
 ]
 
 COLONNES_TICKS = [
@@ -72,6 +76,8 @@ COLONNES_TICKS = [
     "vu_par_moi",
     "punch_pitch",
     "punch_yaw",
+    "lunette",
+    "en_l_air",
 ]
 
 ZONES = {
@@ -154,6 +160,15 @@ class DonneesMatch:
     def est_deathmatch(self) -> bool:
         return len(self.rounds) <= 1
 
+    def pour(self, steamid: str) -> DonneesMatch:
+        """Mêmes données, du point de vue d'un autre joueur (pour analyser chaque pro d'une
+        démo avec exactement le code qui analyse Mathieu)."""
+        ticks = self.ticks.copy()
+        if "repere_par" in ticks:
+            ticks["vu_par_moi"] = [steamid in r for r in ticks["repere_par"]]
+        copie = DonneesMatch(**{**self.__dict__, "moi": steamid, "ticks": ticks})
+        return copie
+
 
 def _zone(valeur: Any) -> str:
     if isinstance(valeur, str):
@@ -174,6 +189,15 @@ def _composante(valeur: Any, i: int) -> float:
         return float(valeur[i])
     except (TypeError, IndexError, ValueError):
         return 0.0
+
+
+def _steamids(valeur: Any) -> tuple[str, ...]:
+    if valeur is None or isinstance(valeur, float):
+        return ()
+    try:
+        return tuple(str(s).removesuffix(".0") for s in valeur)
+    except TypeError:
+        return ()
 
 
 def _steamid(serie: pd.Series) -> pd.Series:
@@ -231,6 +255,9 @@ def normaliser_ticks(brut: pd.DataFrame, moi: str) -> pd.DataFrame:
     ]
     df["punch_pitch"] = [_composante(v, 0) for v in brut["aim_punch_angle"]]
     df["punch_yaw"] = [_composante(v, 1) for v in brut["aim_punch_angle"]]
+    df["lunette"] = _col(brut, "is_scoped", False).fillna(False).astype(bool)
+    df["en_l_air"] = _col(brut, "is_airborne", False).fillna(False).astype(bool)
+    df["repere_par"] = [_steamids(v) for v in brut["approximate_spotted_by"]]
     return df.sort_values(["tick", "steamid"]).reset_index(drop=True)
 
 

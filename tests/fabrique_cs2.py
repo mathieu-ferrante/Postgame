@@ -37,6 +37,8 @@ DEFAUT = {
     "vu_par_moi": False,
     "punch_pitch": 0.0,
     "punch_yaw": 0.0,
+    "lunette": False,
+    "en_l_air": False,
 }
 
 

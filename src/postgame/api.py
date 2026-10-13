@@ -10,6 +10,7 @@ import asyncio
 import json
 import shutil
 import tempfile
+import threading
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
@@ -66,6 +67,15 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
             if cfg.riot_id and cfg.secret("riot", "cle", "RIOT_API_KEY"):
                 app.state.collecteur_riot.demarrer()
             app.state.scruteur_lol.demarrer()
+            if not cfg.hors_ligne:
+                from postgame.games.cs2 import cartes
+
+                threading.Thread(
+                    target=cartes.actualiser,
+                    args=(cfg.dossier_donnees,),
+                    daemon=True,
+                    name="cartes-cs2",
+                ).start()
         yield
         app.state.scruteur_lol.arreter()
         surveillant.arreter()
@@ -240,6 +250,37 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
             if p["carte"] == carte and (camp is None or p["donnees"].get("camp") == camp)
         ]
         return {"carte": carte, "type": type, "camp": camp, "points": points}
+
+    @app.get("/api/cs2/cartes", tags=["cs2"])
+    def cartes_cs2(actualiser: bool = False) -> dict[str, Any]:
+        """Pool actif de CS2 (tenu à jour d'après les notes officielles) et cartes déjà
+        jouées par Mathieu."""
+        from postgame.games.cs2 import cartes
+
+        etat = (
+            cartes.actualiser(cfg.dossier_donnees)
+            if actualiser
+            else cartes.etat_cartes(cfg.dossier_donnees)
+        )
+        with base.transaction() as cx:
+            jouees = [
+                r[0]
+                for r in cx.execute(
+                    "SELECT carte, COUNT(*) FROM parties WHERE jeu = 'cs2' GROUP BY carte "
+                    "ORDER BY COUNT(*) DESC"
+                ).fetchall()
+            ]
+        return {
+            **etat,
+            "cartes": [
+                {"code": c, "nom": cartes.nom_affiche(c), "pool": True} for c in etat["pool"]
+            ]
+            + [
+                {"code": c, "nom": cartes.nom_affiche(c), "pool": False}
+                for c in jouees
+                if c not in etat["pool"]
+            ],
+        }
 
     @app.get("/api/cs2/references", tags=["cs2"])
     def references_cs2(carte: str | None = None) -> dict[str, Any]:
