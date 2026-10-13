@@ -177,6 +177,41 @@ MIGRATIONS: list[list[str]] = [
         """,
         "CREATE INDEX cs2_ref_mesures_nom ON cs2_ref_mesures (nom, contexte)",
     ],
+    # 7 — apprentissage des stuffs (STUFF-01) : angle de lancer, identifiants stables,
+    # notes et révisions
+    [
+        "ALTER TABLE cs2_ref_observations ADD COLUMN lpitch REAL",
+        "ALTER TABLE cs2_ref_observations ADD COLUMN lyaw REAL",
+        "ALTER TABLE cs2_ref_observations ADD COLUMN saut INTEGER",
+        "ALTER TABLE cs2_ref_observations ADD COLUMN accroupi INTEGER",
+        "ALTER TABLE cs2_ref_lancers ADD COLUMN cle TEXT",
+        "ALTER TABLE cs2_ref_lancers ADD COLUMN lpitch REAL",
+        "ALTER TABLE cs2_ref_lancers ADD COLUMN lyaw REAL",
+        "ALTER TABLE cs2_ref_lancers ADD COLUMN part_saut REAL",
+        "ALTER TABLE cs2_ref_lancers ADD COLUMN part_accroupi REAL",
+        """
+        CREATE TABLE notes (
+            id        INTEGER PRIMARY KEY,
+            jeu       TEXT NOT NULL,
+            carte     TEXT NOT NULL,
+            stuff     TEXT,                 -- clé du stuff, ou NULL pour une note de carte
+            texte     TEXT NOT NULL,
+            cree_le   TEXT NOT NULL,
+            maj_le    TEXT NOT NULL
+        )
+        """,
+        "CREATE INDEX notes_carte ON notes (jeu, carte)",
+        """
+        CREATE TABLE revisions (
+            stuff     TEXT PRIMARY KEY,     -- clé du stuff
+            boite     INTEGER NOT NULL,     -- boîte de Leitner (1 à 5)
+            prochaine TEXT NOT NULL,        -- date de la prochaine révision
+            derniere  TEXT,
+            reussites INTEGER NOT NULL DEFAULT 0,
+            echecs    INTEGER NOT NULL DEFAULT 0
+        )
+        """,
+    ],
 ]
 
 

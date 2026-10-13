@@ -97,6 +97,8 @@ def simuler_match(graine: int, nb_rounds: int = 6) -> DonneesMatch:
                             "vu_par_moi": e["equipe"] == 3 and e["vivant"] and rng.random() < 0.15,
                             "punch_pitch": 0.0,
                             "punch_yaw": 0.0,
+                        "lunette": False,
+                        "en_l_air": False,
                         }
                     )
             if t > debut + 64 * 10 and rng.random() < 0.004:
@@ -152,6 +154,8 @@ def simuler_match(graine: int, nb_rounds: int = 6) -> DonneesMatch:
     ticks["vivant"] = ticks["vivant"].astype(bool)
     ticks["vu_par_moi"] = ticks["vu_par_moi"].astype(bool)
     ticks["accroupi"] = ticks["accroupi"].astype(bool)
+    ticks["lunette"] = ticks["lunette"].astype(bool)
+    ticks["en_l_air"] = ticks["en_l_air"].astype(bool)
     return DonneesMatch(
         moi=MOI,
         ticks=ticks,
@@ -306,6 +310,21 @@ def main(dossier: Path) -> None:
     enregistrer_analyse(base, pid, analyser_match(d))
     ecrire_cache(chemin_cache(cfg.dossier_donnees, pid), construire_replay(d))
     generer_debrief(base, cfg, pid, None)
+    # Stuffs simulés sur de_mirage (catalogue normalement appris sur démos pros).
+    with base.transaction() as cx:
+        for i, (tp, x, y, lx, ly, arrivee, depart) in enumerate([
+            ("smoke", -400, -1250, -1150, 100, "Window (DÉMO)", "TSpawn"),
+            ("smoke", -980, -900, -1150, 100, "Jungle (DÉMO)", "TSpawn"),
+            ("smoke", -300, -2000, -1600, -700, "CT (DÉMO)", "Palace"),
+            ("flash", -900, -1500, -1000, -400, "Ramp (DÉMO)", "Tetris"),
+            ("molotov", -1700, -1800, -1300, -500, "Bench (DÉMO)", "Ramp"),
+        ]):
+            cx.execute(
+                "INSERT INTO cs2_ref_lancers (carte, type, x, y, z, lx, ly, lz, lieu_arrivee, "
+                "lieu_lancer, nb, nb_demos, lpitch, lyaw, part_saut, part_accroupi, cle, "
+                "construit_le) VALUES ('de_mirage', ?, ?, ?, 0, ?, ?, -160, ?, ?, ?, 3, -12.5, "
+                "-48.2, ?, 0, ?, 'demo')",
+                (tp, x, y, lx, ly, arrivee, depart, 20 - i, 1.0 if i == 0 else 0.0, f"demo{i}"))
     # Séance Geometry Dash simulée, importée par le chemin normal (lecture + analyses).
     journal = dossier / "gd" / "demo.gdsession"
     journal.parent.mkdir(parents=True, exist_ok=True)

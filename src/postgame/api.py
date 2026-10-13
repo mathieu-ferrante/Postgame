@@ -51,6 +51,21 @@ from postgame.surveillance import Surveillant
 PERIODES = {"7j": timedelta(days=7), "30j": timedelta(days=30), "tout": None}
 
 
+class CorpsNote(BaseModel):
+    carte: str
+    texte: str
+    stuff: str | None = None
+    jeu: str = "cs2"
+
+
+class CorpsTexte(BaseModel):
+    texte: str
+
+
+class CorpsRevision(BaseModel):
+    reussi: bool
+
+
 class CorpsFiabilite(BaseModel):
     nom: str
     fiable: bool = True
@@ -299,6 +314,55 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
             ],
         }
 
+    @app.get("/api/cs2/stuffs", tags=["stuffs"])
+    def stuffs_carte(carte: str) -> dict[str, Any]:
+        """Stuffs d'une carte (STUFF-01) : catalogue appris sur démos pros, commandes
+        d'entraînement, maîtrise en match, révisions, notes ; notes générales de la carte."""
+        from postgame.games.cs2 import stuffs
+
+        return {
+            "carte": carte,
+            "stuffs": stuffs.stuffs_carte(base, carte),
+            "notes_carte": [n for n in stuffs.notes(base, carte) if not n["stuff"]],
+            "config_entrainement": stuffs.CONFIG_ENTRAINEMENT,
+            "radar": radar_cs2.radar(cfg.dossier_donnees, carte),
+        }
+
+    @app.get("/api/cs2/stuffs/a_reviser", tags=["stuffs"])
+    def stuffs_a_reviser(carte: str, nombre: int = Query(5, ge=1, le=50)) -> list[dict[str, Any]]:
+        from postgame.games.cs2 import stuffs
+
+        return stuffs.a_reviser(base, carte, nombre)
+
+    @app.post("/api/cs2/stuffs/{cle}/revision", tags=["stuffs"])
+    def stuff_revision(cle: str, corps: CorpsRevision) -> dict[str, Any]:
+        from postgame.games.cs2 import stuffs
+
+        return stuffs.noter_revision(base, cle, corps.reussi)
+
+    @app.post("/api/notes", tags=["stuffs"])
+    def note_ajouter(corps: CorpsNote) -> dict[str, Any]:
+        """Note de Mathieu sur une carte (ou sur un stuff de cette carte)."""
+        from postgame.games.cs2 import stuffs
+
+        return {"id": stuffs.ajouter_note(base, corps.carte, corps.texte, corps.stuff, corps.jeu)}
+
+    @app.put("/api/notes/{note_id}", tags=["stuffs"])
+    def note_modifier(note_id: int, corps: CorpsTexte) -> dict[str, Any]:
+        from postgame.games.cs2 import stuffs
+
+        if not stuffs.modifier_note(base, note_id, corps.texte):
+            raise HTTPException(404, "note inconnue")
+        return {"id": note_id}
+
+    @app.delete("/api/notes/{note_id}", tags=["stuffs"])
+    def note_supprimer(note_id: int) -> dict[str, Any]:
+        from postgame.games.cs2 import stuffs
+
+        if not stuffs.supprimer_note(base, note_id):
+            raise HTTPException(404, "note inconnue")
+        return {"id": note_id}
+
     @app.get("/api/cs2/references", tags=["cs2"])
     def references_cs2(carte: str | None = None) -> dict[str, Any]:
         """Catalogue appris sur démos pros (CS-REF-01) : résumé par carte, ou lancers et
@@ -500,9 +564,28 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         message = {**recepteur.resume, "rappel": rappel_priorites(base)}
         # Deathmatch sans démo en cours d'écriture : rappeler la touche d'enregistrement.
         enregistre = any(Path(c).name.startswith("postgame_") for c in surveillant.en_attente())
-        if (message.get("mode") == "deathmatch" and message.get("phase_match") == "live"
-                and not enregistre):
+        if (
+            message.get("mode") == "deathmatch"
+            and message.get("phase_match") == "live"
+            and not enregistre
+        ):
             message["alerte"] = "Deathmatch non enregistré : appuie sur F8 pour l'analyser ensuite."
+        # Au chargement de la carte et pendant les achats : stuffs à réviser et notes.
+        carte = message.get("carte")
+        if (
+            carte
+            and message.get("phase_match") in ("warmup", "live")
+            and message.get("phase_round") in ("freezetime", "", None)
+        ):
+            from postgame.games.cs2 import stuffs
+
+            message["stuffs"] = [
+                {"nom": s["nom"], "technique": s["technique"]}
+                for s in stuffs.a_reviser(base, carte, 3)
+            ]
+            message["notes_carte"] = [
+                n["texte"] for n in stuffs.notes(base, carte) if not n["stuff"]
+            ][:3]
         return message
 
     @app.post("/api/cs2/gsi", tags=["cs2"], include_in_schema=False)

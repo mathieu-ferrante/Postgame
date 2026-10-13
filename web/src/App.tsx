@@ -8,6 +8,7 @@ import PagePartie from "./pages/Partie";
 import Progression from "./pages/Progression";
 import Replay from "./pages/Replay";
 import StatsTFT from "./pages/StatsTFT";
+import Stuffs from "./pages/Stuffs";
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
           <NavLink to="/" end>Parties</NavLink>
           <NavLink to="/progression">Progression</NavLink>
           <NavLink to="/chaleur">Chaleur</NavLink>
+          <NavLink to="/stuffs">Stuffs</NavLink>
           <NavLink to="/tft">TFT</NavLink>
           <NavLink to="/direct">En direct</NavLink>
         </nav>
@@ -33,6 +35,7 @@ export default function App() {
           <Route path="/gd/:id" element={<EssaisGD />} />
           <Route path="/lol/:id" element={<CarteLoL />} />
           <Route path="/tft" element={<StatsTFT />} />
+          <Route path="/stuffs" element={<Stuffs />} />
           <Route path="*" element={<p>Page introuvable.</p>} />
         </Routes>
       </main>

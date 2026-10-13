@@ -48,6 +48,11 @@ Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée
 - League of Legends et TFT : parties récupérées par l'API Riot, mesures jugées par
   champion, rôle et patch (LoL) ou par set et patch (TFT), face au haut classement du même
   patch ([docs/MESURES_LOL_TFT.md](docs/MESURES_LOL_TFT.md)).
+- Stuffs CS2 : catalogue par carte appris sur démos pros, commandes `setpos` / `setang` pour
+  s'entraîner hors ligne, tes notes, révisions espacées, maîtrise mesurée en match, rappel
+  sur le second écran au chargement de la carte.
+- Récupération automatique : démos du dossier du jeu, parties FACEIT, LoL et TFT ; codes de
+  partage Steam ; rien n'est analysé pendant que tu joues.
 - Une API locale JSON (parties, fiches, mesures, progression) sert l'interface à venir et
   Jarvis : [docs/API.md](docs/API.md).
 

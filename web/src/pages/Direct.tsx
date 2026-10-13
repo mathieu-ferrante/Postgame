@@ -25,6 +25,8 @@ interface Live {
   coequipiers?: { nom: string; argent: number; vie: number }[] | null;
   rappel?: { id: string; libelle: string; valeur: number; unite: string; cible: number | null }[];
   alerte?: string;
+  stuffs?: { nom: string; technique: string }[];
+  notes_carte?: string[];
   mode?: string;
 }
 
@@ -138,6 +140,13 @@ export default function Direct() {
           )}
         </>
       )}
+      {(live.stuffs?.length || live.notes_carte?.length) ? (
+        <div className="carte">
+          <h3>Sur {live.carte}</h3>
+          {live.notes_carte?.map((n, i) => <div key={i}>📝 {n}</div>)}
+          {live.stuffs?.map((s, i) => <div key={i} className="discret">À réviser : {s.nom} ({s.technique})</div>)}
+        </div>
+      ) : null}
       {live.rappel && live.rappel.length > 0 && (
         <div className="carte">
           <h3>À garder en tête (dernier débrief)</h3>

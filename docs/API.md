@@ -91,6 +91,23 @@ Toute autre adresse hors `/api/` sert l'interface web (`web/dist`).
 | GET | `/api/lol/live` · WS `/api/lol/live/ws` | Partie LoL en cours (API locale du client) |
 | GET | `/api/tft/stats` | Par set et patch : place moyenne, éléments (place moyenne, écart, haut classement), éléments à essayer |
 
+## Stuffs et notes (STUFF-01)
+
+| Méthode | Chemin | Rôle |
+|---|---|---|
+| GET | `/api/cs2/cartes` | Pool actif de CS2 (d'après les notes officielles) et cartes jouées |
+| GET | `/api/cs2/stuffs?carte=de_mirage` | Stuffs : nom, technique, commandes, maîtrise, révision, notes ; notes de la carte ; config d'entraînement |
+| GET | `/api/cs2/stuffs/a_reviser?carte=…&nombre=5` | Stuffs à réviser aujourd'hui |
+| POST | `/api/cs2/stuffs/{cle}/revision` | `{"reussi": true}` : révision espacée |
+| POST / PUT / DELETE | `/api/notes`, `/api/notes/{id}` | Notes de Mathieu (`carte`, `texte`, `stuff` facultatif) |
+
+## Récupération automatique
+
+| Méthode | Chemin | Rôle |
+|---|---|---|
+| GET | `/api/sources/etat` | FACEIT, codes de partage Steam : dernière synchronisation, parties sans démo |
+| POST | `/api/sources/synchroniser` | Lance la synchronisation tout de suite |
+
 ## Pour Jarvis
 
 Questions typiques et appels correspondants :

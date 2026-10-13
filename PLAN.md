@@ -161,13 +161,13 @@ Exigences nouvelles, au même rang que le cahier des charges :
         références (table `references_mesures`), sinon « cible provisoire » signalée
 - [ ] **CPT-01 — Comptes liés** : Steam (SteamID, profil), Riot (Riot ID → PUUID, rang),
       FACEIT plus tard ; page « Mes comptes », collecte automatique par compte
-- [ ] **STUFF-01 — Apprendre les stuffs CS2**, carte par carte :
-  - [ ] catalogue des lancers appris sur démos pros, avec position et angle de lancer, saut
-        ou non, et commandes `setpos` / `setang` pour s'entraîner hors ligne
-  - [ ] notes de Mathieu par carte et par stuff
-  - [ ] rappels à réviser (répétition espacée) et suivi des stuffs maîtrisés en match
-        (smoke de Mathieu rattachée au stuff)
-  - [ ] rappel des stuffs et notes de la carte sur le second écran au chargement de la partie
+- [~] **STUFF-01 — Apprendre les stuffs CS2**, carte par carte (codé, testé, page vérifiée
+      sur stuffs simulés ; catalogue réel dépendant des démos pros) :
+  - [x] catalogue des lancers appris sur démos pros, avec position et angle de lancer, saut
+        ou non, et commandes `setpos` / `setang` pour s'entraîner hors ligne ; clés stables
+  - [x] notes de Mathieu par carte et par stuff
+  - [x] rappels à réviser (Leitner 1-2-4-8-16 jours) et suivi des stuffs maîtrisés en match
+  - [x] rappel des stuffs et notes de la carte sur le second écran au chargement de la partie
 
 - [ ] **MODES-01 — Toutes les parties CS2 analysées** : compétitif, Premier, FACEIT,
       Wingman (et deathmatch), sur toutes les cartes (pool actif, autres modes, Wingman)
@@ -249,3 +249,6 @@ Exigences nouvelles, au même rang que le cahier des charges :
 | 2026-10-13 | AUTO-01 | FACEIT par Data API v4 + Downloads API (lien signé), démos .gz / .zst décompressées | Seule voie officielle : les démos FACEIT sont privées |
 | 2026-10-13 | AUTO-01 | Premier / compétitif : codes de partage par l'API Web Steam ; pas de connexion automatisée au compte Steam | Saisir les identifiants de Mathieu est exclu ; le coordinateur de jeu exige le client Steam connecté |
 | 2026-10-13 | AUTO-01 | Pas d'enregistrement DM déclenché par Postgame (aucune touche simulée dans le jeu) ; rappel sur le second écran à la place | Rien qui touche au jeu (cahier des charges, anti-triche) |
+| 2026-10-13 | STUFF-01 | Entraînement par `setpos` / `setang` dans une partie privée (sv_cheats 1) | Commandes officielles du jeu, hors ligne ; aucune aide en partie en ligne |
+| 2026-10-13 | STUFF-01 | Révisions espacées en boîtes de Leitner ; une smoke réussie en match compte comme révision | Simple, efficace pour mémoriser ; le match réel prime sur le quiz |
+| 2026-10-13 | STUFF-01 | Stuffs et catalogue sur toutes les cartes, mais appris seulement là où il y a des démos pros (pool actif) | Les cartes hors pool (Wingman, nouvelles cartes) n'ont pas de démos pros : leur catalogue restera vide tant qu'aucune source n'existe |

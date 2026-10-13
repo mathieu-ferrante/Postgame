@@ -123,7 +123,23 @@ def observations_depuis(
     `etats` : tick, steamid, x, y, z, equipe, vivant, lieu — aux ticks de lancer,
     d'installation et d'échantillonnage.
     """
-    colonnes = ["carte", "genre", "type", "camp", "lieu", "x", "y", "z", "lx", "ly", "lz"]
+    colonnes = [
+        "carte",
+        "genre",
+        "type",
+        "camp",
+        "lieu",
+        "x",
+        "y",
+        "z",
+        "lx",
+        "ly",
+        "lz",
+        "lpitch",
+        "lyaw",
+        "saut",
+        "accroupi",
+    ]
     lignes = []
     index = etats.set_index(["tick", "steamid"]) if len(etats) else None
 
@@ -152,6 +168,10 @@ def observations_depuis(
                 "lx": e["x"] if e is not None else None,
                 "ly": e["y"] if e is not None else None,
                 "lz": e["z"] if e is not None else None,
+                "lpitch": e.get("pitch") if e is not None else None,
+                "lyaw": e.get("yaw") if e is not None else None,
+                "saut": int(bool(e.get("en_l_air"))) if e is not None else None,
+                "accroupi": int(bool(e.get("accroupi"))) if e is not None else None,
             }
         )
     installations = {d + DELAI_INSTALLATION_TICKS for d in debuts}
@@ -173,6 +193,10 @@ def observations_depuis(
                     "lx": None,
                     "ly": None,
                     "lz": None,
+                    "lpitch": None,
+                    "lyaw": None,
+                    "saut": None,
+                    "accroupi": None,
                 }
             )
     return pd.DataFrame(lignes, columns=colonnes)
@@ -226,7 +250,19 @@ def extraire_observations(chemin: Path) -> pd.DataFrame:
     etats = pd.DataFrame(columns=["tick", "steamid", "x", "y", "z", "equipe", "vivant", "lieu"])
     if instants:
         brut = parser.parse_ticks(
-            ["X", "Y", "Z", "team_num", "is_alive", "last_place_name"], ticks=sorted(instants)
+            [
+                "X",
+                "Y",
+                "Z",
+                "team_num",
+                "is_alive",
+                "last_place_name",
+                "pitch",
+                "yaw",
+                "is_airborne",
+                "ducked",
+            ],
+            ticks=sorted(instants),
         )
         etats = pd.DataFrame(
             {
@@ -238,6 +274,10 @@ def extraire_observations(chemin: Path) -> pd.DataFrame:
                 "equipe": brut["team_num"].fillna(0).astype(int),
                 "vivant": brut["is_alive"].fillna(False).astype(bool),
                 "lieu": brut["last_place_name"].fillna("").astype(str),
+                "pitch": brut["pitch"].astype(float),
+                "yaw": brut["yaw"].astype(float),
+                "en_l_air": brut["is_airborne"].fillna(False).astype(bool),
+                "accroupi": brut["ducked"].fillna(False).astype(bool),
             }
         )
     return observations_depuis(carte, grenades, lancers, etats, debuts)
@@ -283,6 +323,12 @@ def regrouper(points: np.ndarray, rayon: float = RAYON_GROUPE, iterations: int =
     return etiquettes
 
 
+def yaw_moyen(yaws: pd.Series) -> float:
+    """Moyenne circulaire (−170° et 170° → 180°, pas 0°)."""
+    r = np.radians(yaws.astype(float).to_numpy())
+    return float(np.degrees(np.arctan2(np.sin(r).mean(), np.cos(r).mean())))
+
+
 def _lieu_le_plus_proche(lieux: pd.DataFrame, x: float, y: float) -> str | None:
     if not len(lieux):
         return None
@@ -308,6 +354,7 @@ def construire_catalogue(
                     continue
                 x, y, z = groupe[["x", "y", "z"]].mean()
                 lieux_lancer = groupe["lieu"].dropna()
+                angles = groupe.dropna(subset=["lyaw"]) if "lyaw" in groupe else groupe.iloc[0:0]
                 lancers_ref.append(
                     {
                         "carte": carte,
@@ -326,6 +373,10 @@ def construire_catalogue(
                         "nb_demos": int(groupe["empreinte"].nunique())
                         if "empreinte" in groupe
                         else 1,
+                        "lpitch": float(angles["lpitch"].median()) if len(angles) else None,
+                        "lyaw": yaw_moyen(angles["lyaw"]) if len(angles) else None,
+                        "part_saut": float(angles["saut"].mean()) if len(angles) else None,
+                        "part_accroupi": float(angles["accroupi"].mean()) if len(angles) else None,
                     }
                 )
         installes = obs[(obs["genre"] == "position") & obs["camp"].notna()]
@@ -356,6 +407,10 @@ def construire_catalogue(
         "lieu_lancer",
         "nb",
         "nb_demos",
+        "lpitch",
+        "lyaw",
+        "part_saut",
+        "part_accroupi",
     ]
     colonnes_p = ["carte", "camp", "lieu", "x", "y", "nb", "part"]
     return (
@@ -412,12 +467,29 @@ def ajouter_demo_pro(base: Base, chemin: Path) -> str:
         )
         cx.executemany(
             "INSERT INTO cs2_ref_observations (empreinte, carte, genre, type, camp, lieu, x, y, "
-            "z, lx, ly, lz) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "z, lx, ly, lz, lpitch, lyaw, saut, accroupi) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (empreinte, *[None if pd.isna(v) else v for v in ligne])
-                for ligne in obs[
-                    ["carte", "genre", "type", "camp", "lieu", "x", "y", "z", "lx", "ly", "lz"]
-                ].itertuples(index=False)
+                for ligne in obs.reindex(
+                    columns=[
+                        "carte",
+                        "genre",
+                        "type",
+                        "camp",
+                        "lieu",
+                        "x",
+                        "y",
+                        "z",
+                        "lx",
+                        "ly",
+                        "lz",
+                        "lpitch",
+                        "lyaw",
+                        "saut",
+                        "accroupi",
+                    ]
+                ).itertuples(index=False)
             ],
         )
     try:
@@ -461,10 +533,39 @@ def references_mecanique(base: Base, minimum: int = 5) -> int:
     return len(references)
 
 
+def cles_stables(nouveaux: pd.DataFrame, anciens: pd.DataFrame) -> list[str]:
+    """Un stuff garde sa clé (et donc les notes et révisions de Mathieu) quand le catalogue
+    est recalculé : on reprend la clé de l'ancien stuff de même carte et même type arrivé à
+    moins de RAYON_GROUPE ; sinon nouvelle clé."""
+    import uuid
+
+    cles, prises = [], set()
+    for _, n in nouveaux.iterrows():
+        cle = None
+        if len(anciens):
+            memes = anciens[
+                (anciens["carte"] == n["carte"])
+                & (anciens["type"] == n["type"])
+                & anciens["cle"].notna()
+                & ~anciens["cle"].isin(prises)
+            ]
+            if len(memes):
+                d = np.hypot(memes["x"] - n["x"], memes["y"] - n["y"])
+                if d.min() <= RAYON_GROUPE:
+                    cle = str(memes.loc[d.idxmin(), "cle"])
+        cle = cle or uuid.uuid4().hex[:10]
+        prises.add(cle)
+        cles.append(cle)
+    return cles
+
+
 def reconstruire_catalogue(base: Base) -> dict[str, int]:
     with base.transaction() as cx:
         obs = pd.read_sql_query("SELECT * FROM cs2_ref_observations", cx)
     lancers, positions = construire_catalogue(obs)
+    with base.transaction() as cx:
+        anciens = pd.read_sql_query("SELECT carte, type, x, y, cle FROM cs2_ref_lancers", cx)
+    lancers["cle"] = cles_stables(lancers, anciens)
     horodatage = maintenant()
     with base.transaction() as cx:
         cx.execute("DELETE FROM cs2_ref_lancers")
@@ -472,7 +573,8 @@ def reconstruire_catalogue(base: Base) -> dict[str, int]:
         for _, ref in lancers.iterrows():
             cx.execute(
                 "INSERT INTO cs2_ref_lancers (carte, type, x, y, z, lx, ly, lz, lieu_arrivee, "
-                "lieu_lancer, nb, nb_demos, construit_le) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "lieu_lancer, nb, nb_demos, lpitch, lyaw, part_saut, part_accroupi, cle, "
+                "construit_le) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     *[
                         None if pd.isna(v) else (v.item() if hasattr(v, "item") else v)
@@ -600,6 +702,7 @@ def analyser_references(
         texte = f"Smoke ({len(paires)} ligne(s) de vue coupée(s))"
         if len(refs_smokes):
             ref, dist = _rattacher(s, refs_smokes)
+            stuff = {"stuff": ref.get("cle"), "ecart": round(dist, 1)} if ref is not None else {}
             if dist <= DISTANCE_RECONNUE:
                 reconnues += 1
                 ecarts.append(dist)
@@ -615,7 +718,12 @@ def analyser_references(
                 t,
                 texte,
                 d.numero_round(t),
-                {"x": s["x"], "y": s["y"], "lignes": len(paires)},
+                {
+                    "x": s["x"],
+                    "y": s["y"],
+                    "lignes": len(paires),
+                    **(stuff if len(refs_smokes) else {}),
+                },
             )
         )
     n = len(mes_smokes)
