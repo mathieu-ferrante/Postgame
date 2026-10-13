@@ -54,7 +54,7 @@ Dépend du point L0-3 (une démo de DM enregistrée) et du SteamID (L0-2).
 - [ ] Importer une démo DM (automatique si le service tourne), relever son numéro avec
       `.venv\Scripts\python -m postgame parties`.
 - [ ] `.venv\Scripts\python -m postgame verifier <numéro>` → crée
-      `dataerifications\partie_<numéro>.md`.
+      `data\verifications\partie_<numéro>.md`.
 - [ ] Dans CS2 : `playdemo "<chemin indiqué dans la fiche>"`, puis pour chaque ligne
       `demo_gototick <tick>` ; regarder depuis les yeux de Mathieu (touche espace / clic).
 - **Attendu** : pour chaque mesure, les 5 cas décrits sont visibles à l'écran (ex. « première
