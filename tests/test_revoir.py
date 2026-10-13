@@ -77,9 +77,16 @@ def _remplir(base, demo):
 def test_moments_pros(base, tmp_path):
     _remplir(base, _demo(tmp_path / "pro.dem"))
     proches = revoir.moments_proches(base, "de_mirage", "CT", 100.0, 0.0)
-    # Un moment par (démo, round, joueur), le plus proche d'abord ; démo absente ignorée.
-    assert [(m["joueur"], m["tick"]) for m in proches] == [("ZywOo", 3000), ("apEX", 9000)]
-    assert revoir.moments_proches(base, "de_mirage", None, 100.0, 0.0)[1]["joueur"] == "s1mple"
+    # Un moment par (démo, round, joueur), le plus proche d'abord ; une démo absente de la
+    # machine reste listée mais ne peut pas s'ouvrir dans CS2.
+    assert [(m["joueur"], m["tick"], m["disponible"]) for m in proches] == [
+        ("ZywOo", 3000, True),
+        ("m0NESY", 3000, False),
+        ("apEX", 9000, True),
+    ]
+    assert "s1mple" in [
+        m["joueur"] for m in revoir.moments_proches(base, "de_mirage", None, 100, 0)
+    ]
     # Seul b1t lance depuis le même point que le stuff (jL lance de 400 u plus loin).
     assert [m["joueur"] for m in revoir.exemples_stuff(base, "cle1")] == ["b1t"]
 

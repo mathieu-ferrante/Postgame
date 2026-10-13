@@ -4,8 +4,28 @@
     {
       "name": "postgame-demo",
       "runtimeExecutable": ".venv/Scripts/python.exe",
-      "runtimeArgs": ["-m", "postgame", "--config", "data_demo/postgame.toml", "serve", "--sans-surveillance"],
+      "runtimeArgs": [
+        "-m",
+        "postgame",
+        "--config",
+        "data_demo/postgame.toml",
+        "serve",
+        "--sans-surveillance"
+      ],
       "port": 8765
+    },
+    {
+      "name": "postgame-reel",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": [
+        "-m",
+        "postgame",
+        "--config",
+        "data_reel/postgame.toml",
+        "serve",
+        "--sans-surveillance"
+      ],
+      "port": 8766
     }
   ]
 }

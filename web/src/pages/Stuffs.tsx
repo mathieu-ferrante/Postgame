@@ -94,7 +94,7 @@ function OuViser({ s, recharger }: { s: Stuff; recharger: () => void }) {
   }, [etat, s.cle, recharger]);
 
   const capturer = async () => {
-    const m = pros.donnee?.[0];
+    const m = pros.donnee?.find((x) => x.disponible);
     if (!m) return;
     setErreur(null);
     try {
@@ -113,7 +113,10 @@ function OuViser({ s, recharger }: { s: Stuff; recharger: () => void }) {
       {s.image
         ? <img src={`${s.image}?v=${Date.now() % 100000}`} alt="Vue du lanceur au moment du lancer : le viseur est sur le repère" style={{ width: "100%", borderRadius: 8 }} />
         : <p className="discret">Pas encore de vue : capture-la dans la vraie démo d'un pro (le viseur montre le repère exact).</p>}
-      {pros.donnee && pros.donnee.length > 0 && !etat && (
+      {pros.donnee && !pros.donnee.some((x) => x.disponible) && !s.image && (
+        <p className="discret">Pour capturer la vue, il faut la démo .dem du pro sur cette machine (à côté de l'extrait ou dans le dossier pros).</p>
+      )}
+      {pros.donnee && pros.donnee.some((x) => x.disponible) && !etat && (
         <button onClick={capturer}>{s.image ? "Refaire la capture depuis la démo du pro" : "Capturer la vue du pro"}</button>
       )}
       {erreur && <p className="erreur">{erreur}</p>}

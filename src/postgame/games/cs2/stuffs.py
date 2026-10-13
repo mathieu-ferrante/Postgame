@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
@@ -57,9 +58,23 @@ def technique(stuff: dict[str, Any]) -> str:
     return ", ".join(morceaux) or "debout, sans sauter"
 
 
+PETITS_MOTS = {"of", "the", "to"}
+
+
+def lieu_lisible(lieu: str | None) -> str | None:
+    """Nom de zone du jeu lisible : « TopofMid » → « Top of Mid », « BombsiteA » →
+    « Bombsite A », « CTSpawn » → « CT Spawn »."""
+    if not lieu:
+        return lieu
+    texte = re.sub(r"(?<=[a-z])(?=[A-Z0-9])|(?<=[A-Z])(?=[A-Z][a-z])", " ", str(lieu))
+    texte = re.sub(r"(?<=[a-z])(of|the|to)(?=[A-Z ]|$)", lambda m: " " + m.group(1), texte)
+    return re.sub(r"\s+", " ", texte).strip()
+
+
 def nom(stuff: dict[str, Any]) -> str:
-    depuis = f" depuis {stuff['lieu_lancer']}" if stuff.get("lieu_lancer") else ""
-    return f"{TYPES.get(stuff['type'], stuff['type'])} {stuff.get('lieu_arrivee') or '?'}{depuis}"
+    depuis = f" depuis {lieu_lisible(stuff['lieu_lancer'])}" if stuff.get("lieu_lancer") else ""
+    arrivee = lieu_lisible(stuff.get("lieu_arrivee")) or "?"
+    return f"{TYPES.get(stuff['type'], stuff['type'])} {arrivee}{depuis}"
 
 
 # --- Captures d'écran jointes par Mathieu -------------------------------------------------

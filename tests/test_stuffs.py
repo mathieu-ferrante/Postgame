@@ -64,7 +64,7 @@ def test_commandes_et_technique():
     }
     assert stuffs.commandes(s) == "setpos -1200.50 -300.25 -167.97; setang -15.40 32.80 0"
     assert stuffs.technique(s) == "en sautant (jumpthrow)"
-    assert stuffs.nom(s) == "Smoke Window depuis TSpawn"
+    assert stuffs.nom(s) == "Smoke Window depuis T Spawn"
     assert stuffs.commandes({"lx": None}) is None
 
 
@@ -125,3 +125,14 @@ def test_notes_et_api(base, cfg):
         assert c.delete(f"/api/notes/{nid}").status_code == 200
         assert c.delete(f"/api/notes/{nid}").status_code == 404
         assert c.post("/api/cs2/stuffs/abc/revision", json={"reussi": True}).json()["boite"] == 2
+
+
+def test_noms_de_zones_lisibles():
+    from postgame.games.cs2.stuffs import lieu_lisible
+
+    assert [lieu_lisible(x) for x in ("TopofMid", "BombsiteA", "CTSpawn", "SnipersNest")] == [
+        "Top of Mid",
+        "Bombsite A",
+        "CT Spawn",
+        "Snipers Nest",
+    ]

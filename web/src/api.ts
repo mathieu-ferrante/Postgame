@@ -176,6 +176,7 @@ export interface MomentPro {
   tick: number;
   lieu: string | null;
   distance: number;
+  disponible: boolean;
 }
 
 async function lire<T>(chemin: string, options?: RequestInit): Promise<T> {

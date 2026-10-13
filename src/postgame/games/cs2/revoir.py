@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from postgame.games.cs2.demo import TICKS_PAR_SECONDE
+from postgame.games.cs2.stuffs import lieu_lisible
 
 AVANCE_S = 5  # on arrive 5 s avant le moment pour voir ce qui l'amène
 COPIES_GARDEES = 4  # copies de démos laissées dans game/csgo/postgame/
@@ -177,16 +178,18 @@ def chemin_demo_pro(base, empreinte: str) -> Path | None:
     return Path(ligne[0]) if ligne and ligne[0] else None
 
 
-def _moments(lignes: list[tuple], disponibles: dict[str, dict], limite: int) -> list[dict]:
-    """Un moment par (démo, round, joueur), le plus proche ; triés par distance."""
+def _moments(lignes: list[tuple], demos: dict[str, dict], limite: int) -> list[dict]:
+    """Un moment par (démo, round, joueur), le plus proche ; triés par distance. Les démos
+    absentes de la machine (importées par leur extrait) restent listées, « disponible » à
+    False : on ne peut simplement pas les ouvrir dans CS2."""
     vus: set[tuple] = set()
     sortie = []
     for empreinte, joueur, rnd, tick, lieu, distance in sorted(lignes, key=lambda r: r[5]):
         cle = (empreinte, rnd, joueur)
-        if cle in vus or empreinte not in disponibles:
+        if cle in vus or empreinte not in demos:
             continue
         vus.add(cle)
-        demo = disponibles[empreinte]
+        demo = demos[empreinte]
         sortie.append(
             {
                 "empreinte": empreinte,
@@ -194,8 +197,9 @@ def _moments(lignes: list[tuple], disponibles: dict[str, dict], limite: int) -> 
                 "joueur": joueur,
                 "round": rnd,
                 "tick": tick,
-                "lieu": lieu,
+                "lieu": lieu_lisible(lieu),
                 "distance": round(distance),
+                "disponible": demo["disponible"],
             }
         )
         if len(sortie) >= limite:
@@ -213,7 +217,7 @@ def moments_proches(
     rayon: float = RAYON_PROCHE,
 ) -> list[dict]:
     """Vrais rounds pros où un joueur du même camp se tenait au même endroit."""
-    disponibles = {d["empreinte"]: d for d in demos_pros(base) if d["disponible"]}
+    disponibles = {d["empreinte"]: d for d in demos_pros(base)}
     if not disponibles:
         return []
     requete = (
@@ -252,7 +256,7 @@ def exemples_stuff(base, cle: str, limite: int = 10) -> list[dict]:
         ).fetchall()
     from postgame.games.cs2.references import RAYON_GROUPE
 
-    disponibles = {d["empreinte"]: d for d in demos_pros(base) if d["disponible"]}
+    disponibles = {d["empreinte"]: d for d in demos_pros(base)}
     lignes = []
     for e, j, r, t, lieu, ox, oy, olx, oly in brutes:
         arrivee = ((ox - x) ** 2 + (oy - y) ** 2) ** 0.5

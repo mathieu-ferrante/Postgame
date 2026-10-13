@@ -63,7 +63,9 @@ export function MomentsPros({ moments, vide }: { moments: MomentPro[]; vide: str
         <li key={`${m.empreinte}-${m.round}-${m.joueur}`}>
           <strong>{m.joueur ?? "?"}</strong>{" "}
           <span className="discret">{m.demo}{m.round ? `, round ${m.round}` : ""}{m.lieu ? ` · ${m.lieu}` : ""}</span>{" "}
-          <BoutonRevoir demande={{ empreinte: m.empreinte, tick: m.tick, joueur: m.joueur }} libelle="▶ CS2" />
+          {m.disponible
+            ? <BoutonRevoir demande={{ empreinte: m.empreinte, tick: m.tick, joueur: m.joueur }} libelle="▶ CS2" />
+            : <span className="discret" title="Ajoute la démo .dem à côté de l'extrait (ou dans le dossier pros) pour l'ouvrir dans CS2">(démo absente de cette machine)</span>}
         </li>
       ))}
     </ul>
