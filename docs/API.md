@@ -81,6 +81,16 @@ Toute autre adresse hors `/api/` sert l'interface web (`web/dist`).
 |---|---|---|
 | GET | `/api/gd/replay/{id}` | Essais superposés : `niveau, longueur, essais [{numero, mode, x_debut, x_fin, pct_fin, mort, complete, appuis[]}], inputs [{x, pct, ecart_type, decalage, n}]` |
 
+## League of Legends et TFT
+
+| Méthode | Chemin | Rôle |
+|---|---|---|
+| GET | `/api/riot/etat` | Riot ID, plateforme, clé présente, dernière synchronisation, erreur |
+| POST | `/api/riot/synchroniser` | Récupère tout de suite les nouvelles parties |
+| GET | `/api/lol/replay/{id}` | Carte minute par minute : `joueurs, minutes [{t, positions}], evenements` |
+| GET | `/api/lol/live` · WS `/api/lol/live/ws` | Partie LoL en cours (API locale du client) |
+| GET | `/api/tft/stats` | Par set et patch : place moyenne, éléments (place moyenne, écart, haut classement), éléments à essayer |
+
 ## Pour Jarvis
 
 Questions typiques et appels correspondants :

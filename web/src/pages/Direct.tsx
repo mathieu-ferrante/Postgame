@@ -2,6 +2,7 @@
 // message Game State Integration, et rappel des priorités du dernier débrief.
 
 import { useEffect, useRef, useState } from "react";
+import DirectLoL from "../composants/DirectLoL";
 import { nombre } from "../lib/format";
 
 interface Live {
@@ -80,6 +81,7 @@ export default function Direct() {
         <span className="badge">{connecte ? "connecté" : "connexion…"}</span>
         {age !== null && <span className="discret">dernier message il y a {age} s</span>}
       </div>
+      <DirectLoL />
       {!live.actif && (
         <p className="discret">
           En attente de CS2. Le jeu doit avoir la config Game State Integration

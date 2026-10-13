@@ -17,7 +17,8 @@ PC de jeu. Spécification complète : [CAHIER_DES_CHARGES.md](CAHIER_DES_CHARGES
 | L6 | Interface web et PWA : parties, débrief, progression, chaleur, replay radar 2D | Vérifiée dans le navigateur (PC et format téléphone) sur données de démonstration ; **pas encore installée sur le téléphone, radars officiels absents** |
 | L7 | Second écran CS2 (Game State Integration) : état en direct, conseil d'achat, rappel des priorités | Vérifié avec un flux GSI simulé ; **jamais branché sur une vraie partie** |
 | L8 | Geometry Dash : mod Geode de journalisation, régularité des clics, passages instables, carte des morts, essais superposés | Analyses testées sur séances synthétiques ; **mod jamais compilé ni lancé** |
-| L9–L10 | LoL/TFT, 3D | À faire |
+| L9 | LoL et TFT : collecte API Riot, analyses par champion / rôle / patch, références de haut classement, carte, second écran LoL | Testé sur parties synthétiques ; **clé API Riot pas encore fournie, aucune vraie partie** |
+| L10 | Replay 3D | À faire |
 
 Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée de Mathieu :
 [A_VALIDER.md](A_VALIDER.md).
@@ -44,6 +45,9 @@ Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée
 - Geometry Dash : un mod Geode journalise chaque essai et chaque clic sans rien modifier ;
   le service mesure la régularité de chaque input, les passages instables, la survie par
   tranche du niveau ([docs/MESURES_GD.md](docs/MESURES_GD.md)).
+- League of Legends et TFT : parties récupérées par l'API Riot, mesures jugées par
+  champion, rôle et patch (LoL) ou par set et patch (TFT), face au haut classement du même
+  patch ([docs/MESURES_LOL_TFT.md](docs/MESURES_LOL_TFT.md)).
 - Une API locale JSON (parties, fiches, mesures, progression) sert l'interface à venir et
   Jarvis : [docs/API.md](docs/API.md).
 
@@ -80,6 +84,7 @@ Ligne de commande (`.venv\Scripts\python -m postgame …`) :
 | `fiabilite <mesure> [--non]` | Marque une mesure vérifiée à la main : elle entre dans le débrief |
 | `couts` | Coût cumulé des débriefs rédigés |
 | `gsi-config [--hote IP]` | Écrit la config Game State Integration de CS2 (second écran) |
+| `riot synchroniser` / `riot meta` | Récupère les parties LoL/TFT ; construit les références de haut classement du patch |
 | `verifier <partie>` | Fiche de vérification manuelle : 5 moments par mesure, avec la commande CS2 pour y aller |
 | `diagnostic <demo.dem>` | Décrit une démo (en-tête, évènements, fiche) dans un JSON |
 
@@ -127,6 +132,8 @@ src/postgame/
   api.py           API HTTP (FastAPI)
   games/           un module par jeu derrière une interface commune (base.py)
     gd/            Geometry Dash : lecture des journaux du mod, analyses
+    lol/, tft/     League of Legends et TFT
+    riot/          client API Riot, collecte, Data Dragon, références méta
     cs2/           lecture des démos (demoparser2), diagnostic, armes, géométrie,
                    analyses (mecanique.py, utilitaires.py, positionnement.py,
                    references.py, decisions.py, economie.py)

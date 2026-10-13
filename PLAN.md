@@ -129,7 +129,18 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 - [ ] Critère de fin : analyse d'une vraie session d'entraînement
 
 ## L9 — LoL et TFT (LOL-*, TFT-*)
-- [ ] API Riot, analyses, second écran LoL
+- [x] Client API Riot : limites 20/s et 100/2 min, reprise sur 429, cache des matchs
+- [x] Collecte automatique des parties (compte `iamheremyfriend#hiii`, rang joint)
+- [~] Farm, or, XP à 10/15/20 min contre l'adversaire direct (LOL-02) — synthétique
+- [~] Morts isolées, avant objectif, sans balise récente (LOL-03) — idem
+- [~] Vision (LOL-04), objectifs et combats (LOL-05) — idem
+- [x] Carte minute par minute (LOL-06), page vérifiée à la compilation seulement
+- [~] Second écran LoL par l'API locale du client (LOL-07) — réponse simulée
+- [~] TFT : fiche, mesures, ce qui fait gagner des places par set et patch (TFT-01, TFT-02)
+- [~] Références de haut classement par patch, LoL et TFT (TFT-03, CTX-01) — jamais lancées
+- [x] TFT-04 : l'API ne donne que l'état final (documenté)
+- [ ] **Clé API Riot de Mathieu** nécessaire pour toute donnée réelle
+- [ ] Critère de fin : débrief d'une vraie partie de chaque
 
 ## L10 — Replay 3D (CS-RPL-02)
 - [ ] three.js
@@ -143,8 +154,8 @@ Exigences nouvelles, au même rang que le cahier des charges :
         jeu associé) ; cibles par arme tirées des démos pros
   - [x] LoL : champion, rôle, classe du champion, patch, adversaire dans chaque mesure ;
         pas de jugement du farm pour un support
-  - [ ] LoL : références de haut classement par champion / rôle / patch (méta)
-  - [ ] TFT : set et patch ; références de haut classement par patch
+  - [~] LoL : références de haut classement par champion / rôle / patch (méta) — codé
+  - [~] TFT : set et patch ; références de haut classement par patch — codé
   - [x] Débrief : comparaison à l'historique du même contexte ; cibles issues des
         références (table `references_mesures`), sinon « cible provisoire » signalée
 - [ ] **CPT-01 — Comptes liés** : Steam (SteamID, profil), Riot (Riot ID → PUUID, rang),
@@ -208,3 +219,6 @@ Exigences nouvelles, au même rang que le cahier des charges :
 | 2026-10-13 | L8 | Une séance = un passage dans un niveau = une « partie » GD | Unité naturelle de l'entraînement ; la progression se suit séance après séance |
 | 2026-10-13 | L8 | Inputs attendus par regroupement des positions d'appui (12 u, ≥ 3 essais) | Pas besoin des données du niveau ; fonctionne aussi pour les essais d'entraînement partant d'un checkpoint |
 | 2026-10-13 | CTX-01 | Contexte discriminant (arme, champion, rôle…) vs descriptif (patch, classe, adversaire) | L'historique se compare à contexte égal sans être émietté par patch ; la méta, elle, est par patch |
+| 2026-10-13 | L9 | Benchmark « même rang, même rôle » = adversaire direct de la partie, plus méta Challenger par patch | Le matchmaking place l'adversaire au même niveau ; aucun site tiers (cahier des charges) |
+| 2026-10-13 | L9 | Les références méta analysent les 10 joueurs de chaque partie avec le même code que Mathieu | Les cibles sont exactement comparables aux mesures de Mathieu |
+| 2026-10-13 | L9 | Second écran LoL par scrutation (0,5 s) de l'API locale, sans vérification du certificat de 127.0.0.1 | API officielle de Riot, locale ; certificat racine Riot non distribué avec Postgame |

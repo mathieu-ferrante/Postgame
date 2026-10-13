@@ -224,3 +224,28 @@ Dépend du point L0-3 (une démo de DM enregistrée) et du SteamID (L0-2).
       pas par seconde).
 - [ ] Juger les « inputs les plus irréguliers » : sont-ce bien les passages où Mathieu
       se sent le moins sûr ? (critère de fin de L8)
+
+## L9 — League of Legends et TFT
+
+Riot ID enregistré dans `postgame.toml` (local) : `iamheremyfriend#hiii`.
+
+### 21. Créer la clé API Riot (n'importe quelle machine)
+- [ ] developer.riotgames.com → se connecter avec le compte Riot → « Register Product » →
+      **Personal API Key** (n'expire pas, contrairement à la clé de développement de 24 h).
+- [ ] La coller dans `secrets.toml` : `[riot] cle = "RGAPI-…"` (jamais commitée).
+- [ ] Confirmer le serveur : EUW (`plateforme = "euw1"`, `region = "europe"`) ; sinon me dire
+      lequel.
+- **Attendu** : `.venv\Scripts\python -m postgame riot synchroniser` affiche le nombre de
+  parties LoL et TFT importées ; elles apparaissent dans l'interface.
+
+### 22. Construire les références de haut classement du patch (PC de jeu ou autre)
+- [ ] `.venv\Scripts\python -m postgame riot meta` (environ 5 à 10 minutes avec la clé
+      personnelle) ; à relancer **à chaque nouveau patch**.
+- **Attendu** : les débriefs LoL affichent des cibles « haut classement EUW1, N
+  échantillons, patch X » ; la page TFT montre la colonne « Haut classement ».
+
+### 23. Juger un débrief LoL et un débrief TFT réels
+- [ ] Ouvrir le débrief d'une vraie partie de chaque (critère de fin de L9).
+- [ ] Pendant une partie LoL, ouvrir « En direct » sur le téléphone : le panneau LoL doit
+      apparaître au chargement de la partie (API locale du client).
+- Me dire ce qui est faux ou inutile.

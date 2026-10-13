@@ -63,6 +63,55 @@ def construire_fiche(donnees: dict[str, Any]) -> Fiche:
     )
 
 
+def donnees_replay(donnees: dict[str, Any]) -> dict[str, Any]:
+    """Carte minute par minute (LOL-06) : positions des 10 joueurs, kills et objectifs."""
+    info = donnees["match"]["info"]
+    joueurs = [
+        {
+            "id": int(p["participantId"]),
+            "champion": p["championName"],
+            "equipe": int(p["teamId"]),
+            "moi": p["puuid"] == donnees["puuid"],
+            "role": p.get("teamPosition", ""),
+        }
+        for p in info["participants"]
+    ]
+    frames = donnees.get("timeline", {}).get("info", {}).get("frames", [])
+    minutes = [
+        {
+            "t": f.get("timestamp", 0),
+            "positions": {
+                pid: [e["position"]["x"], e["position"]["y"]]
+                for pid, e in f.get("participantFrames", {}).items()
+                if "position" in e
+            },
+        }
+        for f in frames
+    ]
+    evenements = [
+        {
+            "type": e["type"],
+            "t": e["timestamp"],
+            "x": e.get("position", {}).get("x"),
+            "y": e.get("position", {}).get("y"),
+            "tueur": e.get("killerId"),
+            "victime": e.get("victimId"),
+            "assistants": e.get("assistingParticipantIds", []),
+            "monstre": e.get("monsterType"),
+            "equipe": e.get("killerTeamId") or e.get("teamId"),
+        }
+        for f in frames
+        for e in f.get("events", [])
+        if e.get("type") in ("CHAMPION_KILL", "ELITE_MONSTER_KILL", "BUILDING_KILL")
+    ]
+    return {
+        "joueurs": joueurs,
+        "minutes": minutes,
+        "evenements": evenements,
+        "patch": patch_de(info.get("gameVersion")),
+    }
+
+
 class ModuleLoL:
     nom = "lol"
     libelle = "League of Legends"

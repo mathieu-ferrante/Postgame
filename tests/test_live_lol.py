@@ -1,0 +1,89 @@
+"""Second écran LoL (LOL-07) sur un exemple de réponse de la Live Client Data API.
+
+DONNÉES DE SUBSTITUTION : réponse construite d'après la documentation de Riot ; à vérifier
+pendant une vraie partie (A_VALIDER.md).
+"""
+
+import httpx
+
+from postgame.db import Mesure, Partie
+from postgame.live.lol import ScruteurLoL, resumer
+
+
+def donnees(temps=600.0):
+    return {
+        "activePlayer": {"riotId": "iamheremyfriend#hiii", "level": 9, "currentGold": 812.4},
+        "allPlayers": [
+            {
+                "riotId": "iamheremyfriend#hiii",
+                "championName": "Ahri",
+                "team": "ORDER",
+                "position": "MIDDLE",
+                "level": 9,
+                "scores": {
+                    "kills": 2,
+                    "deaths": 1,
+                    "assists": 3,
+                    "creepScore": 70,
+                    "wardScore": 7.5,
+                },
+                "items": [{"displayName": "Malédiction de Luden"}],
+            },
+            {
+                "riotId": "adv#euw",
+                "championName": "Zed",
+                "team": "CHAOS",
+                "position": "MIDDLE",
+                "level": 10,
+                "scores": {"creepScore": 84},
+            },
+        ],
+        "gameData": {"gameTime": temps},
+    }
+
+
+def test_resumer():
+    r = resumer(donnees(), {"cs_par_minute_moyen": 6.9})
+    assert (r["champion"], r["cs"], r["cs_par_minute"], r["or"]) == ("Ahri", 70, 7.0, 812)
+    assert r["adversaire"] == {"champion": "Zed", "cs": 84, "niveau": 10}
+    assert r["objets"] == ["Malédiction de Luden"] and r["reperes"]["cs_par_minute_moyen"] == 6.9
+    assert resumer(donnees(temps=30))["cs_par_minute"] is None  # avant 1 min : pas de taux
+
+
+def test_scruteur(base):
+    pid = base.ajouter_partie(
+        Partie(
+            jeu="lol",
+            date_partie="2026-10-01T20:00:00+00:00",
+            mode="classée solo",
+            carte="Ahri — milieu",
+            resultat="victoire",
+            source="x",
+            fichier="x",
+            empreinte="z",
+        )
+    )
+    base.remplacer_mesures(
+        pid,
+        [
+            Mesure(
+                "lol.farm.cs_par_minute",
+                1,
+                6.5,
+                "sbires/min",
+                {"champion": "Ahri", "role": "MIDDLE"},
+            )
+        ],
+    )
+    en_partie = {"oui": True}
+
+    def repondre(requete):
+        assert str(requete.url) == "https://127.0.0.1:2999/liveclientdata/allgamedata"
+        return httpx.Response(200, json=donnees()) if en_partie["oui"] else httpx.Response(404)
+
+    s = ScruteurLoL(base, client=httpx.Client(transport=httpx.MockTransport(repondre)))
+    s.passe()
+    assert s.resume["actif"] and s.resume["reperes"]["cs_par_minute_moyen"] == 6.5
+    en_partie["oui"] = False
+    s.passe()
+    assert s.resume == {"actif": False}

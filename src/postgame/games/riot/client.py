@@ -144,12 +144,16 @@ class ClientRiot:
 
     # --- League of Legends ----------------------------------------------------------------
 
-    def parties_lol(self, puuid: str, nombre: int = 20, debut: int = 0) -> list[str]:
-        return self._get(
-            self.region,
-            f"/lol/match/v5/matches/by-puuid/{puuid}/ids",
-            {"start": debut, "count": nombre},
-        )
+    def parties_lol(
+        self, puuid: str, nombre: int = 20, debut: int = 0, file: int | None = None
+    ) -> list[str]:
+        params: dict[str, Any] = {"start": debut, "count": nombre}
+        if file is not None:
+            params["queue"] = file
+        return self._get(self.region, f"/lol/match/v5/matches/by-puuid/{puuid}/ids", params)
+
+    def challengers_lol(self, file: str = "RANKED_SOLO_5x5") -> dict[str, Any]:
+        return self._get(self.plateforme, f"/lol/league/v4/challengerleagues/by-queue/{file}")
 
     def partie_lol(self, match_id: str) -> dict[str, Any]:
         return self._get(self.region, f"/lol/match/v5/matches/{match_id}", cache=True)

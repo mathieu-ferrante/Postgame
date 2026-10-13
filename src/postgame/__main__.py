@@ -71,6 +71,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_gsi.add_argument("--sortie", type=Path, help="fichier .cfg à écrire")
 
+    p_riot = sous.add_parser("riot", help="LoL et TFT : synchronisation et références méta")
+    sous_riot = p_riot.add_subparsers(dest="action", required=True)
+    sous_riot.add_parser("synchroniser", help="récupère les nouvelles parties LoL et TFT")
+    p_meta = sous_riot.add_parser("meta", help="références de haut classement du patch")
+    p_meta.add_argument("--jeu", choices=["lol", "tft", "tous"], default="tous")
+    p_meta.add_argument("--joueurs", type=int, default=10)
+    p_meta.add_argument("--parties", type=int, default=5)
+
     p_verif = sous.add_parser("verifier", help="fiche de vérification manuelle d'une partie")
     p_verif.add_argument("partie_id", type=int)
     p_verif.add_argument("--sortie", type=Path)
@@ -212,6 +220,31 @@ def main(argv: list[str] | None = None) -> int:
         sortie.write_bytes(texte_config(uri, jeton_gsi(cfg.dossier_donnees)).encode("ascii"))
         print(f"Config GSI écrite dans {sortie} (adresse {uri}).")
         print("Elle doit se trouver dans ...\\game\\csgo\\cfg\\ ; relancer CS2 pour la charger.")
+        return 0
+
+    if args.commande == "riot":
+        from postgame.games.riot.collecte import CollecteurRiot, client_configure
+
+        if args.action == "synchroniser":
+            print(CollecteurRiot(base, cfg).synchroniser())
+            return 0
+        from postgame.games.riot import meta
+        from postgame.games.riot.ddragon import DataDragon
+
+        client = client_configure(cfg)
+        if args.jeu in ("lol", "tous"):
+            dd = DataDragon(cfg.dossier_donnees / "ddragon")
+            print(
+                "LoL :",
+                meta.construire_meta_lol(client, base, args.joueurs, args.parties, dd.classes),
+            )
+        if args.jeu in ("tft", "tous"):
+            print(
+                "TFT :",
+                meta.construire_meta_tft(
+                    client, cfg.dossier_donnees / "riot", args.joueurs, args.parties
+                ),
+            )
         return 0
 
     if args.commande == "verifier":

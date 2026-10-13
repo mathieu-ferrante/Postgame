@@ -79,14 +79,27 @@ def cible_contextuelle(
 ) -> tuple[float | None, str | None]:
     """Cible tirée des références (méta du patch, pros…) pour ce contexte précis."""
     patch = contexte.get("patch")
-    lignes = [
-        r for r in base.references(nom, contexte_discriminant(contexte)) if r["n"] >= REFERENCE_MIN
-    ]
+    exact = contexte_discriminant(contexte)
+    # Du plus précis au plus général : même champion (ou même arme), puis même rôle (ou même
+    # catégorie d'arme). Le repli est toujours signalé dans la source.
+    essais = [(exact, "")]
+    if "champion" in exact:
+        essais.append(
+            ({k: v for k, v in exact.items() if k != "champion"}, " ; même rôle, tous champions")
+        )
+    if "arme" in exact:
+        essais.append(({k: v for k, v in exact.items() if k != "arme"}, " ; même catégorie d'arme"))
+    lignes, precision = [], ""
+    for cle, note in essais:
+        lignes = [r for r in base.references(nom, cle) if r["n"] >= REFERENCE_MIN]
+        if lignes:
+            precision = note
+            break
     if not lignes:
         return None, None
     meme_patch = [r for r in lignes if r["patch"] == (patch or "")]
     ref = meme_patch[0] if meme_patch else lignes[0]
-    source = f"{ref['source']}, {ref['n']} échantillons"
+    source = f"{ref['source']}, {ref['n']} échantillons{precision}"
     if ref["patch"]:
         source += f", patch {ref['patch']}"
         if patch and ref["patch"] != patch:

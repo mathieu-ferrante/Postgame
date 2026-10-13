@@ -100,6 +100,8 @@ export default function PagePartie() {
           </h1>
           {p.jeu === "cs2" && <Link to={`/replay/${p.id}`}>Ouvrir le replay 2D →</Link>}
           {p.jeu === "gd" && <Link to={`/gd/${p.id}`}>Voir tous les essais superposés →</Link>}
+          {p.jeu === "lol" && <Link to={`/lol/${p.id}`}>Carte minute par minute →</Link>}
+          {p.jeu === "tft" && <Link to="/tft">Ce qui te fait gagner des places →</Link>}
         </>
       )}
       <Etat erreur={debrief.erreur} chargement={debrief.chargement} />

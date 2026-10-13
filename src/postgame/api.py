@@ -6,6 +6,7 @@ Description lisible : docs/API.md.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import shutil
 import tempfile
@@ -37,8 +38,11 @@ from postgame.games import MODULES
 from postgame.games.cs2 import radar as radar_cs2
 from postgame.games.cs2 import replay as replay_cs2
 from postgame.games.cs2.donnees import extraire_match
+from postgame.games.riot.client import ErreurRiot
+from postgame.games.riot.collecte import CollecteurRiot
 from postgame.importation import importer
 from postgame.live.gsi_cs2 import RecepteurGSI, jeton_gsi
+from postgame.live.lol import ScruteurLoL
 from postgame.mesures import DEFINITIONS
 from postgame.surveillance import Surveillant
 
@@ -59,8 +63,13 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
     async def cycle_de_vie(_app: FastAPI):
         if surveiller:
             surveillant.demarrer()
+            if cfg.riot_id and cfg.secret("riot", "cle", "RIOT_API_KEY"):
+                app.state.collecteur_riot.demarrer()
+            app.state.scruteur_lol.demarrer()
         yield
+        app.state.scruteur_lol.arreter()
         surveillant.arreter()
+        app.state.collecteur_riot.arreter()
 
     app = FastAPI(
         title="Postgame",
@@ -302,6 +311,79 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         if not Path(p.fichier).exists():
             raise HTTPException(410, "journal archivé introuvable")
         return donnees_replay(lire_session(Path(p.fichier)))
+
+    # --- Riot : LoL et TFT ---------------------------------------------------------------
+
+    collecteur = CollecteurRiot(base, cfg)
+    app.state.collecteur_riot = collecteur
+
+    @app.get("/api/riot/etat", tags=["riot"])
+    def etat_riot() -> dict[str, Any]:
+        """Compte Riot configuré, dernière synchronisation, erreur éventuelle."""
+        return {
+            "riot_id": cfg.riot_id or None,
+            "plateforme": cfg.riot_plateforme,
+            "cle_presente": bool(cfg.secret("riot", "cle", "RIOT_API_KEY")),
+            **collecteur.etat,
+        }
+
+    @app.post("/api/riot/synchroniser", tags=["riot"])
+    def synchroniser_riot() -> dict[str, Any]:
+        """Récupère tout de suite les nouvelles parties LoL et TFT."""
+        try:
+            return collecteur.synchroniser()
+        except ErreurRiot as exc:
+            raise HTTPException(503, str(exc)) from exc
+
+    @app.get("/api/lol/replay/{partie_id}", tags=["lol"])
+    def replay_lol(partie_id: int) -> dict[str, Any]:
+        """Carte minute par minute d'une partie LoL (LOL-06)."""
+        from postgame.games.lol import donnees_replay, lire_fichier
+
+        p = base.partie(partie_id)
+        if p is None or p.jeu != "lol" or not Path(p.fichier).exists():
+            raise HTTPException(404, "partie LoL inconnue")
+        return donnees_replay(lire_fichier(Path(p.fichier)))
+
+    @app.get("/api/tft/stats", tags=["tft"])
+    def stats_tft() -> dict[str, Any]:
+        """Ce qui fait gagner ou perdre des places à Mathieu, par set et patch, face au haut
+        classement du même patch (TFT-02, TFT-03)."""
+        from postgame.games.riot.meta import lire_reference_tft
+        from postgame.games.tft import lire_fichier as lire_tft
+        from postgame.games.tft.stats import comparer, observations, statistiques
+
+        obs = []
+        decalage = 0
+        while lot := base.lister_parties(jeu="tft", limite=200, decalage=decalage):
+            decalage += len(lot)
+            for p in lot:
+                if Path(p.fichier).exists():
+                    d = lire_tft(Path(p.fichier))
+                    obs += observations(d["match"], {d["puuid"]})
+        return comparer(statistiques(obs), lire_reference_tft(cfg.dossier_donnees / "riot"))
+
+    scruteur_lol = ScruteurLoL(base)
+    app.state.scruteur_lol = scruteur_lol
+
+    @app.get("/api/lol/live", tags=["lol"])
+    def live_lol() -> dict[str, Any]:
+        """Partie LoL en cours (LOL-07), d'après l'API locale du client LoL."""
+        return scruteur_lol.resume
+
+    @app.websocket("/api/lol/live/ws")
+    async def live_lol_ws(ws: WebSocket) -> None:
+        """Même contenu, envoyé dès qu'il change (vérifié 4 fois par seconde)."""
+        await ws.accept()
+        dernier = None
+        try:
+            while True:
+                if scruteur_lol.resume != dernier:
+                    dernier = scruteur_lol.resume
+                    await ws.send_json(dernier)
+                await asyncio.sleep(0.25)
+        except (WebSocketDisconnect, RuntimeError):
+            pass
 
     # --- Second écran CS2 (Game State Integration) ---------------------------------------
 
