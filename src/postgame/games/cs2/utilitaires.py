@@ -41,7 +41,7 @@ D_FLASH_EQUIPE = definir(
     "cs2.flash.coequipiers_aveugles",
     1,
     "joueurs",
-    "Coéquipiers aveuglés au moins 1 s par les flashs de Mathieu (lui compris).",
+    "Coéquipiers aveuglés au moins 1 s par les flashs de Mathieu (sans compter Mathieu lui-même).",
     sens="bas",
 )
 D_FLASH_CONVERTIE = definir(
@@ -117,7 +117,8 @@ def flashs(d: DonneesMatch, pos: Positions) -> ResultatAnalyse:
         lot = aveugles[
             (aveugles["tick"] >= t) & (aveugles["tick"] <= t + FENETRE_AVEUGLEMENT_TICKS)
         ]
-        lot = lot[lot["duree"] >= SEUIL_AVEUGLE_S]
+        # Le lanceur aveuglé par sa propre flash n'est pas un coéquipier aveuglé.
+        lot = lot[(lot["duree"] >= SEUIL_AVEUGLE_S) & (lot["victime"] != d.moi)]
         adv = [v for v in lot.itertuples() if not _allies(d, pos, d.moi, v.victime, t)]
         equipe = [v for v in lot.itertuples() if _allies(d, pos, d.moi, v.victime, t)]
         nb_adv.append(len(adv))

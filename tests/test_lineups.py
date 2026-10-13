@@ -154,3 +154,51 @@ def test_import_automatique_des_pros(base, tmp_path, monkeypatch):
     bilan = pros_auto.synchroniser(base, [dossier], vus)
     assert appels == ["a.pgpro", "b.dem"]
     assert pros_auto.synchroniser(base, [dossier], vus) == {}
+
+
+def test_noms_d_armes_des_degats_repris_du_tir():
+    from postgame.games.cs2.donnees import armes_des_degats
+
+    tirs = pd.DataFrame(
+        {"tick": [100, 200], "steamid": ["a", "a"], "arme": ["m4a1_silencer", "usp_silencer"]}
+    )
+    degats = pd.DataFrame(
+        {
+            "tick": [101, 201, 300],
+            "attaquant": ["a", "a", "a"],
+            "victime": "b",
+            "arme": ["m4a1", "hkp2000", "hegrenade"],
+            "degats": 30.0,
+            "zone": "torse",
+        }
+    )
+    # Cas réel : player_hurt dit « m4a1 » et « hkp2000 », weapon_fire dit la vraie arme.
+    assert armes_des_degats(degats, tirs)["arme"].tolist() == [
+        "m4a1_silencer",
+        "usp_silencer",
+        "hegrenade",
+    ]
+
+
+def test_aveuglements_sans_player_blind():
+    from postgame.games.cs2.donnees import aveuglements_par_props
+
+    class Parser:
+        def parse_ticks(self, props, ticks):
+            assert ticks == [502]
+            return pd.DataFrame(
+                {
+                    "tick": [502, 502, 502],
+                    "steamid": ["1", "2", "3"],
+                    "flash_duration": [2.5, 0.0, 1.2],
+                }
+            )
+
+    flashs = pd.DataFrame({"tick": [500], "user_steamid": ["1"]})
+    a = aveuglements_par_props(Parser(), flashs)
+    assert a.to_dict("list") == {
+        "tick": [500, 500],
+        "attaquant": ["1", "1"],
+        "victime": ["1", "3"],
+        "duree": [2.5, 1.2],
+    }

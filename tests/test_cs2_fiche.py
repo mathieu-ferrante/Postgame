@@ -156,3 +156,11 @@ def test_joueur_trouve_par_pseudo_configure():
     donnees.etat_final.loc[donnees.etat_final["steamid"] == MOI, "name"] = "JEANMARKKARROK SKIN"
     assert trouver_joueur(donnees, "", ["jeanmarkkarrok skin"])["steamid"] == MOI
     assert trouver_joueur(donnees, "", ["autre"]) is None
+
+
+def test_demo_gotv_de_tournoi_sans_round_end():
+    # Cas réel (ESL Pro League S24, Falcons vs Spirit) : pas d'évènement round_end, 146 morts.
+    donnees = _donnees(_etat(8, 13, moi_equipe=3), nb_rounds=0, nb_morts=146)
+    fiche = construire_fiche(donnees, MOI)
+    assert fiche.mode == "competitif" and fiche.details["nb_rounds"] == 21
+    assert (fiche.resultat, fiche.score_joueur, fiche.score_adverse) == ("victoire", 13, 8)

@@ -207,6 +207,8 @@ def construire_fiche(
             if valeur is not None:
                 scores[int(equipe)] = valeur
     score_max = max(scores.values()) if scores else None
+    # Les démos GOTV de tournoi n'ont pas round_end : le score donne le nombre de rounds.
+    nb_rounds = max(len(rounds), sum(scores.values()) if scores else 0)
 
     joueur = trouver_joueur(donnees, steamid, noms)
     type_classement = None
@@ -216,7 +218,7 @@ def construire_fiche(
         type_classement = int(valeurs.mode().iloc[0]) if len(valeurs) else None
     mode = deduire_mode(
         nb_joueurs,
-        len(rounds),
+        nb_rounds,
         len(morts),
         score_max,
         type_classement,
@@ -228,7 +230,7 @@ def construire_fiche(
         "client": donnees.entete.get("client_name", ""),
         "version_demo": donnees.entete.get("demo_version_name", ""),
         "nb_joueurs": nb_joueurs,
-        "nb_rounds": len(rounds),
+        "nb_rounds": nb_rounds,
         "nb_morts": len(morts),
         "joueur_trouve": joueur is not None,
         "type_classement": type_classement,

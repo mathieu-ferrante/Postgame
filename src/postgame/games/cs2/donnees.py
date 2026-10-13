@@ -387,6 +387,11 @@ def extraire_match(
         victime=lambda df: _steamid(df["user_steamid"]),
         duree=lambda df: df["blind_duration"].astype(float),
     )
+    if "player_blind" not in evts:
+        # Démos GOTV de tournoi : pas de player_blind. On relève la durée de flash de chaque
+        # joueur juste après chaque éclatement de flash.
+        aveuglements = aveuglements_par_props(parser, evts.get("flashbang_detonate"))
+    degats = armes_des_degats(degats, tirs)
     lancers = _cadre(
         ["tick", "steamid", "type"],
         evts.get("grenade_thrown"),
@@ -674,6 +679,60 @@ def fin_apres(fins: pd.DataFrame, entite, debut: int, defaut: int, duree_max: in
         "tick",
     ]
     return int(candidats.min()) if len(candidats) else int(defaut)
+
+
+def aveuglements_par_props(parser: Any, flashs: pd.DataFrame | None) -> pd.DataFrame:
+    """Aveuglements (attaquant = lanceur) d'après la prop flash_duration 2 ticks après
+    chaque flash, pour les démos sans évènement player_blind."""
+    colonnes = ["tick", "attaquant", "victime", "duree"]
+    if flashs is None or not len(flashs):
+        return pd.DataFrame(columns=colonnes)
+    ticks = sorted({int(t) + 2 for t in flashs["tick"]})
+    try:
+        brut = parser.parse_ticks(["flash_duration"], ticks=ticks)
+    except Exception:
+        return pd.DataFrame(columns=colonnes)
+    brut = brut[brut["flash_duration"].fillna(0) > 0]
+    lanceurs = dict(
+        zip(flashs["tick"].astype(int) + 2, _steamid(flashs["user_steamid"]), strict=False)
+    )
+    return pd.DataFrame(
+        {
+            "tick": brut["tick"].astype("int64") - 2,
+            "attaquant": brut["tick"].astype(int).map(lanceurs),
+            "victime": _steamid(brut["steamid"]),
+            "duree": brut["flash_duration"].astype(float),
+        },
+        columns=colonnes,
+    ).reset_index(drop=True)
+
+
+def armes_des_degats(degats: pd.DataFrame, tirs: pd.DataFrame) -> pd.DataFrame:
+    """player_hurt nomme certaines armes autrement que weapon_fire (M4A1-S → « m4a1 »,
+    USP-S → « hkp2000 ») : on reprend l'arme du tir de l'attaquant au même tick."""
+    if not len(degats) or not len(tirs):
+        return degats
+    from postgame.games.cs2.armes import est_arme_a_feu
+
+    a_feu = degats["arme"].map(est_arme_a_feu)
+    if not a_feu.any():
+        return degats
+    d = degats[a_feu].reset_index().sort_values("tick")
+    t = tirs[tirs["arme"].map(est_arme_a_feu)].sort_values("tick")
+    lien = pd.merge_asof(
+        d,
+        t.rename(columns={"steamid": "attaquant", "arme": "arme_tir"})[
+            ["tick", "attaquant", "arme_tir"]
+        ],
+        on="tick",
+        by="attaquant",
+        direction="backward",
+        tolerance=2,
+    )
+    sortie = degats.copy()
+    trouvees = lien.dropna(subset=["arme_tir"])
+    sortie.loc[trouvees["index"].to_numpy(), "arme"] = trouvees["arme_tir"].to_numpy()
+    return sortie
 
 
 def construire_rounds(

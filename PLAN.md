@@ -164,6 +164,20 @@ jouées par le jeu lui-même. La vue 3D (three.js) est retirée.
 - [~] Vérifié sur données **simulées** (fichiers préparés, listes) ; jamais dans CS2
 - [ ] Critère de fin : un vrai moment (le mien et un pro) revu dans CS2 sur le PC de jeu
 
+## Premier passage sur vraies démos (2026-10-13)
+Analyse complète de deux vraies parties (Falcons vs Spirit, ESL Pro League S24) en prenant
+donk à la place de Mathieu. Corrigé :
+- [x] démos GOTV sans `round_end` : partie classée « deathmatch » → nombre de rounds tiré du
+      score (compétitif, victoire 13-8 comme dans la démo)
+- [x] sans `player_blind` : flashs comptées « inutiles à 100 % » → aveuglement relevé sur la
+      durée de flash de chaque joueur
+- [x] noms d'armes de player_hurt (« m4a1 », « hkp2000") différents de weapon_fire → arme du
+      tir reprise
+- [x] Mathieu compté parmi ses propres coéquipiers aveuglés
+- [x] Vérifiés et justes : précision (57 touches en 21 rounds, ≈ 30 PV par balle), trades
+      (3 morts sur 15 réellement vengées en 5 s)
+- [ ] À refaire sur les démos de Mathieu (Premier, DM, FACEIT) : modes, classement, GSI
+
 ## Vrais lineups pros (LINEUP-01, demande du 2026-10-13)
 Mathieu : seulement les meilleures grenades (pas celles « à l'arrache »), avec timing et
 pourquoi ce timing ; toutes les cartes, même hors pool ; le plus d'infos possible.
