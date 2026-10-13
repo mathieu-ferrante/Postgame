@@ -39,12 +39,20 @@ class Config:
     port: int = 8765
     dossier_donnees: Path = Path("data")
     steamid: str = ""
+    # Pseudos en jeu de Mathieu : repli quand le SteamID64 n'est pas renseigné.
+    noms_joueur: list[str] = field(default_factory=list)
     dossiers_cs2: list[Path] = field(
         default_factory=lambda: [Path(DOSSIER_CS2) / "replays", Path(DOSSIER_CS2)]
     )
     dossiers_gd: list[Path] = field(
         default_factory=lambda: [Path(os.environ.get("LOCALAPPDATA", "")) / DOSSIER_GD]
     )
+    riot_id: str = ""  # « Pseudo#TAG »
+    riot_plateforme: str = "euw1"
+    riot_region: str = "europe"
+    riot_synchro_minutes: float = 10.0
+    # Pas d'accès réseau aux données statiques (Data Dragon) : utile aux tests et hors ligne.
+    hors_ligne: bool = False
     intervalle_s: float = 5.0
     delai_stabilite_s: float = 10.0
     debrief: ConfigDebrief = field(default_factory=lambda: ConfigDebrief())
@@ -97,6 +105,7 @@ def charger_config(chemin: Path | None = None) -> Config:
             setattr(cfg, nom, fichier if fichier.is_absolute() else chemin.parent / fichier)
 
     cfg.steamid = str(brut.get("joueur", {}).get("steamid", "")).strip()
+    cfg.noms_joueur = [str(n) for n in brut.get("joueur", {}).get("noms", [])]
 
     cs2 = brut.get("cs2", {})
     if "dossiers_demos" in cs2:
@@ -105,6 +114,12 @@ def charger_config(chemin: Path | None = None) -> Config:
     gd = brut.get("gd", {})
     if "dossiers_journaux" in gd:
         cfg.dossiers_gd = [Path(os.path.expandvars(d)) for d in gd["dossiers_journaux"]]
+
+    riot = brut.get("riot", {})
+    cfg.riot_id = str(riot.get("riot_id", cfg.riot_id)).strip()
+    cfg.riot_plateforme = str(riot.get("plateforme", cfg.riot_plateforme))
+    cfg.riot_region = str(riot.get("region", cfg.riot_region))
+    cfg.riot_synchro_minutes = float(riot.get("synchro_minutes", cfg.riot_synchro_minutes))
 
     surv = brut.get("surveillance", {})
     cfg.intervalle_s = float(surv.get("intervalle_s", cfg.intervalle_s))

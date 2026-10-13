@@ -96,7 +96,7 @@ def client(base, cfg, tmp_path):
     app = creer_app(cfg, base=base, surveiller=False)
     appels = []
 
-    def extraire(chemin: Path, steamid: str):
+    def extraire(chemin: Path, steamid: str, noms=()):
         appels.append(chemin)
         return _match()
 

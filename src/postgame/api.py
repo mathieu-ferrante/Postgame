@@ -282,7 +282,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
             if not Path(p.fichier).exists():
                 raise HTTPException(410, "démo archivée introuvable")
             try:
-                match = app.state.extraire_match(Path(p.fichier), cfg.steamid)
+                match = app.state.extraire_match(Path(p.fichier), cfg.steamid, cfg.noms_joueur)
             except Exception as exc:
                 raise HTTPException(422, f"démo illisible : {exc}") from exc
             donnees = replay_cs2.construire_replay(match)

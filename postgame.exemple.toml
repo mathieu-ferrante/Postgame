@@ -14,6 +14,8 @@ dossier_donnees = "data"  # base SQLite + copies archivées des démos
 # SteamID64 de Mathieu (17 chiffres, ex. 7656119xxxxxxxxxx) : sert à savoir quel joueur
 # analyser dans une démo. Visible sur steamid.io ou dans l'URL de son profil Steam.
 steamid = ""
+# Pseudos en jeu (repli si le SteamID64 manque ; un pseudo peut changer, le SteamID non).
+noms = []
 
 [cs2]
 # Dossiers surveillés : les démos Premier téléchargées depuis le jeu atterrissent dans
@@ -28,6 +30,13 @@ dossiers_demos = [
 dossiers_journaux = [
     "%LOCALAPPDATA%/GeometryDash/geode/mods/mathieu.postgame-journal/sessions",
 ]
+
+[riot]
+# Riot ID (League of Legends et TFT) ; la clé API va dans secrets.toml.
+riot_id = ""          # « Pseudo#TAG »
+plateforme = "euw1"   # serveur : euw1, eun1, na1…
+region = "europe"     # routage régional des matchs : europe, americas, asia, sea
+synchro_minutes = 10  # récupération des nouvelles parties
 
 [surveillance]
 intervalle_s = 5          # période de scrutation des dossiers

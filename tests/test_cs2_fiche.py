@@ -134,3 +134,10 @@ def test_deduire_mode():
     assert deduire_mode(4, 14, 60, 9) == "wingman"
     assert deduire_mode(10, 21, 150, 13) == "competitif"
     assert deduire_mode(10, 5, 40, 5) == "autre"
+
+
+def test_joueur_trouve_par_pseudo_configure():
+    donnees = _donnees(_etat(13, 5), 18, 120, entete={"map_name": "de_nuke", "client_name": ""})
+    donnees.etat_final.loc[donnees.etat_final["steamid"] == MOI, "name"] = "JEANMARKKARROK SKIN"
+    assert trouver_joueur(donnees, "", ["jeanmarkkarrok skin"])["steamid"] == MOI
+    assert trouver_joueur(donnees, "", ["autre"]) is None

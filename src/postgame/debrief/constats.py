@@ -36,6 +36,7 @@ def charger_definitions() -> None:
     import postgame.games.cs2.analyse  # noqa: F401
     import postgame.games.gd.analyse  # noqa: F401
     import postgame.games.lol.analyse  # noqa: F401
+    import postgame.games.tft  # noqa: F401
 
 
 @dataclass

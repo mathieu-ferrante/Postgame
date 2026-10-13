@@ -62,6 +62,7 @@ def cfg(tmp_path: Path) -> Config:
         dossier_donnees=tmp_path / "data", dossiers_cs2=[], dossiers_gd=[], delai_stabilite_s=0.0
     )
     cfg.debrief.fournisseur = "aucun"  # jamais d'appel réseau dans les tests
+    cfg.hors_ligne = True
     return cfg
 
 

@@ -180,13 +180,21 @@ def _steamid(serie: pd.Series) -> pd.Series:
     return serie.astype("string").fillna("").str.replace(r"\.0$", "", regex=True)
 
 
-def identifier_moi(joueurs: pd.DataFrame, steamid: str, client: str) -> str:
-    """SteamID du joueur suivi : celui de la config, sinon celui dont le nom est le client
-    qui a enregistré la démo."""
+def meme_nom(a: object, b: object) -> bool:
+    return str(a).strip().casefold() == str(b).strip().casefold()
+
+
+def identifier_moi(
+    joueurs: pd.DataFrame, steamid: str, client: str, noms: list[str] | tuple[str, ...] = ()
+) -> str:
+    """SteamID du joueur suivi : celui de la config ; sinon celui qui porte l'un des pseudos
+    de Mathieu ; sinon le client qui a enregistré la démo."""
     if steamid:
         return str(steamid)
-    if client and len(joueurs):
-        lignes = joueurs[joueurs["nom"] == client]
+    for nom in [*noms, client]:
+        if not nom or not len(joueurs):
+            continue
+        lignes = joueurs[joueurs["nom"].map(lambda n, nom=nom: meme_nom(n, nom))]
         if len(lignes):
             return str(lignes["steamid"].iloc[0])
     raise ErreurLecture("joueur suivi introuvable : renseigner [joueur] steamid dans postgame.toml")
@@ -291,7 +299,9 @@ def _grenades_inventaire(valeur: Any) -> list[str]:
     return [c for c in (code_grenade(x) for x in valeur) if c]
 
 
-def extraire_match(chemin: Path, steamid: str) -> DonneesMatch:
+def extraire_match(
+    chemin: Path, steamid: str, noms: list[str] | tuple[str, ...] = ()
+) -> DonneesMatch:
     try:
         from demoparser2 import DemoParser
 
@@ -301,7 +311,7 @@ def extraire_match(chemin: Path, steamid: str) -> DonneesMatch:
         joueurs = pd.DataFrame(
             {"steamid": _steamid(infos["steamid"]), "nom": infos["name"].astype(str)}
         )
-        moi = identifier_moi(joueurs, steamid, str(entete.get("client_name", "")))
+        moi = identifier_moi(joueurs, steamid, str(entete.get("client_name", "")), noms)
         brut = parser.parse_ticks(PROPS_TICKS)
         presents = set(parser.list_game_events())
         voulus = [e for e in EVENEMENTS if e in presents]

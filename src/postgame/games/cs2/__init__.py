@@ -22,8 +22,8 @@ class ModuleCS2:
         return list(cfg.dossiers_cs2)
 
     def lire_fiche(self, chemin: Path, cfg: Config) -> Fiche:
-        return construire_fiche(extraire(chemin), cfg.steamid)
+        return construire_fiche(extraire(chemin), cfg.steamid, cfg.noms_joueur)
 
     def analyser(self, chemin: Path, cfg: Config) -> ResultatAnalyse:
-        donnees = extraire_match(chemin, cfg.steamid)
+        donnees = extraire_match(chemin, cfg.steamid, cfg.noms_joueur)
         return analyser_match(donnees, catalogue_pour(cfg.chemin_base, donnees.carte))

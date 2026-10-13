@@ -126,7 +126,9 @@ def _entier(valeur: Any) -> int | None:
         return None
 
 
-def trouver_joueur(donnees: DonneesDemo, steamid: str) -> pd.Series | None:
+def trouver_joueur(
+    donnees: DonneesDemo, steamid: str, noms: list[str] | tuple[str, ...] = ()
+) -> pd.Series | None:
     """Ligne du joueur suivi dans l'état final : par SteamID64, sinon (démo enregistrée par
     le client) par le nom du client présent dans l'en-tête."""
     etat = donnees.etat_final
@@ -137,10 +139,13 @@ def trouver_joueur(donnees: DonneesDemo, steamid: str) -> pd.Series | None:
         if len(lignes):
             return lignes.iloc[0]
     client = str(donnees.entete.get("client_name", "") or "").strip()
-    if client and "name" in etat:
-        lignes = etat[etat["name"].astype(str) == client]
-        if len(lignes):
-            return lignes.iloc[0]
+    for nom in [*noms, client]:
+        if nom and "name" in etat:
+            lignes = etat[
+                etat["name"].astype(str).str.strip().str.casefold() == nom.strip().casefold()
+            ]
+            if len(lignes):
+                return lignes.iloc[0]
     return None
 
 
@@ -161,7 +166,9 @@ def deduire_mode(nb_joueurs: int, nb_rounds: int, nb_morts: int, score_max: int 
     return "autre"
 
 
-def construire_fiche(donnees: DonneesDemo, steamid: str = "") -> Fiche:
+def construire_fiche(
+    donnees: DonneesDemo, steamid: str = "", noms: list[str] | tuple[str, ...] = ()
+) -> Fiche:
     ev = donnees.evenements
     debut = _tick_debut(ev)
     fin = _dernier_tick(ev)
@@ -182,7 +189,7 @@ def construire_fiche(donnees: DonneesDemo, steamid: str = "") -> Fiche:
     score_max = max(scores.values()) if scores else None
 
     mode = deduire_mode(nb_joueurs, len(rounds), len(morts), score_max)
-    joueur = trouver_joueur(donnees, steamid)
+    joueur = trouver_joueur(donnees, steamid, noms)
 
     details: dict[str, Any] = {
         "serveur": donnees.entete.get("server_name", ""),
