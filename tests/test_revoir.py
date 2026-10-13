@@ -99,3 +99,61 @@ def test_api_revoir(base, cfg, tmp_path):
         assert c.get("/api/cs2/stuffs/inconnu/pros").status_code == 404
         proches = c.get("/api/cs2/pros/proches?carte=de_mirage&x=100&y=0&camp=CT").json()
         assert proches[0]["joueur"] == "ZywOo"
+
+
+def test_vues_des_autres_et_pause(tmp_path):
+    csgo = tmp_path / "csgo"
+    (csgo / "cfg").mkdir(parents=True)
+    (csgo / "cfg" / "postgame_vue_9.cfg").write_text("ancien")
+    demo = _demo(tmp_path / "m.dem")
+    r = revoir.preparer(
+        demo,
+        1000,
+        "b1t",
+        csgo,
+        tmp_path,
+        "pro1",
+        avance_s=0.05,
+        joueurs=["b1t", "jL", "b1t", "", "Aleksib"],
+        pause=True,
+    )
+    assert r.tick == 1000 - 3 and r.vues == [("v1", "b1t"), ("v2", "jL"), ("v3", "Aleksib")]
+    lancer = (csgo / "cfg" / "postgame.cfg").read_text(encoding="utf-8")
+    assert 'alias v2 "exec postgame_vue_2"' in lancer
+    assert lancer.index("alias v3") < lancer.index("playdemo")  # alias avant le chargement
+    assert (csgo / "cfg" / "postgame_vue_2.cfg").read_text(encoding="utf-8") == 'spec_player "jL"\n'
+    assert not (csgo / "cfg" / "postgame_vue_9.cfg").exists()
+    aller = (csgo / "cfg" / "postgame_aller.cfg").read_text(encoding="utf-8")
+    assert aller.strip().endswith("demo_pause")
+
+
+def test_api_capture_de_la_vue_du_pro(base, cfg, tmp_path):
+    import os
+    import time
+
+    _remplir(base, _demo(tmp_path / "pro.dem"))
+    cfg.dossier_steam = tmp_path / "Steam"
+    cfg.steamid = "76561198000000001"
+    captures = cfg.dossier_steam / "userdata" / "39734273" / "760" / "remote" / "730"
+    captures = captures / "screenshots"
+    captures.mkdir(parents=True)
+    (captures / "ancienne.jpg").write_bytes(b"vieux")
+    with TestClient(creer_app(cfg, base=base, surveiller=False)) as c:
+        assert c.get("/api/cs2/stuffs/cle1/capture").json() == {"attente": False, "image": None}
+        r = c.post(
+            "/api/cs2/stuffs/cle1/capture",
+            json={"empreinte": "abc123", "tick": 4000, "joueur": "b1t"},
+        ).json()
+        assert r["dossiers"] == [str(captures)] and r["vues"][0]["joueur"] == "ZywOo"
+        assert r["tick"] == 4000 - 3
+        assert c.get("/api/cs2/stuffs/cle1/capture").json()["attente"] is True
+        nouvelle = captures / "20261013_vue.jpg"
+        nouvelle.write_bytes(b"\xff\xd8vue du pro")
+        futur = time.time() + 5
+        os.utime(nouvelle, (futur, futur))
+        assert c.get("/api/cs2/stuffs/cle1/capture").json()["image"] == "/api/cs2/stuffs/cle1/image"
+        assert c.get("/api/cs2/stuffs/cle1/image").content == b"\xff\xd8vue du pro"
+        assert c.get("/api/cs2/stuffs/cle1/capture").json()["attente"] is False
+        # Silhouette de la carte d'après les positions des pros (pas de radar ici).
+        assert c.get("/api/cs2/stuffs?carte=de_mirage").json()["silhouette"]["cellules"]
+        assert c.post("/api/cs2/radars/exporter").status_code == 409  # outil non configuré

@@ -37,14 +37,20 @@ def _identifiants(d: DonneesMatch) -> dict[str, int]:
 def fond_de_carte(d: DonneesMatch) -> dict[str, Any] | None:
     """Grille des cellules où au moins un joueur vivant est passé : silhouette de la carte."""
     echantillon = d.ticks[(d.ticks["tick"] % PAS_FOND_TICKS == 0) & d.ticks["vivant"]]
-    if not len(echantillon):
+    return fond_depuis_points(echantillon["x"], echantillon["y"], echantillon["z"])
+
+
+def fond_depuis_points(x: pd.Series, y: pd.Series, z: pd.Series) -> dict[str, Any] | None:
+    """Silhouette (cellules de CELLULE_FOND unités) des points où des joueurs sont passés."""
+    points = pd.DataFrame({"x": x, "y": y, "z": z}).dropna(subset=["x", "y"])
+    if not len(points):
         return None
-    xmin, ymin = float(echantillon["x"].min()), float(echantillon["y"].min())
-    i = ((echantillon["x"] - xmin) // CELLULE_FOND).astype(int)
-    j = ((echantillon["y"] - ymin) // CELLULE_FOND).astype(int)
+    xmin, ymin = float(points["x"].min()), float(points["y"].min())
+    i = ((points["x"] - xmin) // CELLULE_FOND).astype(int)
+    j = ((points["y"] - ymin) // CELLULE_FOND).astype(int)
     cellules = sorted({(int(a), int(b)) for a, b in zip(i, j, strict=True)})
     # Hauteur du sol par cellule (médiane des z des pieds) : étages de la carte.
-    hauteurs = echantillon.assign(i=i, j=j).groupby(["i", "j"])["z"].median().round()
+    hauteurs = points.assign(i=i, j=j).groupby(["i", "j"])["z"].median().fillna(0).round()
     return {
         "xmin": round(xmin),
         "ymin": round(ymin),

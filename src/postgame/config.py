@@ -13,6 +13,7 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parents[2]
 DOSSIER_GD = "GeometryDash/geode/mods/mathieu.postgame-journal/sessions"
+DOSSIER_STEAM = "C:/Program Files (x86)/Steam"
 DOSSIER_CS2 = (
     "C:/Program Files (x86)/Steam/steamapps/common/Counter-Strike Global Offensive/game/csgo"
 )
@@ -47,6 +48,10 @@ class Config:
     dossiers_gd: list[Path] = field(
         default_factory=lambda: [Path(os.environ.get("LOCALAPPDATA", "")) / DOSSIER_GD]
     )
+    # Source2Viewer-CLI.exe (outil libre ValveResourceFormat) : exporte les radars officiels
+    # depuis les fichiers du jeu. Vide = pas d'export automatique.
+    source2viewer: Path | None = None
+    dossier_steam: Path = Path(DOSSIER_STEAM)  # captures d'écran Steam (F12)
     faceit_pseudo: str = ""
     steam_code_connu: str = ""  # un code de partage déjà connu (point de départ de l'API)
     sources_synchro_minutes: float = 10.0
@@ -113,6 +118,8 @@ def charger_config(chemin: Path | None = None) -> Config:
     cs2 = brut.get("cs2", {})
     if "dossiers_demos" in cs2:
         cfg.dossiers_cs2 = [Path(d) for d in cs2["dossiers_demos"]]
+    if cs2.get("source2viewer"):
+        cfg.source2viewer = Path(cs2["source2viewer"])
 
     gd = brut.get("gd", {})
     if "dossiers_journaux" in gd:
@@ -120,6 +127,8 @@ def charger_config(chemin: Path | None = None) -> Config:
 
     cfg.faceit_pseudo = str(brut.get("faceit", {}).get("pseudo", "")).strip()
     cfg.steam_code_connu = str(brut.get("steam", {}).get("code_connu", "")).strip()
+    if brut.get("steam", {}).get("dossier"):
+        cfg.dossier_steam = Path(brut["steam"]["dossier"])
 
     riot = brut.get("riot", {})
     cfg.riot_id = str(riot.get("riot_id", cfg.riot_id)).strip()

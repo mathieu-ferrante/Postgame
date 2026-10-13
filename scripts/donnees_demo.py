@@ -334,7 +334,7 @@ def main(dossier: Path) -> None:
     faux_pro.parent.mkdir(parents=True, exist_ok=True)
     faux_pro.write_bytes(b"DEMO SIMULEE")
     pros = ["ZywOo (DÉMO)", "donk (DÉMO)", "m0NESY (DÉMO)", "ropz (DÉMO)"]
-    echantillon = d.ticks[d.ticks["vivant"]].sample(60, random_state=3)
+    echantillon = d.ticks[d.ticks["vivant"]].sample(800, random_state=3)
     with base.transaction() as cx:
         cx.execute(
             "INSERT INTO cs2_ref_demos (empreinte, fichier, carte, ajoute_le, chemin) "

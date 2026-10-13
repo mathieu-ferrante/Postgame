@@ -1,15 +1,17 @@
 // Apprendre les stuffs de chaque carte (STUFF-01) : catalogue appris sur démos pros,
 // commandes d'entraînement hors ligne, maîtrise en match, notes et révisions espacées.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Etat, useDonnee } from "../composants/Chargement";
 import { MomentsPros } from "../composants/RevoirCS2";
 import { api } from "../api";
 import { nombre } from "../lib/format";
 import { projectionRadar } from "../lib/projection";
 
+interface Silhouette { xmin: number; ymin: number; cellule: number; cellules: [number, number][] }
 interface Stuff {
   cle: string; type: string; nom: string; technique: string; commandes: string | null;
+  lieu_lancer: string | null; lieu_arrivee: string | null;
   x: number; y: number; lx: number | null; ly: number | null; nb: number; nb_demos: number;
   lpitch: number | null; lyaw: number | null; image: string | null;
   maitrise: { tentatives: number; reussites: number; dernier_ecart: number | null; derniere_reussite: string | null };
@@ -20,7 +22,102 @@ interface VueStuffs {
   carte: string; stuffs: Stuff[]; notes_carte: { id: number; texte: string }[];
   config_entrainement: string;
   radar: { parametres: { pos_x: number; pos_y: number; scale: number } | null; image: string | null; taille_image: number };
+  silhouette: Silhouette | null;
 }
+type Vers = (x: number, y: number) => [number, number];
+
+// Fond de carte : radar officiel, sinon silhouette des endroits où les pros sont passés.
+function FondCarte({ vue, vers, C }: { vue: VueStuffs; vers: Vers; C: number }) {
+  if (vue.radar.image && vue.radar.parametres) return <image href={vue.radar.image} width={C} height={C} opacity={0.85} />;
+  const s = vue.silhouette;
+  if (!s) return null;
+  const [x0] = vers(s.xmin, s.ymin), [x1] = vers(s.xmin + s.cellule, s.ymin);
+  const t = Math.abs(x1 - x0) + 0.4;
+  return (
+    <g fill="#2a2f38">
+      {s.cellules.map(([i, j]) => {
+        const [x, y] = vers(s.xmin + i * s.cellule, s.ymin + (j + 1) * s.cellule);
+        return <rect key={`${i}-${j}`} x={x} y={y} width={t} height={t} />;
+      })}
+    </g>
+  );
+}
+
+// « Où te placer » : zoom sur le point de lancer (toi), le regard, et l'arrivée.
+function OuTePlacer({ s, vue, vers, C }: { s: Stuff; vue: VueStuffs; vers: Vers; C: number }) {
+  if (s.lx === null || s.ly === null) return <p className="discret">Point de lancer inconnu.</p>;
+  const [px, py] = vers(s.lx, s.ly), [ax, ay] = vers(s.x, s.y);
+  const marge = 70;
+  const x0 = Math.min(px, ax) - marge, y0 = Math.min(py, ay) - marge;
+  const cote = Math.max(Math.abs(px - ax), Math.abs(py - ay)) + 2 * marge;
+  const echelle = cote / 300; // tailles constantes à l'écran
+  const yaw = ((s.lyaw ?? 0) * Math.PI) / 180;
+  const [dx, dy] = [Math.cos(yaw), -Math.sin(yaw)];
+  return (
+    <svg viewBox={`${x0} ${y0} ${cote} ${cote}`} style={{ width: "100%", maxWidth: 360, background: "#0e1013", borderRadius: 10 }}>
+      <FondCarte vue={vue} vers={vers} C={C} />
+      <line x1={px} y1={py} x2={ax} y2={ay} stroke={COULEURS[s.type]} strokeWidth={2 * echelle} strokeDasharray={`${6 * echelle} ${4 * echelle}`} />
+      <circle cx={ax} cy={ay} r={9 * echelle} fill={COULEURS[s.type]} fillOpacity={0.5} />
+      <line x1={px} y1={py} x2={px + dx * 30 * echelle} y2={py + dy * 30 * echelle} stroke="#f0b429" strokeWidth={3 * echelle} />
+      <circle cx={px} cy={py} r={7 * echelle} fill="#f0b429" stroke="#000" strokeWidth={echelle} />
+      <text x={px + 10 * echelle} y={py - 10 * echelle} fill="#f0b429" fontSize={14 * echelle} fontWeight="bold">TOI</text>
+      <text x={ax + 12 * echelle} y={ay + 4 * echelle} fill="#e8eaed" fontSize={12 * echelle}>arrivée</text>
+    </svg>
+  );
+}
+
+// « Où viser » : vraie capture de la vue du pro au lâcher (F12 dans la démo, jointe seule).
+function OuViser({ s, recharger }: { s: Stuff; recharger: () => void }) {
+  const pros = useDonnee(() => api.prosStuff(s.cle), [s.cle]);
+  const [etat, setEtat] = useState<{ attente: boolean; message?: string; vues?: string; commandes?: string[] } | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!etat?.attente) return;
+    const minuteur = setInterval(async () => {
+      const r = await json<{ attente: boolean; image: string | null }>(`/api/cs2/stuffs/${s.cle}/capture`);
+      if (r.image) { setEtat(null); recharger(); }
+      else if (!r.attente) setEtat(null);
+    }, 2000);
+    return () => clearInterval(minuteur);
+  }, [etat, s.cle, recharger]);
+
+  const capturer = async () => {
+    const m = pros.donnee?.[0];
+    if (!m) return;
+    setErreur(null);
+    try {
+      const r = await json<{ commandes: string[]; joueur: string; installe: boolean }>(`/api/cs2/stuffs/${s.cle}/capture`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ empreinte: m.empreinte, tick: m.tick, joueur: m.joueur }),
+      });
+      setEtat({ attente: true, commandes: r.commandes, message: r.installe ? undefined : "Dossier de CS2 introuvable sur cette machine : à faire sur le PC de jeu." });
+    } catch (e) {
+      setErreur(String((e as Error).message));
+    }
+  };
+
+  return (
+    <>
+      {s.image
+        ? <img src={`${s.image}?v=${Date.now() % 100000}`} alt="Vue du lanceur au moment du lancer : le viseur est sur le repère" style={{ width: "100%", borderRadius: 8 }} />
+        : <p className="discret">Pas encore de vue : capture-la dans la vraie démo d'un pro (le viseur montre le repère exact).</p>}
+      {pros.donnee && pros.donnee.length > 0 && !etat && (
+        <button onClick={capturer}>{s.image ? "Refaire la capture depuis la démo du pro" : "Capturer la vue du pro"}</button>
+      )}
+      {erreur && <p className="erreur">{erreur}</p>}
+      {etat?.attente && (
+        <div className="carte revoir-etapes">
+          {etat.message && <p className="discret">{etat.message}</p>}
+          Dans CS2 : console <code>{etat.commandes?.[0]}</code>, puis <code>{etat.commandes?.[1]}</code> une fois la démo chargée.
+          L'image est figée au lâcher de la grenade, vue du pro. Appuie sur <strong>F12</strong> :
+          la capture Steam arrive ici toute seule. <span className="discret">En attente…</span>
+        </div>
+      )}
+    </>
+  );
+}
+
 interface Cartes { cartes: { code: string; nom: string; pool: boolean }[] }
 
 function regard(s: Stuff): string | null {
@@ -71,7 +168,11 @@ export default function Stuffs() {
   const vers = useMemo(() => {
     const r = vue.donnee?.radar;
     if (r?.parametres && r.image) return projectionRadar(r.parametres, r.taille_image, C).versEcran;
-    const pts = (vue.donnee?.stuffs ?? []).flatMap((s) => [[s.x, s.y], ...(s.lx !== null ? [[s.lx, s.ly!]] : [])]);
+    const sil = vue.donnee?.silhouette;
+    const pts = [
+      ...(vue.donnee?.stuffs ?? []).flatMap((s) => [[s.x, s.y], ...(s.lx !== null ? [[s.lx, s.ly!]] : [])]),
+      ...(sil ? sil.cellules.map(([i, j]) => [sil.xmin + i * sil.cellule, sil.ymin + j * sil.cellule]) : []),
+    ];
     if (!pts.length) return (x: number, y: number): [number, number] => [x, y];
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
     const etendue = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), 500) * 1.15;
@@ -79,7 +180,7 @@ export default function Stuffs() {
     return (x: number, y: number): [number, number] => [(x - cx) / etendue * C + C / 2, (cy - y) / etendue * C + C / 2];
   }, [vue.donnee]);
 
-  const recharger = () => vue.recharger();
+  const recharger = vue.recharger;
   const [messageAnnot, setMessageAnnot] = useState("");
   const envoyerImage = async (cle: string, fichiers: FileList | null) => {
     if (!fichiers?.length) return;
@@ -157,7 +258,7 @@ export default function Stuffs() {
       {vue.donnee && vue.donnee.stuffs.length > 0 && (
         <div className="replay">
           <svg viewBox={`0 0 ${C} ${C}`} style={{ width: "100%", background: "#0e1013", borderRadius: 10 }}>
-            {vue.donnee.radar.image && <image href={vue.donnee.radar.image} width={C} height={C} opacity={0.8} />}
+            <FondCarte vue={vue.donnee} vers={vers} C={C} />
             {liste.map((s) => {
               const [ax, ay] = vers(s.x, s.y);
               const actif = s.cle === selection;
@@ -178,14 +279,17 @@ export default function Stuffs() {
             {choisi ? (
               <div className="carte">
                 <h3>{choisi.nom}</h3>
-                <p style={{ fontSize: "1.15rem" }}><strong>Technique : {choisi.technique}</strong></p>
+                <h4>1. Où te placer{choisi.lieu_lancer ? ` — ${choisi.lieu_lancer}` : ""}</h4>
+                <OuTePlacer s={choisi} vue={vue.donnee} vers={vers} C={C} />
+                <p className="discret">Le trait jaune donne la direction du regard ; l'arrivée est{choisi.lieu_arrivee ? ` sur ${choisi.lieu_arrivee}` : " au bout des pointillés"}.</p>
+                <h4>2. Où viser (vue réelle du pro)</h4>
+                <OuViser s={choisi} recharger={recharger} />
+                <h4>3. Comment lancer</h4>
+                <p style={{ fontSize: "1.15rem" }}><strong>{choisi.technique}</strong>{regard(choisi) ? <span className="discret"> · {regard(choisi)}</span> : null}</p>
                 <ProsDuStuff cle={choisi.cle} />
-                <p className="discret">Joué {choisi.nb} fois par les pros ({choisi.nb_demos} démos){regard(choisi) ? ` · ${regard(choisi)}` : ""}.</p>
-                {choisi.image
-                  ? <img src={`${choisi.image}?v=${Date.now() % 100000}`} alt="Vue au moment du lancer" style={{ width: "100%", borderRadius: 8 }} />
-                  : <p className="discret">Pas encore de capture : revois un pro le lancer (ci-dessus) ou place-toi en entraînement avec la commande ci-dessous, fais une capture d'écran (F12 dans Steam) et ajoute-la ici.</p>}
+                <p className="discret">Joué {choisi.nb} fois par les pros ({choisi.nb_demos} démos).</p>
                 <label className="discret" style={{ display: "block", margin: "0.4rem 0" }}>
-                  {choisi.image ? "Remplacer la capture" : "Ajouter une capture"} :{" "}
+                  Ou joindre ta propre capture :{" "}
                   <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => envoyerImage(choisi.cle, e.target.files)} />
                 </label>
                 {choisi.commandes && (

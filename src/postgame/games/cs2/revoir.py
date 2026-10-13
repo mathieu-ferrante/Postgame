@@ -6,7 +6,9 @@ l'utilisateur. Pour revoir un moment (une de mes parties ou une démo pro), il p
 - une copie de la démo dans game/csgo/postgame/ (nom court, sans espace) ;
 - game/csgo/cfg/postgame.cfg : définit l'alias « pg » puis lance `playdemo` ;
 - game/csgo/cfg/postgame_aller.cfg : `demo_gototick` quelques secondes avant le moment,
-  puis `spec_player` sur le joueur à suivre (moi, ou le pro qui lance le stuff).
+  puis `spec_player` sur le joueur à suivre (moi, ou le pro qui lance le stuff) ;
+- game/csgo/cfg/postgame_vue_<n>.cfg : `spec_player` sur chacun des joueurs, appelés par
+  les alias v1, v2… pour voir le même moment par les yeux de n'importe qui.
 
 En jeu : console → `exec postgame`, puis `pg` une fois la démo chargée. Hors du jeu, le
 lien steam://run/730//+exec postgame/ démarre CS2 directement sur la démo.
@@ -17,7 +19,7 @@ from __future__ import annotations
 
 import os
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from postgame.games.cs2.demo import TICKS_PAR_SECONDE
@@ -35,6 +37,7 @@ class Revoir:
     lien_steam: str
     tick: int
     joueur: str | None
+    vues: list[tuple[str, str]] = field(default_factory=list)  # (alias, joueur)
 
     def en_dict(self) -> dict:
         return {
@@ -44,6 +47,7 @@ class Revoir:
             "lien_steam": self.lien_steam,
             "tick": self.tick,
             "joueur": self.joueur,
+            "vues": [{"commande": c, "joueur": j} for c, j in self.vues],
         }
 
 
@@ -89,28 +93,41 @@ def preparer(
     csgo: Path | None,
     repli: Path,
     nom: str,
-    avance_s: int = AVANCE_S,
+    avance_s: float = AVANCE_S,
+    joueurs: list[str] | None = None,
+    pause: bool = False,
 ) -> Revoir:
-    """Prépare la démo et les deux fichiers de commandes. `nom` : identifiant court
-    (lettres et chiffres) de la copie. `repli` : dossier utilisé hors du PC de jeu."""
+    """Prépare la démo et les fichiers de commandes. `nom` : identifiant court (lettres et
+    chiffres) de la copie. `repli` : dossier utilisé hors du PC de jeu. `joueurs` : tous
+    ceux dont on veut pouvoir prendre la vue. `pause` : figer l'image (capture d'écran)."""
     if not demo.is_file():
         raise FileNotFoundError(f"démo introuvable : {demo}")
     if not nom.isalnum():
         raise ValueError("nom de copie : lettres et chiffres uniquement")
     racine = csgo if csgo is not None else repli
     copie = _copier(demo, racine / SOUS_DOSSIER, nom)
-    cible = max(0, int(tick) - avance_s * TICKS_PAR_SECONDE)
+    cible = max(0, int(tick) - round(avance_s * TICKS_PAR_SECONDE))
     cfg = racine / "cfg"
     cfg.mkdir(parents=True, exist_ok=True)
+    for ancien in cfg.glob("postgame_vue_*.cfg"):
+        ancien.unlink()
+    noms = list(dict.fromkeys(_texte_console(j) for j in (joueurs or []) if j and j.strip()))
+    vues = []
+    for i, j in enumerate(noms, start=1):
+        (cfg / f"postgame_vue_{i}.cfg").write_text(f'spec_player "{j}"\n', encoding="utf-8")
+        vues.append((f"v{i}", j))
     (cfg / "postgame.cfg").write_text(
         "// Écrit par Postgame. Ouvre la démo ; une fois chargée, tape « pg ».\n"
         'alias pg "exec postgame_aller"\n'
-        f"playdemo {SOUS_DOSSIER}/{nom}\n",
+        + "".join(f'alias {c} "exec postgame_vue_{i}"\n' for i, (c, _) in enumerate(vues, 1))
+        + f"playdemo {SOUS_DOSSIER}/{nom}\n",
         encoding="utf-8",
     )
     aller = [f"demo_gototick {cible}"]
     if joueur:
         aller.append(f'spec_player "{_texte_console(joueur)}"')
+    if pause:
+        aller.append("demo_pause")
     (cfg / "postgame_aller.cfg").write_text(
         "// Écrit par Postgame : va au moment choisi.\n" + "\n".join(aller) + "\n",
         encoding="utf-8",
@@ -122,6 +139,7 @@ def preparer(
         lien_steam="steam://run/730//+exec postgame/",
         tick=cible,
         joueur=joueur,
+        vues=vues,
     )
 
 
@@ -247,3 +265,14 @@ def exemples_stuff(base, cle: str, limite: int = 10) -> list[dict]:
             depart = 0.0
         lignes.append((e, j, r, t, lieu, arrivee + depart))
     return _moments(lignes, disponibles, limite)
+
+
+def joueurs_demo_pro(base, empreinte: str) -> list[str]:
+    """Joueurs vus dans une démo pro (pour pouvoir prendre la vue de chacun)."""
+    with base.transaction() as cx:
+        lignes = cx.execute(
+            "SELECT joueur FROM cs2_ref_observations WHERE empreinte = ? AND joueur IS NOT NULL "
+            "GROUP BY joueur ORDER BY MIN(camp), joueur",
+            (empreinte,),
+        ).fetchall()
+    return [j for (j,) in lignes]

@@ -79,6 +79,9 @@ def main(argv: list[str] | None = None) -> int:
     p_meta.add_argument("--joueurs", type=int, default=10)
     p_meta.add_argument("--parties", type=int, default=5)
 
+    p_radars = sous.add_parser("radars", help="exporte les radars officiels des fichiers du jeu")
+    p_radars.add_argument("cartes", nargs="*", help="cartes (défaut : pool actif)")
+
     p_annot = sous.add_parser("annotations", help="écrit les annotations CS2 des stuffs")
     p_annot.add_argument("cartes", nargs="*", help="cartes (défaut : pool actif)")
 
@@ -248,6 +251,20 @@ def main(argv: list[str] | None = None) -> int:
                     client, cfg.dossier_donnees / "riot", args.joueurs, args.parties
                 ),
             )
+        return 0
+
+    if args.commande == "radars":
+        from postgame.games.cs2 import cartes, radar, revoir
+
+        csgo = revoir.dossier_csgo(cfg.dossiers_cs2)
+        if cfg.source2viewer is None or csgo is None:
+            print("Il faut [cs2] source2viewer et le dossier du jeu (voir A_VALIDER.md).")
+            return 1
+        liste = args.cartes or cartes.etat_cartes(cfg.dossier_donnees)["pool"]
+        for carte, etat in radar.exporter(
+            cfg.source2viewer, csgo, cfg.dossier_donnees, liste
+        ).items():
+            print(f"{carte} : {etat}")
         return 0
 
     if args.commande == "annotations":

@@ -165,6 +165,7 @@ export interface Revoir {
   lien_steam: string;
   tick: number;
   joueur: string | null;
+  vues: { commande: string; joueur: string }[];
 }
 
 export interface MomentPro {

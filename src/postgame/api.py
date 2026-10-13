@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import shutil
 import tempfile
 import threading
@@ -38,6 +39,7 @@ from postgame.debrief.constats import charger_definitions
 from postgame.games import MODULES
 from postgame.games.cs2 import radar as radar_cs2
 from postgame.games.cs2 import replay as replay_cs2
+from postgame.games.cs2.captures import Attentes, capture_depuis, dossiers_captures
 from postgame.games.cs2.donnees import extraire_match
 from postgame.games.riot.client import ErreurRiot
 from postgame.games.riot.collecte import CollecteurRiot
@@ -47,6 +49,8 @@ from postgame.live.lol import ScruteurLoL
 from postgame.mesures import DEFINITIONS
 from postgame.performance import Garde, abaisser_priorite
 from postgame.surveillance import Surveillant
+
+journal = logging.getLogger(__name__)
 
 PERIODES = {"7j": timedelta(days=7), "30j": timedelta(days=30), "tout": None}
 
@@ -77,6 +81,11 @@ class DemandeRevoir(BaseModel):
     empreinte: str | None = None
     tick: int
     joueur: str | None = None
+    avance_s: float = 5.0
+    pause: bool = False
+
+
+AVANCE_CAPTURE_S = 0.05  # ~3 ticks avant le lâcher : la visée du lancer
 
 
 def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) -> FastAPI:
@@ -87,6 +96,38 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         )
     )
     surveillant = Surveillant(base, cfg, garde=garde if surveiller else None)
+
+    def exporter_radars(tous: bool = False) -> dict[str, Any]:
+        """Radars manquants (ou tous) des cartes du pool, depuis pak01_dir.vpk du PC de jeu."""
+        from postgame.games.cs2 import cartes
+        from postgame.games.cs2 import revoir as rv
+
+        if cfg.source2viewer is None:
+            raise HTTPException(
+                409, "Source2Viewer-CLI non configuré ([cs2] source2viewer dans postgame.toml)"
+            )
+        csgo = rv.dossier_csgo(cfg.dossiers_cs2)
+        if csgo is None:
+            raise HTTPException(409, "dossier de CS2 introuvable sur cette machine")
+        pool = list(cartes.etat_cartes(cfg.dossier_donnees)["pool"])
+        liste = pool if tous else radar_cs2.manquants(cfg.dossier_donnees, pool)
+        if not liste:
+            return {"cartes": {}}
+        try:
+            bilan = radar_cs2.exporter(cfg.source2viewer, csgo, cfg.dossier_donnees, liste)
+        except FileNotFoundError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        return {"cartes": bilan}
+
+    def radars_au_demarrage() -> None:
+        # Hors partie seulement : l'export lit un gros fichier du jeu.
+        while garde.doit_attendre("lourd"):
+            if app.state.arret.wait(60):
+                return
+        try:
+            journal.info("radars : %s", exporter_radars())
+        except HTTPException as exc:
+            journal.info("radars non exportés : %s", exc.detail)
 
     @asynccontextmanager
     async def cycle_de_vie(_app: FastAPI):
@@ -103,6 +144,8 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
                     daemon=True,
                     name="sources-cs2",
                 ).start()
+            if cfg.source2viewer is not None:
+                threading.Thread(target=radars_au_demarrage, daemon=True, name="radars").start()
             if not cfg.hors_ligne:
                 from postgame.games.cs2 import cartes
 
@@ -340,6 +383,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
             "notes_carte": [n for n in stuffs.notes(base, carte) if not n["stuff"]],
             "config_entrainement": stuffs.CONFIG_ENTRAINEMENT,
             "radar": radar_cs2.radar(cfg.dossier_donnees, carte),
+            "silhouette": stuffs.silhouette(base, carte),
         }
 
     @app.get("/api/cs2/stuffs/annotations", tags=["stuffs"])
@@ -401,11 +445,13 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
             demo, nom = Path(partie.fichier), f"partie{partie.id}"
             # Par défaut, la caméra me suit.
             demande.joueur = demande.joueur or partie.details.get("joueur") or None
+            joueurs = joueurs_partie(partie.id) or [demande.joueur or ""]
         elif demande.empreinte:
             demo = rv.chemin_demo_pro(base, demande.empreinte)
             if demo is None or not demande.empreinte.isalnum():
                 raise HTTPException(404, "démo pro inconnue")
             nom = f"pro{demande.empreinte[:12]}"
+            joueurs = rv.joueurs_demo_pro(base, demande.empreinte)
         else:
             raise HTTPException(422, "partie_id ou empreinte attendu")
         try:
@@ -416,10 +462,55 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
                 rv.dossier_csgo(cfg.dossiers_cs2),
                 cfg.dossier_donnees / "revoir",
                 nom,
+                avance_s=demande.avance_s,
+                joueurs=joueurs,
+                pause=demande.pause,
             )
         except FileNotFoundError as exc:
             raise HTTPException(410, f"{exc} (déplacée ou supprimée ?)") from exc
         return resultat.en_dict()
+
+    def joueurs_partie(partie_id: int) -> list[str]:
+        """Joueurs d'une de mes parties, d'après le replay mis en cache (s'il existe)."""
+        donnees = replay_cs2.lire_cache(replay_cs2.chemin_cache(cfg.dossier_donnees, partie_id))
+        if not donnees:
+            return []
+        joueurs = sorted(donnees["meta"]["joueurs"], key=lambda j: (not j.get("moi"), j["id"]))
+        return [j["nom"] for j in joueurs]
+
+    attentes_captures = Attentes()
+
+    def dossiers_steam() -> list[Path]:
+        return dossiers_captures(cfg.dossier_steam, cfg.steamid)
+
+    @app.post("/api/cs2/stuffs/{cle}/capture", tags=["stuffs"])
+    def capture_demander(cle: str, demande: DemandeRevoir) -> dict[str, Any]:
+        """Ouvre la démo pro figée au lancer, caméra sur le pro ; la prochaine capture
+        d'écran Steam (F12) sera jointe au stuff."""
+        demande.avance_s, demande.pause = AVANCE_CAPTURE_S, True
+        resultat = revoir(demande)
+        attentes_captures.demander(cle)
+        return {**resultat, "dossiers": [str(d) for d in dossiers_steam()]}
+
+    @app.get("/api/cs2/stuffs/{cle}/capture", tags=["stuffs"])
+    def capture_etat(cle: str) -> dict[str, Any]:
+        """Capture d'écran Steam arrivée depuis la demande ? Si oui, elle est jointe."""
+        from postgame.games.cs2 import stuffs
+
+        depuis = attentes_captures.depuis(cle)
+        if depuis is None:
+            return {"attente": False, "image": None}
+        capture = capture_depuis(dossiers_steam(), depuis)
+        if capture is None:
+            return {"attente": True, "image": None}
+        stuffs.enregistrer_image(cfg.dossier_donnees, cle, capture.name, capture.read_bytes())
+        attentes_captures.terminer(cle)
+        return {"attente": False, "image": f"/api/cs2/stuffs/{cle}/image"}
+
+    @app.post("/api/cs2/radars/exporter", tags=["cs2"])
+    def radars_exporter() -> dict[str, Any]:
+        """Exporte les radars officiels depuis les fichiers du jeu (Source2Viewer-CLI)."""
+        return exporter_radars(tous=True)
 
     @app.get("/api/cs2/pros", tags=["revoir"])
     def pros() -> list[dict[str, Any]]:

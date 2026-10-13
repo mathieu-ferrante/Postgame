@@ -39,6 +39,14 @@ export function BoutonRevoir({ demande, libelle = "Revoir dans CS2" }: { demande
           {", puis une fois la démo chargée "}
           <code>{revoir.commandes[1]}</code>
           {revoir.joueur ? ` (caméra sur ${revoir.joueur}, 5 s avant).` : " (5 s avant)."}
+          {revoir.vues.length > 1 && (
+            <>
+              <br />
+              Voir par les yeux d'un autre joueur :{" "}
+              {revoir.vues.map((v) => <span key={v.commande}><code>{v.commande}</code> {v.joueur} · </span>)}
+              <span className="discret">(ou clic gauche / droit dans la démo pour passer d'un joueur à l'autre)</span>
+            </>
+          )}
           <br />
           <a href={revoir.lien_steam}>CS2 fermé ? Le lancer directement sur la démo</a>
         </span>

@@ -150,8 +150,16 @@ Dépend du point L0-3 (une démo de DM enregistrée) et du SteamID (L0-2).
 - **Attendu** : `http://localhost:8765/` affiche la liste des parties.
 
 ### 15. Exporter les radars officiels (PC de jeu)
-- [ ] Avec Source 2 Viewer (outil libre « ValveResourceFormat », à télécharger par Mathieu
-      s'il le souhaite), ouvrir `game\csgo\pak01_dir.vpk` et exporter, pour chaque carte :
+- [ ] **Automatique** : télécharger Source2Viewer-CLI (outil libre, https://s2v.app/, version
+      « CLI » pour Windows), puis dans `postgame.toml`, section `[cs2]` :
+      `source2viewer = "C:/Outils/Source2Viewer-CLI.exe"`. Au démarrage (hors partie),
+      Postgame exporte les radars manquants ; ou à la main : `postgame radars`.
+  - **Attendu** : `data\radars\de_mirage.png` et `de_mirage.txt` (idem pour chaque carte
+    du pool), et le radar apparaît dans le replay et la page Stuffs. Si une carte affiche
+    « radar absent des fichiers du jeu », me donner le nom des fichiers sous
+    `panorama\images\overheadmaps` (Valve a pu les renommer).
+- [ ] Sinon, à la main avec Source 2 Viewer : ouvrir `game\csgo\pak01_dir.vpk` et exporter,
+      pour chaque carte :
   - `panorama\images\overheadmaps\<carte>_radar_psd.vtex_c` → PNG 1024×1024, enregistré
     sous `data\radars\<carte>.png` ;
   - `resource\overviews\<carte>.txt` → copié tel quel dans `data\radars\<carte>.txt`.
@@ -309,3 +317,19 @@ Riot ID enregistré dans `postgame.toml` (local) : `iamheremyfriend#hiii`.
   capture d'écran du stuff (F12) et l'ajouter à la fiche.
 - [ ] Replay 2D d'une de mes parties → « Chercher à cet instant » : la liste montre des
       pros du même camp au même endroit, et « ▶ CS2 » les montre vraiment là.
+
+### 30. Voir par les yeux des autres joueurs (PC de jeu)
+- [ ] Après `exec postgame` et `pg`, taper `v2`, `v3`… (la liste des joueurs s'affiche dans
+      Postgame sous le bouton).
+- **Attendu** : la caméra passe sur le joueur annoncé. Si `spec_player` ne marche pas avec
+  les pseudos à espaces, me le dire ; le clic gauche/droit dans la démo change aussi de
+  joueur.
+
+### 31. Capturer la vraie vue d'un stuff (PC de jeu)
+- [ ] Page Stuffs → un stuff → « Capturer la vue du pro » → dans CS2 `exec postgame`, puis
+      `pg` : l'image doit être figée au lâcher de la grenade, vue du pro, viseur sur le
+      repère. Appuyer sur F12.
+- **Attendu** : la capture apparaît d'elle-même dans « 2. Où viser » en quelques secondes.
+  Sinon, vérifier `[steam] dossier` dans `postgame.toml` (les captures sont dans
+  `Steam\userdata\<compte>\760\remote\730\screenshots`). Si l'image n'est pas figée
+  au bon moment (trop tôt ou trop tard), me dire de combien.

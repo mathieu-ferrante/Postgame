@@ -153,6 +153,13 @@ jouées par le jeu lui-même. La vue 3D (three.js) est retirée.
 - [x] « Les pros au même endroit » : vrais rounds pros où un joueur du même camp se tenait
       là où est Mathieu à l'instant du replay
 - [x] Stuffs : « Le voir lancé par un pro » ouvre la démo pro au lancer, caméra sur le pro
+- [x] Vue de n'importe quel joueur : alias v1, v2… (un `spec_player` par joueur de la démo)
+- [x] Fiche de stuff en 3 étapes : où te placer (zoom sur la carte, « TOI », regard,
+      arrivée), où viser (vraie capture de la vue du pro), comment lancer
+- [x] « Capturer la vue du pro » : démo figée au lâcher (`demo_pause`), caméra sur le pro ;
+      la capture Steam (F12) est repérée dans userdata/…/730/screenshots et jointe seule
+- [x] Radars officiels exportés automatiquement des fichiers du jeu (Source2Viewer-CLI,
+      `postgame radars`) ; à défaut, silhouette de la carte d'après les positions des pros
 - [~] Vérifié sur données **simulées** (fichiers préparés, listes) ; jamais dans CS2
 - [ ] Critère de fin : un vrai moment (le mien et un pro) revu dans CS2 sur le PC de jeu
 
