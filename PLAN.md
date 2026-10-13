@@ -170,6 +170,11 @@ Exigences nouvelles, au même rang que le cahier des charges :
   - [x] notes de Mathieu par carte et par stuff
   - [x] rappels à réviser (Leitner 1-2-4-8-16 jours) et suivi des stuffs maîtrisés en match
   - [x] rappel des stuffs et notes de la carte sur le second écran au chargement de la partie
+  - [~] technique de lancer reconnue dans les démos (clic gauche / droit / les deux, saut,
+        W, marche, accroupi) à partir des touches enregistrées ; comparée à celle des pros
+        quand Mathieu rate un stuff
+  - [~] annotations officielles CS2 générées par carte (position, point à viser avec la
+        technique, arrivée) ; captures d'écran jointes par Mathieu ; format à confirmer en jeu
 
 - [ ] **MODES-01 — Toutes les parties CS2 analysées** : compétitif, Premier, FACEIT,
       Wingman (et deathmatch), sur toutes les cartes (pool actif, autres modes, Wingman)
@@ -254,3 +259,5 @@ Exigences nouvelles, au même rang que le cahier des charges :
 | 2026-10-13 | STUFF-01 | Entraînement par `setpos` / `setang` dans une partie privée (sv_cheats 1) | Commandes officielles du jeu, hors ligne ; aucune aide en partie en ligne |
 | 2026-10-13 | STUFF-01 | Révisions espacées en boîtes de Leitner ; une smoke réussie en match compte comme révision | Simple, efficace pour mémoriser ; le match réel prime sur le quiz |
 | 2026-10-13 | STUFF-01 | Stuffs et catalogue sur toutes les cartes, mais appris seulement là où il y a des démos pros (pool actif) | Les cartes hors pool (Wingman, nouvelles cartes) n'ont pas de démos pros : leur catalogue restera vide tant qu'aucune source n'existe |
+| 2026-10-13 | STUFF-01 | « Images » des stuffs : annotations officielles du jeu (position, visée, arrivée affichées en entraînement) + captures jointes par Mathieu, plutôt que des images fabriquées | Seul le jeu peut rendre la vue réelle ; les annotations sont exactes car tirées des positions et angles des démos |
+| 2026-10-13 | STUFF-01 | Technique de lancer déduite des touches enregistrées (FIRE, RIGHTCLICK, JUMP, FORWARD, WALK, DUCK) avec repli sur vitesse et « en l'air » | demoparser2 expose les commandes des joueurs ; leur présence dans les démos GOTV reste à confirmer |

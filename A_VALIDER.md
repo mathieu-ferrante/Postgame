@@ -269,3 +269,18 @@ Riot ID enregistré dans `postgame.toml` (local) : `iamheremyfriend#hiii`.
 - [ ] Un code de partage récent (CS2 → Regarder → Vos matchs → icône de partage) dans
       `postgame.toml`, `[steam] code_connu = "CSGO-…"`.
 - **Attendu** : Postgame liste chaque nouvelle partie classée, même sans démo téléchargée.
+
+## Stuffs CS2 (STUFF-01)
+
+### 26. Annotations en jeu (PC de jeu)
+- [ ] Une fois des démos pros ajoutées : page Stuffs → « Installer les annotations » (ou
+      `.venv\Scripts\python -m postgame annotations`).
+- [ ] CS2 → Jouer → Entraînement sur la carte → console : `annotation_load postgame_de_mirage`.
+- **Attendu** : marqueurs au sol aux points de lancer, point à viser avec la technique écrite
+  (« jumpthrow (clic gauche) »…), zone d'arrivée. Si rien ne s'affiche ou si le jeu signale
+  une erreur, me le dire : le format des annotations a pu changer depuis 2024.
+
+### 27. Technique de lancer
+- [ ] Sur un stuff connu (ex. smoke window de Mirage en jumpthrow), vérifier que la page
+      Stuffs annonce la bonne technique. Si toutes les techniques affichent « clic ? », les
+      démos ne contiennent pas les touches des joueurs : me le dire.

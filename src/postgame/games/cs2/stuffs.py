@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -44,6 +45,9 @@ def commandes(stuff: dict[str, Any]) -> str | None:
 
 
 def technique(stuff: dict[str, Any]) -> str:
+    if stuff.get("technique"):
+        part = stuff.get("part_technique")
+        return stuff["technique"] + (f" ({round(100 * part)} % des pros)" if part else "")
     morceaux = []
     if (stuff.get("part_saut") or 0) >= 0.5:
         morceaux.append("en sautant (jumpthrow)")
@@ -55,6 +59,41 @@ def technique(stuff: dict[str, Any]) -> str:
 def nom(stuff: dict[str, Any]) -> str:
     depuis = f" depuis {stuff['lieu_lancer']}" if stuff.get("lieu_lancer") else ""
     return f"{TYPES.get(stuff['type'], stuff['type'])} {stuff.get('lieu_arrivee') or '?'}{depuis}"
+
+
+# --- Captures d'écran jointes par Mathieu -------------------------------------------------
+
+FORMATS_IMAGE = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+}
+
+
+def dossier_images(dossier_donnees: Path) -> Path:
+    return dossier_donnees / "stuffs_images"
+
+
+def chemin_image(dossier_donnees: Path, cle: str) -> Path | None:
+    for ext in FORMATS_IMAGE:
+        f = dossier_images(dossier_donnees) / f"{cle}{ext}"
+        if f.exists():
+            return f
+    return None
+
+
+def enregistrer_image(dossier_donnees: Path, cle: str, nom_fichier: str, contenu: bytes) -> Path:
+    ext = Path(nom_fichier).suffix.lower()
+    if ext not in FORMATS_IMAGE or not cle.isalnum():
+        raise ValueError("image attendue : png, jpg ou webp")
+    ancienne = chemin_image(dossier_donnees, cle)
+    if ancienne:
+        ancienne.unlink()
+    dossier_images(dossier_donnees).mkdir(parents=True, exist_ok=True)
+    cible = dossier_images(dossier_donnees) / f"{cle}{ext}"
+    cible.write_bytes(contenu)
+    return cible
 
 
 # --- Maîtrise en match -------------------------------------------------------------------
@@ -162,7 +201,9 @@ def stuffs_carte(base: Base, carte: str) -> list[dict[str, Any]]:
     for _, r in refs.iterrows():
         s = {k: (None if pd.isna(v) else v) for k, v in r.to_dict().items()}
         cle = s.get("cle")
+        image = chemin_image(base.chemin.parent, cle) if cle else None
         s.update(
+            image=f"/api/cs2/stuffs/{cle}/image" if image else None,
             nom=nom(s),
             commandes=commandes(s),
             technique=technique(s),

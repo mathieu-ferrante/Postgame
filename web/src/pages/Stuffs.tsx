@@ -9,6 +9,7 @@ import { projectionRadar } from "../lib/projection";
 interface Stuff {
   cle: string; type: string; nom: string; technique: string; commandes: string | null;
   x: number; y: number; lx: number | null; ly: number | null; nb: number; nb_demos: number;
+  lpitch: number | null; lyaw: number | null; image: string | null;
   maitrise: { tentatives: number; reussites: number; dernier_ecart: number | null; derniere_reussite: string | null };
   revision: { boite: number; prochaine: string } | null;
   notes: { id: number; texte: string }[];
@@ -19,6 +20,12 @@ interface VueStuffs {
   radar: { parametres: { pos_x: number; pos_y: number; scale: number } | null; image: string | null; taille_image: number };
 }
 interface Cartes { cartes: { code: string; nom: string; pool: boolean }[] }
+
+function regard(s: Stuff): string | null {
+  if (s.lpitch === null) return null;
+  const haut = s.lpitch < 0 ? "vers le haut" : "vers le bas";
+  return `regard ${Math.abs(s.lpitch).toFixed(1)}° ${haut}`;
+}
 
 const COULEURS: Record<string, string> = { smoke: "#c8c8d2", flash: "#ffffff", molotov: "#f06e1e" };
 
@@ -59,6 +66,18 @@ export default function Stuffs() {
   }, [vue.donnee]);
 
   const recharger = () => vue.recharger();
+  const [messageAnnot, setMessageAnnot] = useState("");
+  const envoyerImage = async (cle: string, fichiers: FileList | null) => {
+    if (!fichiers?.length) return;
+    const corps = new FormData();
+    corps.append("fichier", fichiers[0]);
+    await fetch(`/api/cs2/stuffs/${cle}/image`, { method: "POST", body: corps });
+    recharger();
+  };
+  const installerAnnotations = async () => {
+    const r = await json<{ fichier: string; commande: string }>(`/api/cs2/stuffs/annotations?carte=${carte}`, { method: "POST" });
+    setMessageAnnot(`Écrit dans ${r.fichier}. En jeu (entraînement) : ${r.commande}`);
+  };
   const ajouterNote = async (stuff: string | null) => {
     if (!note.trim()) return;
     await json("/api/notes", { method: "POST", headers: { "Content-Type": "application/json" },
@@ -145,7 +164,15 @@ export default function Stuffs() {
             {choisi ? (
               <div className="carte">
                 <h3>{choisi.nom}</h3>
-                <p className="discret">Joué {choisi.nb} fois par les pros ({choisi.nb_demos} démos). Lancer {choisi.technique}.</p>
+                <p style={{ fontSize: "1.15rem" }}><strong>Technique : {choisi.technique}</strong></p>
+                <p className="discret">Joué {choisi.nb} fois par les pros ({choisi.nb_demos} démos){regard(choisi) ? ` · ${regard(choisi)}` : ""}.</p>
+                {choisi.image
+                  ? <img src={`${choisi.image}?v=${Date.now() % 100000}`} alt="Vue au moment du lancer" style={{ width: "100%", borderRadius: 8 }} />
+                  : <p className="discret">Pas encore de capture : en entraînement, place-toi avec la commande ci-dessous, fais une capture d'écran (F12 dans Steam) et ajoute-la ici.</p>}
+                <label className="discret" style={{ display: "block", margin: "0.4rem 0" }}>
+                  {choisi.image ? "Remplacer la capture" : "Ajouter une capture"} :{" "}
+                  <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => envoyerImage(choisi.cle, e.target.files)} />
+                </label>
                 {choisi.commandes && (
                   <p><code style={{ wordBreak: "break-all" }}>{choisi.commandes}</code>{" "}
                     <button onClick={() => copier(choisi.commandes!)}>Copier</button></p>
@@ -180,6 +207,13 @@ export default function Stuffs() {
               <button onClick={() => ajouterNote(null)}>Ajouter la note</button>
             </>
           )}
+          <h3 style={{ marginTop: "1rem" }}>Voir les stuffs dans le jeu</h3>
+          <p className="discret">Les annotations officielles de CS2 affichent en entraînement où te placer, le point exact à viser avec la technique, et où la grenade doit tomber.</p>
+          <div className="ligne">
+            <button onClick={installerAnnotations}>Installer les annotations de {carte}</button>
+            <a href={`/api/cs2/stuffs/annotations?carte=${carte}`}>Télécharger le fichier</a>
+          </div>
+          {messageAnnot && <p className="discret">{messageAnnot}</p>}
           <h3 style={{ marginTop: "1rem" }}>S'entraîner hors ligne</h3>
           <p className="discret">Dans une partie privée (Jouer → Entraînement), colle cette ligne dans la console, puis les commandes « setpos » des stuffs :</p>
           <code style={{ wordBreak: "break-all" }}>{vue.donnee.config_entrainement}</code>{" "}

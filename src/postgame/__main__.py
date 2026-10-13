@@ -79,6 +79,9 @@ def main(argv: list[str] | None = None) -> int:
     p_meta.add_argument("--joueurs", type=int, default=10)
     p_meta.add_argument("--parties", type=int, default=5)
 
+    p_annot = sous.add_parser("annotations", help="écrit les annotations CS2 des stuffs")
+    p_annot.add_argument("cartes", nargs="*", help="cartes (défaut : pool actif)")
+
     p_verif = sous.add_parser("verifier", help="fiche de vérification manuelle d'une partie")
     p_verif.add_argument("partie_id", type=int)
     p_verif.add_argument("--sortie", type=Path)
@@ -244,6 +247,22 @@ def main(argv: list[str] | None = None) -> int:
                 meta.construire_meta_tft(
                     client, cfg.dossier_donnees / "riot", args.joueurs, args.parties
                 ),
+            )
+        return 0
+
+    if args.commande == "annotations":
+        from postgame.games.cs2 import annotations_jeu as annotations
+        from postgame.games.cs2 import cartes, stuffs
+
+        dossier = annotations.dossier_annotations(
+            cfg.dossiers_cs2, cfg.dossier_donnees / "annotations"
+        )
+        for carte in args.cartes or cartes.etat_cartes(cfg.dossier_donnees)["pool"]:
+            liste = stuffs.stuffs_carte(base, carte)
+            chemin = annotations.ecrire(carte, liste, dossier)
+            print(
+                f"{carte} : {len(liste)} stuff(s) → {chemin} (en jeu : annotation_load "
+                f"postgame_{carte})"
             )
         return 0
 

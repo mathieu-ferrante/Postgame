@@ -390,6 +390,16 @@ def extraire_match(
         type=lambda df: df["weapon"].map(code_grenade),
     )
     grenades = extraire_grenades(evts)
+    if len(lancers):
+        from postgame.games.cs2.techniques import techniques_des_lancers
+
+        techniques = techniques_des_lancers(
+            etats_avant_lancers(parser, lancers["tick"].astype(int).tolist()), lancers
+        )
+        lancers["technique"] = [
+            techniques.get((str(s), int(t)))
+            for s, t in zip(lancers["steamid"], lancers["tick"], strict=True)
+        ]
 
     vide = pd.DataFrame(columns=["tick"])
     debuts = sorted(evts.get("round_freeze_end", vide)["tick"].astype(int).tolist())
@@ -511,6 +521,36 @@ def extraire_bombe(evts: dict[str, pd.DataFrame]) -> pd.DataFrame:
 
 COLONNES_GRENADES = ["tick", "lanceur", "type", "x", "y", "z", "entite", "fin"]
 DUREE_MOLOTOV_DEFAUT = 7 * TICKS_PAR_SECONDE
+
+
+def etats_avant_lancers(parser: Any, ticks_lancers: list[int]) -> pd.DataFrame:
+    """États des joueurs sur les ticks qui précèdent chaque lancer, boutons compris si la
+    démo les contient (sinon vitesse, en l'air, accroupi seulement)."""
+    from postgame.games.cs2.techniques import BOUTONS, TICKS_AVANT, colonnes_etat
+
+    ticks = sorted({t - k for t in ticks_lancers for k in range(TICKS_AVANT + 1) if t - k >= 0})
+    if not ticks:
+        return pd.DataFrame(columns=["tick", "steamid"])
+    base_props = ["velocity_X", "velocity_Y", "is_airborne", "ducked"]
+    for props in (base_props + BOUTONS, base_props):
+        try:
+            brut = parser.parse_ticks(props, ticks=ticks)
+            break
+        except Exception:
+            continue
+    else:
+        return pd.DataFrame(columns=["tick", "steamid"])
+    return pd.DataFrame(
+        {
+            "tick": brut["tick"].astype("int64"),
+            "steamid": _steamid(brut["steamid"]),
+            "vx": brut["velocity_X"].astype(float).fillna(0.0),
+            "vy": brut["velocity_Y"].astype(float).fillna(0.0),
+            "en_l_air": brut["is_airborne"].fillna(False).astype(bool),
+            "accroupi": brut["ducked"].fillna(False).astype(bool),
+            **colonnes_etat(brut),
+        }
+    )
 
 
 def extraire_grenades(evts: dict[str, pd.DataFrame]) -> pd.DataFrame:

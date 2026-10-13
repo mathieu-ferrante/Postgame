@@ -37,6 +37,7 @@ from postgame.games.cs2.donnees import (
     construire_rounds,
     extraire_grenades,
 )
+from postgame.games.cs2.techniques import technique_majoritaire
 from postgame.mesures import Preuve, ResultatAnalyse, definir, mesure
 
 journal = logging.getLogger(__name__)
@@ -117,6 +118,7 @@ def observations_depuis(
     lancers: pd.DataFrame,
     etats: pd.DataFrame,
     debuts: list[int],
+    techniques: dict[tuple[str, int], str] | None = None,
 ) -> pd.DataFrame:
     """Observations d'une démo à partir de données déjà extraites (fonction pure).
 
@@ -139,7 +141,9 @@ def observations_depuis(
         "lyaw",
         "saut",
         "accroupi",
+        "technique",
     ]
+    techniques = techniques or {}
     lignes = []
     index = etats.set_index(["tick", "steamid"]) if len(etats) else None
 
@@ -172,6 +176,9 @@ def observations_depuis(
                 "lyaw": e.get("yaw") if e is not None else None,
                 "saut": int(bool(e.get("en_l_air"))) if e is not None else None,
                 "accroupi": int(bool(e.get("accroupi"))) if e is not None else None,
+                "technique": techniques.get((str(g["lanceur"]), int(g["tick_lancer"])))
+                if pd.notna(g["tick_lancer"])
+                else None,
             }
         )
     installations = {d + DELAI_INSTALLATION_TICKS for d in debuts}
@@ -197,6 +204,7 @@ def observations_depuis(
                     "lyaw": None,
                     "saut": None,
                     "accroupi": None,
+                    "technique": None,
                 }
             )
     return pd.DataFrame(lignes, columns=colonnes)
@@ -280,7 +288,13 @@ def extraire_observations(chemin: Path) -> pd.DataFrame:
                 "accroupi": brut["ducked"].fillna(False).astype(bool),
             }
         )
-    return observations_depuis(carte, grenades, lancers, etats, debuts)
+    from postgame.games.cs2.donnees import etats_avant_lancers
+    from postgame.games.cs2.techniques import techniques_des_lancers
+
+    techniques = techniques_des_lancers(
+        etats_avant_lancers(parser, lancers["tick"].astype(int).tolist()), lancers
+    )
+    return observations_depuis(carte, grenades, lancers, etats, debuts, techniques)
 
 
 # --- Regroupement et catalogue ------------------------------------------------------------
@@ -377,6 +391,15 @@ def construire_catalogue(
                         "lyaw": yaw_moyen(angles["lyaw"]) if len(angles) else None,
                         "part_saut": float(angles["saut"].mean()) if len(angles) else None,
                         "part_accroupi": float(angles["accroupi"].mean()) if len(angles) else None,
+                        **dict(
+                            zip(
+                                ("technique", "part_technique"),
+                                technique_majoritaire(
+                                    list(groupe["technique"]) if "technique" in groupe else []
+                                ),
+                                strict=True,
+                            )
+                        ),
                     }
                 )
         installes = obs[(obs["genre"] == "position") & obs["camp"].notna()]
@@ -411,6 +434,8 @@ def construire_catalogue(
         "lyaw",
         "part_saut",
         "part_accroupi",
+        "technique",
+        "part_technique",
     ]
     colonnes_p = ["carte", "camp", "lieu", "x", "y", "nb", "part"]
     return (
@@ -467,8 +492,8 @@ def ajouter_demo_pro(base: Base, chemin: Path) -> str:
         )
         cx.executemany(
             "INSERT INTO cs2_ref_observations (empreinte, carte, genre, type, camp, lieu, x, y, "
-            "z, lx, ly, lz, lpitch, lyaw, saut, accroupi) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "z, lx, ly, lz, lpitch, lyaw, saut, accroupi, technique) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (empreinte, *[None if pd.isna(v) else v for v in ligne])
                 for ligne in obs.reindex(
@@ -488,6 +513,7 @@ def ajouter_demo_pro(base: Base, chemin: Path) -> str:
                         "lyaw",
                         "saut",
                         "accroupi",
+                        "technique",
                     ]
                 ).itertuples(index=False)
             ],
@@ -573,8 +599,9 @@ def reconstruire_catalogue(base: Base) -> dict[str, int]:
         for _, ref in lancers.iterrows():
             cx.execute(
                 "INSERT INTO cs2_ref_lancers (carte, type, x, y, z, lx, ly, lz, lieu_arrivee, "
-                "lieu_lancer, nb, nb_demos, lpitch, lyaw, part_saut, part_accroupi, cle, "
-                "construit_le) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "lieu_lancer, nb, nb_demos, lpitch, lyaw, part_saut, part_accroupi, technique, "
+                "part_technique, cle, construit_le) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     *[
                         None if pd.isna(v) else (v.item() if hasattr(v, "item") else v)
@@ -695,8 +722,21 @@ def analyser_references(
         else pd.DataFrame()
     )
     reconnues, ecarts, coupant = 0, [], 0
+    # Technique de chaque smoke de Mathieu (si la démo contient ses touches).
+    mes_lancers = d.lancers[d.lancers["steamid"] == d.moi] if len(d.lancers) else d.lancers
+    techniques = {}
+    if len(mes_lancers) and "technique" in mes_lancers:
+        associees = associer_lancers(mes_lancers, mes_smokes)
+        techniques = {
+            int(g["tick"]): mes_lancers.loc[
+                mes_lancers["tick"] == g["tick_lancer"], "technique"
+            ].iloc[0]
+            for _, g in associees.iterrows()
+            if pd.notna(g["tick_lancer"])
+        }
     for _, s in mes_smokes.iterrows():
         t = int(s["tick"])
+        ma_technique = techniques.get(t)
         paires = lignes_coupees(d, pos, s)
         coupant += bool(paires)
         texte = f"Smoke ({len(paires)} ligne(s) de vue coupée(s))"
@@ -710,8 +750,13 @@ def analyser_references(
             elif dist <= DISTANCE_RATEE:
                 ecarts.append(dist)
                 texte = f"Smoke ratée de {dist:.0f} u : {_nom_reference(ref)} — " + texte
+                technique_pro = ref.get("technique")
+                if ma_technique and technique_pro and ma_technique != technique_pro:
+                    texte += f" — ta technique : {ma_technique}, celle des pros : {technique_pro}"
             else:
                 texte = "Smoke hors référence — " + texte
+            if stuff:
+                stuff["technique"] = ma_technique
         r.preuves.append(
             Preuve(
                 D_SMOKE_RECONNUES.nom,

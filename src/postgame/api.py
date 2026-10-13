@@ -27,7 +27,7 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from postgame import __version__
@@ -334,6 +334,53 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
             "config_entrainement": stuffs.CONFIG_ENTRAINEMENT,
             "radar": radar_cs2.radar(cfg.dossier_donnees, carte),
         }
+
+    @app.get("/api/cs2/stuffs/annotations", tags=["stuffs"])
+    def stuffs_annotations(carte: str) -> Response:
+        """Fichier d'annotations CS2 de la carte (à charger en entraînement)."""
+        from postgame.games.cs2 import annotations_jeu as annotations
+        from postgame.games.cs2 import stuffs
+
+        texte = annotations.generer(carte, stuffs.stuffs_carte(base, carte))
+        return Response(
+            texte,
+            media_type="text/plain; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="postgame_{carte}.txt"'},
+        )
+
+    @app.post("/api/cs2/stuffs/annotations", tags=["stuffs"])
+    def stuffs_annotations_installer(carte: str) -> dict[str, Any]:
+        """Écrit le fichier dans game/csgo/annotations/local du PC de jeu."""
+        from postgame.games.cs2 import annotations_jeu as annotations
+        from postgame.games.cs2 import stuffs
+
+        dossier = annotations.dossier_annotations(
+            cfg.dossiers_cs2, cfg.dossier_donnees / "annotations"
+        )
+        chemin = annotations.ecrire(carte, stuffs.stuffs_carte(base, carte), dossier)
+        return {"fichier": str(chemin), "commande": f"annotation_load postgame_{carte}"}
+
+    @app.post("/api/cs2/stuffs/{cle}/image", tags=["stuffs"])
+    async def stuff_image(cle: str, fichier: UploadFile) -> dict[str, Any]:
+        """Capture d'écran jointe à un stuff (position, visée…)."""
+        from postgame.games.cs2 import stuffs
+
+        try:
+            stuffs.enregistrer_image(
+                cfg.dossier_donnees, cle, fichier.filename or "", await fichier.read()
+            )
+        except ValueError as exc:
+            raise HTTPException(415, str(exc)) from exc
+        return {"image": f"/api/cs2/stuffs/{cle}/image"}
+
+    @app.get("/api/cs2/stuffs/{cle}/image", tags=["stuffs"])
+    def stuff_image_lire(cle: str) -> FileResponse:
+        from postgame.games.cs2 import stuffs
+
+        image = stuffs.chemin_image(cfg.dossier_donnees, cle)
+        if image is None:
+            raise HTTPException(404, "pas d'image pour ce stuff")
+        return FileResponse(image, media_type=stuffs.FORMATS_IMAGE[image.suffix])
 
     @app.get("/api/cs2/stuffs/a_reviser", tags=["stuffs"])
     def stuffs_a_reviser(carte: str, nombre: int = Query(5, ge=1, le=50)) -> list[dict[str, Any]]:

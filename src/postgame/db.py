@@ -212,6 +212,12 @@ MIGRATIONS: list[list[str]] = [
         )
         """,
     ],
+    # 8 — technique de lancer des stuffs (clic, saut, déplacement)
+    [
+        "ALTER TABLE cs2_ref_observations ADD COLUMN technique TEXT",
+        "ALTER TABLE cs2_ref_lancers ADD COLUMN technique TEXT",
+        "ALTER TABLE cs2_ref_lancers ADD COLUMN part_technique REAL",
+    ],
 ]
 
 
