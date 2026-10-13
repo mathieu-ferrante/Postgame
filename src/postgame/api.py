@@ -72,6 +72,13 @@ class CorpsFiabilite(BaseModel):
     note: str = ""
 
 
+class DemandeRevoir(BaseModel):
+    partie_id: int | None = None
+    empreinte: str | None = None
+    tick: int
+    joueur: str | None = None
+
+
 def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) -> FastAPI:
     base = base or Base(cfg.chemin_base)
     garde = Garde(
@@ -381,6 +388,64 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         if image is None:
             raise HTTPException(404, "pas d'image pour ce stuff")
         return FileResponse(image, media_type=stuffs.FORMATS_IMAGE[image.suffix])
+
+    @app.post("/api/cs2/revoir", tags=["revoir"])
+    def revoir(demande: DemandeRevoir) -> dict[str, Any]:
+        """Prépare un vrai moment à revoir dans CS2 (une de mes parties ou une démo pro)."""
+        from postgame.games.cs2 import revoir as rv
+
+        if demande.partie_id is not None:
+            partie = base.partie(demande.partie_id)
+            if partie is None or partie.jeu != "cs2":
+                raise HTTPException(404, "partie CS2 inconnue")
+            demo, nom = Path(partie.fichier), f"partie{partie.id}"
+            # Par défaut, la caméra me suit.
+            demande.joueur = demande.joueur or partie.details.get("joueur") or None
+        elif demande.empreinte:
+            demo = rv.chemin_demo_pro(base, demande.empreinte)
+            if demo is None or not demande.empreinte.isalnum():
+                raise HTTPException(404, "démo pro inconnue")
+            nom = f"pro{demande.empreinte[:12]}"
+        else:
+            raise HTTPException(422, "partie_id ou empreinte attendu")
+        try:
+            resultat = rv.preparer(
+                demo,
+                demande.tick,
+                demande.joueur,
+                rv.dossier_csgo(cfg.dossiers_cs2),
+                cfg.dossier_donnees / "revoir",
+                nom,
+            )
+        except FileNotFoundError as exc:
+            raise HTTPException(410, f"{exc} (déplacée ou supprimée ?)") from exc
+        return resultat.en_dict()
+
+    @app.get("/api/cs2/pros", tags=["revoir"])
+    def pros() -> list[dict[str, Any]]:
+        """Démos pros lues ; « disponible » si le fichier est toujours là pour la revoir."""
+        from postgame.games.cs2 import revoir as rv
+
+        return rv.demos_pros(base)
+
+    @app.get("/api/cs2/pros/proches", tags=["revoir"])
+    def pros_proches(
+        carte: str, x: float, y: float, camp: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Vrais rounds pros où un joueur du même camp était au même endroit."""
+        from postgame.games.cs2 import revoir as rv
+
+        return rv.moments_proches(base, carte, camp, x, y)
+
+    @app.get("/api/cs2/stuffs/{cle}/pros", tags=["revoir"])
+    def stuff_pros(cle: str) -> list[dict[str, Any]]:
+        """Vrais lancers pros de ce stuff, à revoir dans CS2."""
+        from postgame.games.cs2 import revoir as rv
+
+        try:
+            return rv.exemples_stuff(base, cle)
+        except KeyError as exc:
+            raise HTTPException(404, "stuff inconnu") from exc
 
     @app.get("/api/cs2/stuffs/a_reviser", tags=["stuffs"])
     def stuffs_a_reviser(carte: str, nombre: int = Query(5, ge=1, le=50)) -> list[dict[str, Any]]:

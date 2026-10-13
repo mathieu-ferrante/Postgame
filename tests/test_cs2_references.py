@@ -163,9 +163,12 @@ def test_observations_depuis():
             "equipe": [2, 2, 3],
             "vivant": [True, True, False],
             "lieu": ["TSpawn", "Window", "Jungle"],
+            "nom": ["s1mple", "s1mple", "ZywOo"],
         }
     )
     obs = ref.observations_depuis("de_test", grenades, lancers, etats, debuts=[0])
+    # Tick, joueur et round retenus pour revoir le vrai moment dans CS2.
+    assert obs[["tick", "joueur", "round"]].iloc[0].tolist() == [400, "s1mple", 1]
     lancer = obs[obs["genre"] == "lancer"].iloc[0]
     assert (lancer["lieu"], lancer["lx"], lancer["camp"]) == ("TSpawn", 1.0, "T")
     positions = obs[obs["genre"] == "position"]
@@ -219,8 +222,9 @@ def test_sans_catalogue_seule_la_ligne_de_vue():
 
 
 def test_stockage_catalogue(base, tmp_path, monkeypatch):
-    obs = _observations().drop(columns=["empreinte"])
-    monkeypatch.setattr(ref, "extraire_observations", lambda chemin: obs)
+    sans_ticks = _observations().drop(columns=["empreinte"])
+    obs = sans_ticks.assign(tick=range(len(sans_ticks)))
+    monkeypatch.setattr(ref, "extraire_observations", lambda chemin: sans_ticks)
     # 6 pros mesurés sur l'AK : 70, 72, 75, 80, 81, 90 % de premières balles précises.
     echantillons = [
         (
@@ -235,6 +239,9 @@ def test_stockage_catalogue(base, tmp_path, monkeypatch):
     monkeypatch.setattr(ref, "mesures_des_joueurs", lambda chemin: echantillons)
     demo = tmp_path / "pro.dem"
     demo.write_bytes(b"demo pro factice")
+    assert ref.ajouter_demo_pro(base, demo).startswith("ajoutee")
+    # Lue sans ticks (avant la version 9 de la base) : relue au prochain ajout.
+    monkeypatch.setattr(ref, "extraire_observations", lambda chemin: obs)
     assert ref.ajouter_demo_pro(base, demo).startswith("ajoutee")
     assert ref.ajouter_demo_pro(base, demo) == "deja_connue"
     assert ref.reconstruire_catalogue(base) == {

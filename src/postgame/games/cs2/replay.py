@@ -43,7 +43,7 @@ def fond_de_carte(d: DonneesMatch) -> dict[str, Any] | None:
     i = ((echantillon["x"] - xmin) // CELLULE_FOND).astype(int)
     j = ((echantillon["y"] - ymin) // CELLULE_FOND).astype(int)
     cellules = sorted({(int(a), int(b)) for a, b in zip(i, j, strict=True)})
-    # Hauteur du sol par cellule (médiane des z des pieds) : relief pour le replay 3D.
+    # Hauteur du sol par cellule (médiane des z des pieds) : étages de la carte.
     hauteurs = echantillon.assign(i=i, j=j).groupby(["i", "j"])["z"].median().round()
     return {
         "xmin": round(xmin),

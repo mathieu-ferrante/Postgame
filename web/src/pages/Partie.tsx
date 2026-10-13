@@ -4,6 +4,7 @@ import type { Constat, Debrief } from "../api";
 import { api } from "../api";
 import { Etat, useDonnee } from "../composants/Chargement";
 import Markdown from "../composants/Markdown";
+import { BoutonRevoir } from "../composants/RevoirCS2";
 import { JEUX, dateCourte, duree, nombre, nomCourt, score } from "../lib/format";
 
 function CarteConstat({ c, partieId, jeu }: { c: Constat; partieId: number; jeu: string }) {
@@ -31,9 +32,12 @@ function CarteConstat({ c, partieId, jeu }: { c: Constat; partieId: number; jeu:
           {c.preuves.map((p, i) => (
             <li key={i}>
               {jeu === "cs2" && p.tick !== null ? (
-                <Link to={`/replay/${partieId}?tick=${p.tick}`}>
-                  {p.round !== null ? `Round ${p.round}` : `Tick ${p.tick}`}
-                </Link>
+<>
+                  <Link to={`/replay/${partieId}?tick=${p.tick}`}>
+                    {p.round !== null ? `Round ${p.round}` : `Tick ${p.tick}`}
+                  </Link>{" "}
+                  <BoutonRevoir demande={{ partie_id: partieId, tick: p.tick }} libelle="▶ CS2" />
+                </>
               ) : (
                 <span>{p.round !== null ? `Round ${p.round}` : ""}</span>
               )}{" "}

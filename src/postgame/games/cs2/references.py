@@ -15,6 +15,7 @@ Les noms de lieux viennent de la carte elle-même (propriété `last_place_name`
 
 from __future__ import annotations
 
+import bisect
 import json
 import logging
 from collections import Counter
@@ -142,8 +143,24 @@ def observations_depuis(
         "saut",
         "accroupi",
         "technique",
+        "tick",
+        "joueur",
+        "round",
     ]
     techniques = techniques or {}
+    debuts_tries = sorted(debuts)
+
+    def numero_round(tick) -> int | None:
+        # Numéro du round (1 = premier freeze terminé) ; None avant le premier round.
+        n = bisect.bisect_right(debuts_tries, int(tick))
+        return n or None
+
+    def nom(e) -> str | None:
+        if e is None:
+            return None
+        valeur = e.get("nom")
+        return None if valeur is None or pd.isna(valeur) else str(valeur)
+
     lignes = []
     index = etats.set_index(["tick", "steamid"]) if len(etats) else None
 
@@ -179,6 +196,9 @@ def observations_depuis(
                 "technique": techniques.get((str(g["lanceur"]), int(g["tick_lancer"])))
                 if pd.notna(g["tick_lancer"])
                 else None,
+                "tick": int(g["tick_lancer"]) if pd.notna(g["tick_lancer"]) else None,
+                "joueur": nom(e),
+                "round": numero_round(g["tick_lancer"]) if pd.notna(g["tick_lancer"]) else None,
             }
         )
     installations = {d + DELAI_INSTALLATION_TICKS for d in debuts}
@@ -205,6 +225,9 @@ def observations_depuis(
                     "saut": None,
                     "accroupi": None,
                     "technique": None,
+                    "tick": int(e["tick"]),
+                    "joueur": nom(e),
+                    "round": numero_round(e["tick"]),
                 }
             )
     return pd.DataFrame(lignes, columns=colonnes)
@@ -265,6 +288,7 @@ def extraire_observations(chemin: Path) -> pd.DataFrame:
                 "team_num",
                 "is_alive",
                 "last_place_name",
+                "name",
                 "pitch",
                 "yaw",
                 "is_airborne",
@@ -282,6 +306,7 @@ def extraire_observations(chemin: Path) -> pd.DataFrame:
                 "equipe": brut["team_num"].fillna(0).astype(int),
                 "vivant": brut["is_alive"].fillna(False).astype(bool),
                 "lieu": brut["last_place_name"].fillna("").astype(str),
+                "nom": brut["name"] if "name" in brut else None,
                 "pitch": brut["pitch"].astype(float),
                 "yaw": brut["yaw"].astype(float),
                 "en_l_air": brut["is_airborne"].fillna(False).astype(bool),
@@ -475,6 +500,29 @@ def mesures_des_joueurs(chemin: Path) -> list[tuple[str, str, dict, float, int |
     return sortie
 
 
+COLONNES_OBSERVATION = [
+    "carte",
+    "genre",
+    "type",
+    "camp",
+    "lieu",
+    "x",
+    "y",
+    "z",
+    "lx",
+    "ly",
+    "lz",
+    "lpitch",
+    "lyaw",
+    "saut",
+    "accroupi",
+    "technique",
+    "tick",
+    "joueur",
+    "round",
+]
+
+
 def ajouter_demo_pro(base: Base, chemin: Path) -> str:
     """Lit une démo pro et stocke ses observations (une seule fois par démo)."""
     from postgame.importation import empreinte_fichier
@@ -482,40 +530,34 @@ def ajouter_demo_pro(base: Base, chemin: Path) -> str:
     empreinte = empreinte_fichier(chemin)
     with base.transaction() as cx:
         if cx.execute("SELECT 1 FROM cs2_ref_demos WHERE empreinte = ?", (empreinte,)).fetchone():
-            return "deja_connue"
+            avec_ticks = cx.execute(
+                "SELECT 1 FROM cs2_ref_observations WHERE empreinte = ? AND tick IS NOT NULL",
+                (empreinte,),
+            ).fetchone()
+            if avec_ticks:
+                # Démo déjà lue : on retient seulement son emplacement actuel (pour la revoir).
+                cx.execute(
+                    "UPDATE cs2_ref_demos SET chemin = ? WHERE empreinte = ?",
+                    (str(chemin.resolve()), empreinte),
+                )
+                return "deja_connue"
+            # Lue avant la version 9 de la base (sans ticks) : on la relit entièrement.
+            cx.execute("DELETE FROM cs2_ref_demos WHERE empreinte = ?", (empreinte,))
     obs = extraire_observations(chemin)
     carte = str(obs["carte"].iloc[0]) if len(obs) else ""
     with base.transaction() as cx:
         cx.execute(
-            "INSERT INTO cs2_ref_demos VALUES (?, ?, ?, ?)",
-            (empreinte, chemin.name, carte, maintenant()),
+            "INSERT INTO cs2_ref_demos (empreinte, fichier, carte, ajoute_le, chemin) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (empreinte, chemin.name, carte, maintenant(), str(chemin.resolve())),
         )
         cx.executemany(
             "INSERT INTO cs2_ref_observations (empreinte, carte, genre, type, camp, lieu, x, y, "
-            "z, lx, ly, lz, lpitch, lyaw, saut, accroupi, technique) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "z, lx, ly, lz, lpitch, lyaw, saut, accroupi, technique, tick, joueur, round) "
+            f"VALUES ({', '.join('?' * (len(COLONNES_OBSERVATION) + 1))})",
             [
                 (empreinte, *[None if pd.isna(v) else v for v in ligne])
-                for ligne in obs.reindex(
-                    columns=[
-                        "carte",
-                        "genre",
-                        "type",
-                        "camp",
-                        "lieu",
-                        "x",
-                        "y",
-                        "z",
-                        "lx",
-                        "ly",
-                        "lz",
-                        "lpitch",
-                        "lyaw",
-                        "saut",
-                        "accroupi",
-                        "technique",
-                    ]
-                ).itertuples(index=False)
+                for ligne in obs.reindex(columns=COLONNES_OBSERVATION).itertuples(index=False)
             ],
         )
     try:

@@ -142,13 +142,19 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 - [ ] **Clé API Riot de Mathieu** nécessaire pour toute donnée réelle
 - [ ] Critère de fin : débrief d'une vraie partie de chaque
 
-## L10 — Replay 3D (CS-RPL-02)
-- [x] Données : altitude et inclinaison du regard, relief du sol par cellule (format 2)
-- [x] Page three.js : sol reconstruit, joueurs, regards, tirs, grenades, timeline, vitesse,
-      caméra libre ou vue depuis les yeux de Mathieu, lien partageable sur le réseau local
-- [x] Chargée à la demande (three.js ne pèse pas sur le reste de l'appli)
-- [~] Vérifié sur un match **simulé** (sol plat) ; relief réel à voir sur une vraie démo
-- [ ] Critère de fin : un vrai round rejoué en 3D
+## L10 — Revoir les vrais moments dans CS2 (remplace le replay 3D, CS-RPL-02)
+Mathieu ne veut pas d'animation 3D : il veut la réalité, ses parties et celles des pros,
+jouées par le jeu lui-même. La vue 3D (three.js) est retirée.
+- [x] « Revoir dans CS2 » depuis le replay 2D et chaque preuve du débrief : copie de la
+      démo dans game/csgo/postgame/, `exec postgame` lance `playdemo`, puis `pg` fait
+      `demo_gototick` 5 s avant le moment et `spec_player` sur Mathieu
+- [x] Démos pros : tick, joueur et round retenus pour chaque observation (base v9) ; les
+      démos lues avant sont relues au prochain « references ajouter »
+- [x] « Les pros au même endroit » : vrais rounds pros où un joueur du même camp se tenait
+      là où est Mathieu à l'instant du replay
+- [x] Stuffs : « Le voir lancé par un pro » ouvre la démo pro au lancer, caméra sur le pro
+- [~] Vérifié sur données **simulées** (fichiers préparés, listes) ; jamais dans CS2
+- [ ] Critère de fin : un vrai moment (le mien et un pro) revu dans CS2 sur le PC de jeu
 
 ## Demandes ajoutées par Mathieu (2026-10-13, en cours de projet)
 
@@ -266,4 +272,4 @@ Exigences nouvelles, au même rang que le cahier des charges :
 | 2026-10-13 | STUFF-01 | Stuffs et catalogue sur toutes les cartes, mais appris seulement là où il y a des démos pros (pool actif) | Les cartes hors pool (Wingman, nouvelles cartes) n'ont pas de démos pros : leur catalogue restera vide tant qu'aucune source n'existe |
 | 2026-10-13 | STUFF-01 | « Images » des stuffs : annotations officielles du jeu (position, visée, arrivée affichées en entraînement) + captures jointes par Mathieu, plutôt que des images fabriquées | Seul le jeu peut rendre la vue réelle ; les annotations sont exactes car tirées des positions et angles des démos |
 | 2026-10-13 | STUFF-01 | Technique de lancer déduite des touches enregistrées (FIRE, RIGHTCLICK, JUMP, FORWARD, WALK, DUCK) avec repli sur vitesse et « en l'air » | demoparser2 expose les commandes des joueurs ; leur présence dans les démos GOTV reste à confirmer |
-| 2026-10-13 | L10 | Sol 3D reconstruit d'après les hauteurs parcourues par les joueurs (cellules de 64 u) | La géométrie des cartes est dans les fichiers de Valve, non distribuables ; le relief appris suffit à lire niveaux et étages |
+| 2026-10-13 | L10 | Replay 3D retiré, remplacé par la lecture de la vraie démo dans CS2 (commandes `playdemo`, `demo_gototick`, `spec_player` via deux fichiers .cfg) | Demande de Mathieu : « des réalités pures et dures », pas d'animation. Pas de plugin ni de modification du jeu : seulement les commandes de démo standard |

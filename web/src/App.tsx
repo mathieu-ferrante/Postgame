@@ -1,4 +1,3 @@
-import { lazy, Suspense } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import Accueil from "./pages/Accueil";
 import Chaleur from "./pages/Chaleur";
@@ -11,9 +10,6 @@ import Progression from "./pages/Progression";
 import Replay from "./pages/Replay";
 import StatsTFT from "./pages/StatsTFT";
 import Stuffs from "./pages/Stuffs";
-
-// three.js est lourd : la page 3D n'est chargée que si on l'ouvre.
-const Replay3D = lazy(() => import("./pages/Replay3D"));
 
 export default function App() {
   return (
@@ -35,7 +31,6 @@ export default function App() {
           <Route path="/" element={<Accueil />} />
           <Route path="/partie/:id" element={<PagePartie />} />
           <Route path="/replay/:id" element={<Replay />} />
-          <Route path="/replay3d/:id" element={<Suspense fallback={<p className="discret">Chargement de la 3D…</p>}><Replay3D /></Suspense>} />
           <Route path="/progression" element={<Progression />} />
           <Route path="/chaleur" element={<Chaleur />} />
           <Route path="/direct" element={<Direct />} />

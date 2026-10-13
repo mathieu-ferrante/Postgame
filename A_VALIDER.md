@@ -285,10 +285,27 @@ Riot ID enregistré dans `postgame.toml` (local) : `iamheremyfriend#hiii`.
       Stuffs annonce la bonne technique. Si toutes les techniques affichent « clic ? », les
       démos ne contiennent pas les touches des joueurs : me le dire.
 
-## L10 — Replay 3D
+## L10 — Revoir les vrais moments dans CS2
 
-### 28. Rejouer un vrai round en 3D (PC de jeu ou téléphone)
-- [ ] Ouvrir un replay 2D d'une vraie partie → « Vue 3D → ».
-- **Attendu** : le sol montre les étages de la carte (escaliers, sites en hauteur), les
-  joueurs se déplacent dessus, « Vue de Mathieu » montre ce qu'il regardait. Critère de
-  fin de L10.
+### 28. Revoir un de mes moments dans CS2 (PC de jeu)
+- [ ] Prérequis : dans `postgame.toml`, `[cs2] dossiers_demos` pointe vers
+      `…\Counter-Strike Global Offensive\game\csgo\replays` (ou `game\csgo`) : c'est
+      ainsi que Postgame trouve `game\csgo\cfg`.
+- [ ] Dans le débrief d'une vraie partie, cliquer « ▶ CS2 » sur une preuve. Dans CS2,
+      console : `exec postgame`, attendre le chargement, puis `pg`.
+- **Attendu** : la démo s'ouvre, saute 5 s avant le moment, caméra sur moi.
+- Si `playdemo` ne trouve pas la démo, ou si `pg` arrive avant la fin du chargement sans
+  effet, me le dire (message exact de la console).
+- [ ] CS2 fermé : le lien « Le lancer directement sur la démo » (steam://run/730//+exec
+      postgame/) doit démarrer CS2 sur la démo.
+
+### 29. Revoir un pro (PC de jeu)
+- [ ] Relancer `postgame references ajouter <dossier des démos pros>` : les démos lues avant
+      cette version sont relues (tick et joueur). **Ne pas déplacer les démos pros
+      ensuite** : Postgame les rejoue depuis leur emplacement.
+- [ ] Page Stuffs → un stuff → « Le voir lancé par un pro » → « ▶ CS2 », puis `exec
+      postgame` et `pg`.
+- **Attendu** : caméra sur le pro, 5 s avant son lancer. Profites-en pour faire la
+  capture d'écran du stuff (F12) et l'ajouter à la fiche.
+- [ ] Replay 2D d'une de mes parties → « Chercher à cet instant » : la liste montre des
+      pros du même camp au même endroit, et « ▶ CS2 » les montre vraiment là.

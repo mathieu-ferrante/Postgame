@@ -218,6 +218,14 @@ MIGRATIONS: list[list[str]] = [
         "ALTER TABLE cs2_ref_lancers ADD COLUMN technique TEXT",
         "ALTER TABLE cs2_ref_lancers ADD COLUMN part_technique REAL",
     ],
+    # 9 — revoir les vrais moments dans CS2 : chemin de la démo pro, tick, joueur, round
+    [
+        "ALTER TABLE cs2_ref_demos ADD COLUMN chemin TEXT",
+        "ALTER TABLE cs2_ref_observations ADD COLUMN tick INTEGER",
+        "ALTER TABLE cs2_ref_observations ADD COLUMN joueur TEXT",
+        "ALTER TABLE cs2_ref_observations ADD COLUMN round INTEGER",
+        "CREATE INDEX cs2_ref_obs_lieu ON cs2_ref_observations (carte, camp, lieu)",
+    ],
 ]
 
 

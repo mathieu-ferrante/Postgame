@@ -18,7 +18,7 @@ PC de jeu. Spécification complète : [CAHIER_DES_CHARGES.md](CAHIER_DES_CHARGES
 | L7 | Second écran CS2 (Game State Integration) : état en direct, conseil d'achat, rappel des priorités | Vérifié avec un flux GSI simulé ; **jamais branché sur une vraie partie** |
 | L8 | Geometry Dash : mod Geode de journalisation, régularité des clics, passages instables, carte des morts, essais superposés | Analyses testées sur séances synthétiques ; **mod jamais compilé ni lancé** |
 | L9 | LoL et TFT : collecte API Riot, analyses par champion / rôle / patch, références de haut classement, carte, second écran LoL | Testé sur parties synthétiques ; **clé API Riot pas encore fournie, aucune vraie partie** |
-| L10 | Replay 3D (three.js) : sol reconstruit, joueurs, regards, grenades, vue de Mathieu | Vérifié sur match simulé ; **pas encore sur une vraie démo** |
+| L10 | Revoir les vrais moments dans CS2 (mes parties et démos pros, caméra sur le bon joueur), pros au même endroit, stuffs lancés par les pros | Vérifié sur données simulées ; **jamais lancé dans CS2** |
 
 Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée de Mathieu :
 [A_VALIDER.md](A_VALIDER.md).

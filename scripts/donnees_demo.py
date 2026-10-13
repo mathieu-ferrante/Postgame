@@ -97,8 +97,8 @@ def simuler_match(graine: int, nb_rounds: int = 6) -> DonneesMatch:
                             "vu_par_moi": e["equipe"] == 3 and e["vivant"] and rng.random() < 0.15,
                             "punch_pitch": 0.0,
                             "punch_yaw": 0.0,
-                        "lunette": False,
-                        "en_l_air": False,
+                            "lunette": False,
+                            "en_l_air": False,
                         }
                     )
             if t > debut + 64 * 10 and rng.random() < 0.004:
@@ -312,19 +312,56 @@ def main(dossier: Path) -> None:
     generer_debrief(base, cfg, pid, None)
     # Stuffs simulés sur de_mirage (catalogue normalement appris sur démos pros).
     with base.transaction() as cx:
-        for i, (tp, x, y, lx, ly, arrivee, depart) in enumerate([
-            ("smoke", -400, -1250, -1150, 100, "Window (DÉMO)", "TSpawn"),
-            ("smoke", -980, -900, -1150, 100, "Jungle (DÉMO)", "TSpawn"),
-            ("smoke", -300, -2000, -1600, -700, "CT (DÉMO)", "Palace"),
-            ("flash", -900, -1500, -1000, -400, "Ramp (DÉMO)", "Tetris"),
-            ("molotov", -1700, -1800, -1300, -500, "Bench (DÉMO)", "Ramp"),
-        ]):
+        for i, (tp, x, y, lx, ly, arrivee, depart) in enumerate(
+            [
+                ("smoke", -400, -1250, -1150, 100, "Window (DÉMO)", "TSpawn"),
+                ("smoke", -980, -900, -1150, 100, "Jungle (DÉMO)", "TSpawn"),
+                ("smoke", -300, -2000, -1600, -700, "CT (DÉMO)", "Palace"),
+                ("flash", -900, -1500, -1000, -400, "Ramp (DÉMO)", "Tetris"),
+                ("molotov", -1700, -1800, -1300, -500, "Bench (DÉMO)", "Ramp"),
+            ]
+        ):
             cx.execute(
                 "INSERT INTO cs2_ref_lancers (carte, type, x, y, z, lx, ly, lz, lieu_arrivee, "
                 "lieu_lancer, nb, nb_demos, lpitch, lyaw, part_saut, part_accroupi, cle, "
                 "construit_le) VALUES ('de_mirage', ?, ?, ?, 0, ?, ?, -160, ?, ?, ?, 3, -12.5, "
                 "-48.2, ?, 0, ?, 'demo')",
-                (tp, x, y, lx, ly, arrivee, depart, 20 - i, 1.0 if i == 0 else 0.0, f"demo{i}"))
+                (tp, x, y, lx, ly, arrivee, depart, 20 - i, 1.0 if i == 0 else 0.0, f"demo{i}"),
+            )
+    # Démo pro SIMULÉE (faux fichier, illisible par CS2) : sert à montrer les listes
+    # « Les pros au même endroit » et « Le voir lancé par un pro ».
+    faux_pro = dossier / "pros" / "SIMULEE-pas-une-vraie-demo.dem"
+    faux_pro.parent.mkdir(parents=True, exist_ok=True)
+    faux_pro.write_bytes(b"DEMO SIMULEE")
+    pros = ["ZywOo (DÉMO)", "donk (DÉMO)", "m0NESY (DÉMO)", "ropz (DÉMO)"]
+    echantillon = d.ticks[d.ticks["vivant"]].sample(60, random_state=3)
+    with base.transaction() as cx:
+        cx.execute(
+            "INSERT INTO cs2_ref_demos (empreinte, fichier, carte, ajoute_le, chemin) "
+            "VALUES ('simulee0000', ?, 'de_mirage', 'demo', ?)",
+            (faux_pro.name, str(faux_pro.resolve())),
+        )
+        for k, (_, e) in enumerate(echantillon.iterrows()):
+            cx.execute(
+                "INSERT INTO cs2_ref_observations (empreinte, carte, genre, camp, lieu, x, y, z, "
+                "tick, joueur, round) VALUES ('simulee0000', 'de_mirage', 'lieu', ?, 'DÉMO', ?, "
+                "?, 0, ?, ?, ?)",
+                (
+                    "T" if int(e["equipe"]) == 2 else "CT",
+                    float(e["x"]),
+                    float(e["y"]),
+                    int(e["tick"]),
+                    pros[k % 4],
+                    1 + k % 6,
+                ),
+            )
+        for k in range(3):
+            cx.execute(
+                "INSERT INTO cs2_ref_observations (empreinte, carte, genre, type, camp, lieu, x, "
+                "y, z, lx, ly, tick, joueur, round) VALUES ('simulee0000', 'de_mirage', 'lancer', "
+                "'smoke', 'T', 'TSpawn', -400, -1250, 0, -1150, 100, ?, ?, ?)",
+                (2000 + 9000 * k, pros[k], 2 + 4 * k),
+            )
     # Séance Geometry Dash simulée, importée par le chemin normal (lecture + analyses).
     journal = dossier / "gd" / "demo.gdsession"
     journal.parent.mkdir(parents=True, exist_ok=True)

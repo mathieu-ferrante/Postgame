@@ -1,11 +1,12 @@
-// Replay 2D vue du dessus (CS-RPL-01) : joueurs, regard, tirs, grenades, bombe, timeline,
+// Replay 2D vue du dessus (CS-RPL-01), avec renvoi vers la vraie démo dans CS2 : joueurs, regard, tirs, grenades, bombe, timeline,
 // vitesse réglable, saut au tick d'un constat (?tick=…).
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import type { MetaReplay, RoundReplay } from "../api";
+import type { MetaReplay, MomentPro, RoundReplay } from "../api";
 import { api } from "../api";
 import { Etat, useDonnee } from "../composants/Chargement";
+import { BoutonRevoir, MomentsPros } from "../composants/RevoirCS2";
 import type { Projection } from "../lib/projection";
 import {
   dernierePositionVivante,
@@ -170,6 +171,25 @@ export default function Replay() {
     if (proj && ctx) dessiner(ctx, cote, m, r, tick, proj, image.current);
   }, [tick, meta.donnee, round.donnee]);
 
+  // Vrais rounds pros où un joueur de mon camp se tenait là où je suis à cet instant.
+  const [pros, setPros] = useState<MomentPro[] | null>(null);
+  const [erreurPros, setErreurPros] = useState<string | null>(null);
+  const chercherPros = async () => {
+    const m = meta.donnee, rd = round.donnee;
+    const moi = m?.joueurs.find((j) => j.moi);
+    const piste = moi && rd ? rd.joueurs[String(moi.id)] : undefined;
+    if (!m || !rd || !piste) return;
+    const e = etatAu(rd, piste, tick);
+    const p = e.vivant ? e : dernierePositionVivante(rd, piste, tick);
+    if (!p) return;
+    setErreurPros(null);
+    try {
+      setPros(await api.prosProches(m.carte, p.x, p.y, e.equipe === 2 ? "T" : e.equipe === 3 ? "CT" : null));
+    } catch (err) {
+      setErreurPros(String((err as Error).message));
+    }
+  };
+
   const noms = useMemo(() => new Map(meta.donnee?.joueurs.map((j) => [j.id, j]) ?? []), [meta.donnee]);
   const r = round.donnee;
   const tickrate = meta.donnee?.tickrate ?? 64;
@@ -180,7 +200,7 @@ export default function Replay() {
       <div className="ligne">
         <Link to={`/partie/${id}`}>← Débrief</Link>
         <h1 style={{ margin: 0 }}>Replay {meta.donnee?.carte}</h1>
-        <Link to={`/replay3d/${id}?tick=${Math.round(tick)}`}>Vue 3D →</Link>
+        <BoutonRevoir demande={{ partie_id: id, tick: Math.round(tick) }} libelle="Revoir ce moment dans CS2" />
       </div>
       <Etat erreur={meta.erreur} chargement={meta.chargement} />
       {meta.donnee && !meta.donnee.radar.image && (
@@ -219,6 +239,11 @@ export default function Replay() {
               ))}
             </select>
             <Etat erreur={round.erreur} chargement={round.chargement} />
+            <h3 style={{ marginTop: "1rem" }}>Les pros au même endroit</h3>
+            <p className="discret">Vrais rounds pros (démos lues) où un joueur de ton camp était là où tu es à cet instant.</p>
+            <button onClick={chercherPros}>Chercher à cet instant</button>
+            {erreurPros && <p className="erreur">{erreurPros}</p>}
+            {pros && <MomentsPros moments={pros} vide="Aucun pro à cet endroit dans les démos lues (ajoute des démos pros de cette carte)." />}
             <h3 style={{ marginTop: "1rem" }}>Éliminations</h3>
             <ul className="fil">
               {morts.map(([t, tueur, victime, arme, hs], i) => {

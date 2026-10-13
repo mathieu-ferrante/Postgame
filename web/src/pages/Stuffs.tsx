@@ -3,6 +3,8 @@
 
 import { useMemo, useState } from "react";
 import { Etat, useDonnee } from "../composants/Chargement";
+import { MomentsPros } from "../composants/RevoirCS2";
+import { api } from "../api";
 import { nombre } from "../lib/format";
 import { projectionRadar } from "../lib/projection";
 
@@ -37,6 +39,18 @@ async function json<T>(url: string, options?: RequestInit): Promise<T> {
 
 function copier(texte: string) {
   navigator.clipboard?.writeText(texte).catch(() => undefined);
+}
+
+// Vrais lancers pros de ce stuff : on les revoit dans CS2, caméra sur le lanceur.
+function ProsDuStuff({ cle }: { cle: string }) {
+  const pros = useDonnee(() => api.prosStuff(cle), [cle]);
+  return (
+    <>
+      <h4 style={{ marginBottom: "0.2rem" }}>Le voir lancé par un pro, dans CS2</h4>
+      <Etat erreur={pros.erreur} chargement={pros.chargement} />
+      {pros.donnee && <MomentsPros moments={pros.donnee} vide="Démos pros de ce stuff absentes de cette machine (ou lues avant cette version : relance « postgame references ajouter »)." />}
+    </>
+  );
 }
 
 export default function Stuffs() {
@@ -165,10 +179,11 @@ export default function Stuffs() {
               <div className="carte">
                 <h3>{choisi.nom}</h3>
                 <p style={{ fontSize: "1.15rem" }}><strong>Technique : {choisi.technique}</strong></p>
+                <ProsDuStuff cle={choisi.cle} />
                 <p className="discret">Joué {choisi.nb} fois par les pros ({choisi.nb_demos} démos){regard(choisi) ? ` · ${regard(choisi)}` : ""}.</p>
                 {choisi.image
                   ? <img src={`${choisi.image}?v=${Date.now() % 100000}`} alt="Vue au moment du lancer" style={{ width: "100%", borderRadius: 8 }} />
-                  : <p className="discret">Pas encore de capture : en entraînement, place-toi avec la commande ci-dessous, fais une capture d'écran (F12 dans Steam) et ajoute-la ici.</p>}
+                  : <p className="discret">Pas encore de capture : revois un pro le lancer (ci-dessus) ou place-toi en entraînement avec la commande ci-dessous, fais une capture d'écran (F12 dans Steam) et ajoute-la ici.</p>}
                 <label className="discret" style={{ display: "block", margin: "0.4rem 0" }}>
                   {choisi.image ? "Remplacer la capture" : "Ajouter une capture"} :{" "}
                   <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => envoyerImage(choisi.cle, e.target.files)} />

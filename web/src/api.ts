@@ -151,6 +151,32 @@ export interface PointChaleur {
   round: number | null;
 }
 
+export interface DemandeRevoir {
+  partie_id?: number;
+  empreinte?: string;
+  tick: number;
+  joueur?: string | null;
+}
+
+export interface Revoir {
+  demo: string;
+  installe: boolean;
+  commandes: string[];
+  lien_steam: string;
+  tick: number;
+  joueur: string | null;
+}
+
+export interface MomentPro {
+  empreinte: string;
+  demo: string;
+  joueur: string | null;
+  round: number | null;
+  tick: number;
+  lieu: string | null;
+  distance: number;
+}
+
 async function lire<T>(chemin: string, options?: RequestInit): Promise<T> {
   const r = await fetch(chemin, options);
   if (!r.ok) {
@@ -192,6 +218,17 @@ export const api = {
   replay: (id: number) => lire<MetaReplay>(`/api/cs2/replay/${id}`),
   round: (id: number, numero: number) =>
     lire<RoundReplay>(`/api/cs2/replay/${id}/round/${numero}`),
+  revoir: (demande: DemandeRevoir) =>
+    lire<Revoir>("/api/cs2/revoir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(demande),
+    }),
+  prosProches: (carte: string, x: number, y: number, camp: string | null) =>
+    lire<MomentPro[]>(
+      `/api/cs2/pros/proches?carte=${carte}&x=${Math.round(x)}&y=${Math.round(y)}${camp ? `&camp=${camp}` : ""}`,
+    ),
+  prosStuff: (cle: string) => lire<MomentPro[]>(`/api/cs2/stuffs/${cle}/pros`),
   chaleur: (carte: string, type: string, camp: string, periode: string) =>
     lire<{ points: PointChaleur[] }>(
       `/api/cs2/chaleur?carte=${carte}&type=${type}&periode=${periode}${camp ? `&camp=${camp}` : ""}`,
