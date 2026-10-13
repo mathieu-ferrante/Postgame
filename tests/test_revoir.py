@@ -154,6 +154,4 @@ def test_api_capture_de_la_vue_du_pro(base, cfg, tmp_path):
         assert c.get("/api/cs2/stuffs/cle1/capture").json()["image"] == "/api/cs2/stuffs/cle1/image"
         assert c.get("/api/cs2/stuffs/cle1/image").content == b"\xff\xd8vue du pro"
         assert c.get("/api/cs2/stuffs/cle1/capture").json()["attente"] is False
-        # Silhouette de la carte d'après les positions des pros (pas de radar ici).
-        assert c.get("/api/cs2/stuffs?carte=de_mirage").json()["silhouette"]["cellules"]
         assert c.post("/api/cs2/radars/exporter").status_code == 409  # outil non configuré

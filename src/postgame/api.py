@@ -383,7 +383,6 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
             "notes_carte": [n for n in stuffs.notes(base, carte) if not n["stuff"]],
             "config_entrainement": stuffs.CONFIG_ENTRAINEMENT,
             "radar": radar_cs2.radar(cfg.dossier_donnees, carte),
-            "silhouette": stuffs.silhouette(base, carte),
         }
 
     @app.get("/api/cs2/stuffs/annotations", tags=["stuffs"])

@@ -10,8 +10,10 @@ postgame.toml) vers data/radars/<carte>.png, avec le .txt d'origine. On peut aus
 exporter à la main (voir A_VALIDER.md). En leur absence, l'interface dessine la
 silhouette de la carte à partir des positions parcourues.
 
-Les valeurs par défaut ci-dessous sont celles connues des outils d'analyse CS2 ; elles sont
-À VÉRIFIER contre les fichiers du jeu et remplacées par data/radars/<carte>.txt s'il existe.
+Les valeurs par défaut ci-dessous sont celles des fichiers du jeu (resource/overviews,
+vérifiées le 2026-10-13 sur le suivi public SteamDatabase/GameTracking-CS2) ; le .txt
+exporté du PC de jeu les remplace s'il existe. Pas de carte dessinée par Postgame : sans
+l'image officielle, l'interface le dit et n'invente rien.
 """
 
 from __future__ import annotations
@@ -35,7 +37,11 @@ PARAMETRES_DEFAUT: dict[str, dict[str, float]] = {
     "de_anubis": {"pos_x": -2796, "pos_y": 3328, "scale": 5.22},
     "de_vertigo": {"pos_x": -3168, "pos_y": 1762, "scale": 4.0},
     "de_train": {"pos_x": -2308, "pos_y": 2078, "scale": 4.082},
+    "de_cache": {"pos_x": -2000, "pos_y": 3250, "scale": 5.5},
 }
+
+# Cartes à deux étages : sous cette altitude, le jeu affiche le radar « lower ».
+ALTITUDE_BAS: dict[str, float] = {"de_nuke": -495, "de_vertigo": 11700}
 
 CLE_VALEUR = re.compile(r'"(pos_x|pos_y|scale)"\s+"(-?[\d.]+)"', re.IGNORECASE)
 
@@ -54,7 +60,10 @@ def radar(dossier_donnees: Path, carte: str) -> dict[str, object]:
         if {"pos_x", "pos_y", "scale"} <= lus.keys():
             parametres, source = lus, "jeu"
     image = dossier / f"{carte}.png"
+    bas = dossier / f"{carte}_lower.png"
     return {
+        "image_bas": f"/api/cs2/radar/{carte}_lower.png" if bas.exists() else None,
+        "altitude_bas": ALTITUDE_BAS.get(carte),
         "carte": carte,
         "parametres": parametres or None,
         "source_parametres": source,

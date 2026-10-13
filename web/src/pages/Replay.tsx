@@ -33,20 +33,8 @@ function dessiner(
   tick: number, proj: Projection, image: HTMLImageElement | null,
 ) {
   ctx.clearRect(0, 0, cote, cote);
-  // Fond : radar officiel, sinon silhouette des zones parcourues.
-  if (image?.complete && image.naturalWidth) {
-    ctx.globalAlpha = 0.85;
-    ctx.drawImage(image, 0, 0, cote, cote);
-    ctx.globalAlpha = 1;
-  } else if (meta.fond) {
-    ctx.fillStyle = "#2a2f38";
-    const f = meta.fond;
-    const taille = proj.echelle(f.cellule) + 0.5;
-    for (const [i, j] of f.cellules) {
-      const [x, y] = proj.versEcran(f.xmin + i * f.cellule, f.ymin + (j + 1) * f.cellule);
-      ctx.fillRect(x, y, taille, taille);
-    }
-  }
+  // Fond : uniquement le radar officiel du jeu (rien d'inventé s'il manque).
+  if (image?.complete && image.naturalWidth) ctx.drawImage(image, 0, 0, cote, cote);
   // Grenades actives.
   for (const [type, gx, gy, debut, fin] of round.grenades) {
     const [x, y] = proj.versEcran(gx, gy);
@@ -204,7 +192,7 @@ export default function Replay() {
       </div>
       <Etat erreur={meta.erreur} chargement={meta.chargement} />
       {meta.donnee && !meta.donnee.radar.image && (
-        <p className="discret">Radar officiel absent : la carte est dessinée d'après les zones parcourues.</p>
+        <p className="discret">Radar officiel absent de cette machine : les joueurs sont à leurs vraies positions, sans fond de carte. Il est exporté des fichiers du jeu sur le PC de jeu (A_VALIDER.md, point 15).</p>
       )}
       {meta.donnee && (
         <div className="replay">

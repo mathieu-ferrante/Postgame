@@ -159,7 +159,8 @@ jouées par le jeu lui-même. La vue 3D (three.js) est retirée.
 - [x] « Capturer la vue du pro » : démo figée au lâcher (`demo_pause`), caméra sur le pro ;
       la capture Steam (F12) est repérée dans userdata/…/730/screenshots et jointe seule
 - [x] Radars officiels exportés automatiquement des fichiers du jeu (Source2Viewer-CLI,
-      `postgame radars`) ; à défaut, silhouette de la carte d'après les positions des pros
+      `postgame radars`) ; sans radar, rien n'est dessiné à la place (demande de Mathieu :
+      les vraies cartes, jamais d'imitation). Calage vérifié sur les fichiers du jeu.
 - [~] Vérifié sur données **simulées** (fichiers préparés, listes) ; jamais dans CS2
 - [ ] Critère de fin : un vrai moment (le mien et un pro) revu dans CS2 sur le PC de jeu
 

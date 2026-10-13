@@ -8,11 +8,10 @@ import { api } from "../api";
 import { nombre } from "../lib/format";
 import { projectionRadar } from "../lib/projection";
 
-interface Silhouette { xmin: number; ymin: number; cellule: number; cellules: [number, number][] }
 interface Stuff {
   cle: string; type: string; nom: string; technique: string; commandes: string | null;
   lieu_lancer: string | null; lieu_arrivee: string | null;
-  x: number; y: number; lx: number | null; ly: number | null; nb: number; nb_demos: number;
+  x: number; y: number; lx: number | null; ly: number | null; lz: number | null; nb: number; nb_demos: number;
   lpitch: number | null; lyaw: number | null; image: string | null;
   maitrise: { tentatives: number; reussites: number; dernier_ecart: number | null; derniere_reussite: string | null };
   revision: { boite: number; prochaine: string } | null;
@@ -21,31 +20,35 @@ interface Stuff {
 interface VueStuffs {
   carte: string; stuffs: Stuff[]; notes_carte: { id: number; texte: string }[];
   config_entrainement: string;
-  radar: { parametres: { pos_x: number; pos_y: number; scale: number } | null; image: string | null; taille_image: number };
-  silhouette: Silhouette | null;
+  radar: {
+    parametres: { pos_x: number; pos_y: number; scale: number } | null; image: string | null; taille_image: number;
+    image_bas: string | null; altitude_bas: number | null;
+  };
 }
 type Vers = (x: number, y: number) => [number, number];
 
-// Fond de carte : radar officiel, sinon silhouette des endroits où les pros sont passés.
-function FondCarte({ vue, vers, C }: { vue: VueStuffs; vers: Vers; C: number }) {
-  if (vue.radar.image && vue.radar.parametres) return <image href={vue.radar.image} width={C} height={C} opacity={0.85} />;
-  const s = vue.silhouette;
-  if (!s) return null;
-  const [x0] = vers(s.xmin, s.ymin), [x1] = vers(s.xmin + s.cellule, s.ymin);
-  const t = Math.abs(x1 - x0) + 0.4;
+// Fond : uniquement le radar officiel du jeu (étage inférieur si le lancer est en bas).
+function FondCarte({ vue, C, z }: { vue: VueStuffs; C: number; z?: number | null }) {
+  const r = vue.radar;
+  const bas = r.image_bas && r.altitude_bas !== null && z !== undefined && z !== null && z < r.altitude_bas;
+  const image = bas ? r.image_bas : r.image;
+  return image ? <image href={image} width={C} height={C} /> : null;
+}
+
+function RadarManquant() {
   return (
-    <g fill="#2a2f38">
-      {s.cellules.map(([i, j]) => {
-        const [x, y] = vers(s.xmin + i * s.cellule, s.ymin + (j + 1) * s.cellule);
-        return <rect key={`${i}-${j}`} x={x} y={y} width={t} height={t} />;
-      })}
-    </g>
+    <p className="discret">
+      Radar officiel de cette carte absent de cette machine : Postgame l'exporte des fichiers du
+      jeu sur ton PC de jeu (voir A_VALIDER.md, point 15). En attendant, la position exacte est
+      dans la commande setpos ci-dessous.
+    </p>
   );
 }
 
 // « Où te placer » : zoom sur le point de lancer (toi), le regard, et l'arrivée.
 function OuTePlacer({ s, vue, vers, C }: { s: Stuff; vue: VueStuffs; vers: Vers; C: number }) {
   if (s.lx === null || s.ly === null) return <p className="discret">Point de lancer inconnu.</p>;
+  if (!vue.radar.image || !vue.radar.parametres) return <RadarManquant />;
   const [px, py] = vers(s.lx, s.ly), [ax, ay] = vers(s.x, s.y);
   const marge = 70;
   const x0 = Math.min(px, ax) - marge, y0 = Math.min(py, ay) - marge;
@@ -55,7 +58,7 @@ function OuTePlacer({ s, vue, vers, C }: { s: Stuff; vue: VueStuffs; vers: Vers;
   const [dx, dy] = [Math.cos(yaw), -Math.sin(yaw)];
   return (
     <svg viewBox={`${x0} ${y0} ${cote} ${cote}`} style={{ width: "100%", maxWidth: 360, background: "#0e1013", borderRadius: 10 }}>
-      <FondCarte vue={vue} vers={vers} C={C} />
+      <FondCarte vue={vue} C={C} z={s.lz} />
       <line x1={px} y1={py} x2={ax} y2={ay} stroke={COULEURS[s.type]} strokeWidth={2 * echelle} strokeDasharray={`${6 * echelle} ${4 * echelle}`} />
       <circle cx={ax} cy={ay} r={9 * echelle} fill={COULEURS[s.type]} fillOpacity={0.5} />
       <line x1={px} y1={py} x2={px + dx * 30 * echelle} y2={py + dy * 30 * echelle} stroke="#f0b429" strokeWidth={3 * echelle} />
@@ -168,11 +171,7 @@ export default function Stuffs() {
   const vers = useMemo(() => {
     const r = vue.donnee?.radar;
     if (r?.parametres && r.image) return projectionRadar(r.parametres, r.taille_image, C).versEcran;
-    const sil = vue.donnee?.silhouette;
-    const pts = [
-      ...(vue.donnee?.stuffs ?? []).flatMap((s) => [[s.x, s.y], ...(s.lx !== null ? [[s.lx, s.ly!]] : [])]),
-      ...(sil ? sil.cellules.map(([i, j]) => [sil.xmin + i * sil.cellule, sil.ymin + j * sil.cellule]) : []),
-    ];
+    const pts = (vue.donnee?.stuffs ?? []).flatMap((s) => [[s.x, s.y], ...(s.lx !== null ? [[s.lx, s.ly!]] : [])]);
     if (!pts.length) return (x: number, y: number): [number, number] => [x, y];
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
     const etendue = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), 500) * 1.15;
@@ -257,8 +256,9 @@ export default function Stuffs() {
 
       {vue.donnee && vue.donnee.stuffs.length > 0 && (
         <div className="replay">
+          {vue.donnee.radar.image && vue.donnee.radar.parametres ? (
           <svg viewBox={`0 0 ${C} ${C}`} style={{ width: "100%", background: "#0e1013", borderRadius: 10 }}>
-            <FondCarte vue={vue.donnee} vers={vers} C={C} />
+            <FondCarte vue={vue.donnee} C={C} />
             {liste.map((s) => {
               const [ax, ay] = vers(s.x, s.y);
               const actif = s.cle === selection;
@@ -275,13 +275,25 @@ export default function Stuffs() {
               );
             })}
           </svg>
+          ) : (
+            <div>
+              <RadarManquant />
+              <ul className="fil">
+                {liste.map((s) => (
+                  <li key={s.cle} style={{ cursor: "pointer" }} onClick={() => setSelection(s.cle)}>
+                    <strong>{s.nom}</strong> <span className="discret">· {s.technique}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div>
             {choisi ? (
               <div className="carte">
                 <h3>{choisi.nom}</h3>
                 <h4>1. Où te placer{choisi.lieu_lancer ? ` — ${choisi.lieu_lancer}` : ""}</h4>
                 <OuTePlacer s={choisi} vue={vue.donnee} vers={vers} C={C} />
-                <p className="discret">Le trait jaune donne la direction du regard ; l'arrivée est{choisi.lieu_arrivee ? ` sur ${choisi.lieu_arrivee}` : " au bout des pointillés"}.</p>
+                {vue.donnee.radar.image && <p className="discret">Le trait jaune donne la direction du regard ; l'arrivée est{choisi.lieu_arrivee ? ` sur ${choisi.lieu_arrivee}` : " au bout des pointillés"}.</p>}
                 <h4>2. Où viser (vue réelle du pro)</h4>
                 <OuViser s={choisi} recharger={recharger} />
                 <h4>3. Comment lancer</h4>

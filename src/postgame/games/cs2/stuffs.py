@@ -235,17 +235,3 @@ def a_reviser(
         candidats.append((priorite, s))
     candidats.sort(key=lambda c: c[0])
     return [s for _, s in candidats[:nombre]]
-
-
-def silhouette(base: Base, carte: str) -> dict[str, Any] | None:
-    """Forme de la carte d'après les positions des pros (quand le radar officiel manque)."""
-    from postgame.games.cs2.replay import fond_depuis_points
-
-    with base.transaction() as cx:
-        points = pd.read_sql_query(
-            "SELECT x, y, z FROM cs2_ref_observations WHERE carte = ? "
-            "AND genre IN ('lieu', 'position')",
-            cx,
-            params=(carte,),
-        )
-    return fond_depuis_points(points["x"], points["y"], points["z"])
