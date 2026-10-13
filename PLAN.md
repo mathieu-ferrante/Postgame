@@ -171,7 +171,7 @@ donk à la place de Mathieu. Corrigé :
       score (compétitif, victoire 13-8 comme dans la démo)
 - [x] sans `player_blind` : flashs comptées « inutiles à 100 % » → aveuglement relevé sur la
       durée de flash de chaque joueur
-- [x] noms d'armes de player_hurt (« m4a1 », « hkp2000") différents de weapon_fire → arme du
+- [x] noms d'armes de player_hurt (« m4a1 », « hkp2000 ») différents de weapon_fire → arme du
       tir reprise
 - [x] Mathieu compté parmi ses propres coéquipiers aveuglés
 - [x] Vérifiés et justes : précision (57 touches en 21 rounds, ≈ 30 PV par balle), trades
