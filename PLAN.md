@@ -143,7 +143,12 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 - [ ] Critère de fin : débrief d'une vraie partie de chaque
 
 ## L10 — Replay 3D (CS-RPL-02)
-- [ ] three.js
+- [x] Données : altitude et inclinaison du regard, relief du sol par cellule (format 2)
+- [x] Page three.js : sol reconstruit, joueurs, regards, tirs, grenades, timeline, vitesse,
+      caméra libre ou vue depuis les yeux de Mathieu, lien partageable sur le réseau local
+- [x] Chargée à la demande (three.js ne pèse pas sur le reste de l'appli)
+- [~] Vérifié sur un match **simulé** (sol plat) ; relief réel à voir sur une vraie démo
+- [ ] Critère de fin : un vrai round rejoué en 3D
 
 ## Demandes ajoutées par Mathieu (2026-10-13, en cours de projet)
 
@@ -261,3 +266,4 @@ Exigences nouvelles, au même rang que le cahier des charges :
 | 2026-10-13 | STUFF-01 | Stuffs et catalogue sur toutes les cartes, mais appris seulement là où il y a des démos pros (pool actif) | Les cartes hors pool (Wingman, nouvelles cartes) n'ont pas de démos pros : leur catalogue restera vide tant qu'aucune source n'existe |
 | 2026-10-13 | STUFF-01 | « Images » des stuffs : annotations officielles du jeu (position, visée, arrivée affichées en entraînement) + captures jointes par Mathieu, plutôt que des images fabriquées | Seul le jeu peut rendre la vue réelle ; les annotations sont exactes car tirées des positions et angles des démos |
 | 2026-10-13 | STUFF-01 | Technique de lancer déduite des touches enregistrées (FIRE, RIGHTCLICK, JUMP, FORWARD, WALK, DUCK) avec repli sur vitesse et « en l'air » | demoparser2 expose les commandes des joueurs ; leur présence dans les démos GOTV reste à confirmer |
+| 2026-10-13 | L10 | Sol 3D reconstruit d'après les hauteurs parcourues par les joueurs (cellules de 64 u) | La géométrie des cartes est dans les fichiers de Valve, non distribuables ; le relief appris suffit à lire niveaux et étages |

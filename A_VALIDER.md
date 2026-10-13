@@ -284,3 +284,11 @@ Riot ID enregistré dans `postgame.toml` (local) : `iamheremyfriend#hiii`.
 - [ ] Sur un stuff connu (ex. smoke window de Mirage en jumpthrow), vérifier que la page
       Stuffs annonce la bonne technique. Si toutes les techniques affichent « clic ? », les
       démos ne contiennent pas les touches des joueurs : me le dire.
+
+## L10 — Replay 3D
+
+### 28. Rejouer un vrai round en 3D (PC de jeu ou téléphone)
+- [ ] Ouvrir un replay 2D d'une vraie partie → « Vue 3D → ».
+- **Attendu** : le sol montre les étages de la carte (escaliers, sites en hauteur), les
+  joueurs se déplacent dessus, « Vue de Mathieu » montre ce qu'il regardait. Critère de
+  fin de L10.

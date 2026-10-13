@@ -124,3 +124,11 @@ def test_interface_servie(client):
     assert client.get("/api/inexistant").status_code == 404
     assert client.get("/assets/ancienne-version.js").status_code == 404
     assert client.get("/../pyproject.toml").text == "<html>Postgame</html>"
+
+
+def test_replay_3d_altitude_et_relief():
+    replay = construire_replay(_match())
+    moi = replay["rounds"]["1"]["joueurs"]["1"]
+    assert moi["z"][0] == 0 and moi["pitch"][0] == 0
+    fond = replay["meta"]["fond"]
+    assert len(fond["hauteurs"]) == len(fond["cellules"]) and replay["meta"]["format"] == 2

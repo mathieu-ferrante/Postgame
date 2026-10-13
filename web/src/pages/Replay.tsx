@@ -180,6 +180,7 @@ export default function Replay() {
       <div className="ligne">
         <Link to={`/partie/${id}`}>← Débrief</Link>
         <h1 style={{ margin: 0 }}>Replay {meta.donnee?.carte}</h1>
+        <Link to={`/replay3d/${id}?tick=${Math.round(tick)}`}>Vue 3D →</Link>
       </div>
       <Etat erreur={meta.erreur} chargement={meta.chargement} />
       {meta.donnee && !meta.donnee.radar.image && (

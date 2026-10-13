@@ -43,6 +43,8 @@ def fond_de_carte(d: DonneesMatch) -> dict[str, Any] | None:
     i = ((echantillon["x"] - xmin) // CELLULE_FOND).astype(int)
     j = ((echantillon["y"] - ymin) // CELLULE_FOND).astype(int)
     cellules = sorted({(int(a), int(b)) for a, b in zip(i, j, strict=True)})
+    # Hauteur du sol par cellule (médiane des z des pieds) : relief pour le replay 3D.
+    hauteurs = echantillon.assign(i=i, j=j).groupby(["i", "j"])["z"].median().round()
     return {
         "xmin": round(xmin),
         "ymin": round(ymin),
@@ -50,6 +52,7 @@ def fond_de_carte(d: DonneesMatch) -> dict[str, Any] | None:
         "largeur": int(i.max()) + 1,
         "hauteur": int(j.max()) + 1,
         "cellules": [[a, b] for a, b in cellules],
+        "hauteurs": [int(hauteurs[(a, b)]) for a, b in cellules],
     }
 
 
@@ -114,6 +117,8 @@ def construire_round(
             "x": g["x"].round().fillna(0).astype(int).tolist(),
             "y": g["y"].round().fillna(0).astype(int).tolist(),
             "yaw": g["yaw"].round().fillna(0).astype(int).tolist(),
+            "z": g["z"].round().fillna(0).astype(int).tolist(),
+            "pitch": g["pitch"].round().fillna(0).astype(int).tolist(),
             "vivant": g["vivant"].fillna(False).astype(bool).astype(int).tolist(),
             "arme": g["arme"].fillna("").astype(str).tolist(),
         }
@@ -162,8 +167,12 @@ def construire_round(
     }
 
 
+FORMAT = 2  # 2 : altitude et inclinaison du regard (replay 3D)
+
+
 def construire_replay(d: DonneesMatch) -> dict[str, Any]:
     meta = construire_meta(d)
+    meta["format"] = FORMAT
     pos = Positions(d.ticks)
     rounds = {
         str(r["numero"]): construire_round(d, r["debut"], r["fin"], pos) for r in meta["rounds"]
@@ -185,4 +194,6 @@ def lire_cache(chemin: Path) -> dict[str, Any] | None:
     if not chemin.exists():
         return None
     with gzip.open(chemin, "rt", encoding="utf-8") as f:
-        return json.load(f)
+        donnees = json.load(f)
+    # Cache d'un ancien format : on le reconstruit.
+    return donnees if donnees.get("meta", {}).get("format") == FORMAT else None
