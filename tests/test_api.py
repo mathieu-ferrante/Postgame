@@ -34,6 +34,8 @@ def test_import_manuel_puis_fiche(client, base):
     fiche = client.get(f"/api/parties/{pid}").json()
     assert fiche["source"] == "m.factice"
     assert fiche["mesures"][0]["nom"] == "factice.taille"
+    assert fiche["preuves"][0]["texte"] == "début du fichier"
+    assert client.get(f"/api/parties/{pid}/preuves?mesure=factice.taille").json()[0]["tick"] == 0
 
     # Second envoi du même contenu : reconnu.
     r2 = client.post("/api/import", files={"fichier": ("copie.factice", b"carte=de_train")})
@@ -66,3 +68,11 @@ def test_etat_import(client):
     etat = client.get("/api/import/etat").json()
     assert etat["surveillance_active"] is False
     assert etat["derniers_fichiers"] == []
+
+
+def test_definitions(client):
+    import postgame.games.cs2.mecanique  # noqa: F401  (enregistre les définitions)
+
+    defs = {d["nom"]: d for d in client.get("/api/mesures/definitions").json()}
+    d = defs["cs2.contre_strafe.part_tirs_precis"]
+    assert d["unite"] == "%" and d["version"] >= 1 and d["fiable"] is False

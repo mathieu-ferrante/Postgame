@@ -26,7 +26,7 @@ FastAPI `{"detail": "message"}`.
 | Méthode | Chemin | Rôle |
 |---|---|---|
 | GET | `/api/parties?jeu=cs2&limite=50&decalage=0` | `{"total", "parties": [résumé]}` ; résumé = `id, jeu, date_partie, mode, carte, resultat, score_joueur, score_adverse, duree_s` |
-| GET | `/api/parties/{id}` | Fiche complète (dont `details`, propre au jeu) et ses `mesures` |
+| GET | `/api/parties/{id}` | Fiche complète (dont `details`, propre au jeu), ses `mesures` et ses `preuves` |
 
 Valeurs de `resultat` : `victoire`, `defaite`, `nul`, `sans_objet` (deathmatch,
 entraînement), `inconnu` (joueur non trouvé dans la démo : vérifier le SteamID dans
@@ -39,6 +39,8 @@ Valeurs de `mode` pour CS2 : `competitif`, `deathmatch`, `wingman`, `autre`.
 | Méthode | Chemin | Rôle |
 |---|---|---|
 | GET | `/api/mesures` | Noms des mesures présentes en base |
+| GET | `/api/mesures/definitions` | Toutes les mesures connues : `nom, version, unite, description, sens, fiable` |
+| GET | `/api/parties/{id}/preuves?mesure=…` | Moments du replay qui illustrent les mesures : `mesure, tick, round, texte, donnees` |
 | GET | `/api/parties/{id}/mesures` | Mesures d'une partie : `nom, version, valeur, unite, contexte, calcule_le` |
 | GET | `/api/progression/{nom}?periode=7j\|30j\|tout` | Série chronologique d'une mesure, un point par partie (COM-03) |
 

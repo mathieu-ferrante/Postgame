@@ -25,7 +25,18 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
       DM est validé sur le PC de jeu → voir A_VALIDER.md
 
 ## L1 — CS2 mécanique (CS-AIM-*)
-- [ ] Contre-strafe, première balle, spray, réaction, placement du viseur, taux par arme
+- [x] Registre des mesures (nom, version, unité, sens, fiabilité) + table des preuves
+- [x] Extraction des données de match CS2 dans un schéma stable (`DonneesMatch`)
+- [~] Contre-strafe (CS-AIM-01) — scénarios synthétiques uniquement
+- [~] Première balle (CS-AIM-02) — idem
+- [~] Spray : touche et erreur par rang, balle de décrochage (CS-AIM-03) — idem
+- [~] Réaction et TTK (CS-AIM-04) — idem
+- [~] Placement du viseur à l'apparition, tendance, hauteur en déplacement (CS-AIM-05) — idem
+- [~] Statistiques par arme (CS-AIM-06) — idem
+- [x] Preuves (moments du replay) et fiche de vérification manuelle (`verifier`)
+- [x] Analyse d'un match synthétique de taille réelle (16 joueurs, 10 min) : 2 s hors lecture
+- [ ] **Extraction `extraire_match` jamais exécutée sur une vraie démo**
+- [ ] Critère de fin : sur une démo DM réelle, chaque mesure vérifiée à la main sur 5 cas
 
 ## L2 — CS2 utilitaires et positionnement (CS-UTL-02/03/04, CS-POS-01/02/03)
 - [ ] Flashs, HE, molotovs, gaspillage, chaleur, morts isolées, trades
@@ -68,3 +79,9 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 | 2026-10-13 | L0 | Joueur suivi = SteamID64 de `postgame.toml`, sinon nom du client de l'en-tête | Indispensable au résultat ; le repli par nom couvre les démos enregistrées par le client |
 | 2026-10-13 | L0 | Enregistrement DM : bascule F8 sur 10 noms tournants `postgame_XX.dem` | Les fichiers de config CS2 n'ont ni horodatage ni déclencheur de début de partie |
 | 2026-10-13 | L0 | Commande `diagnostic` qui résume une démo en JSON | Permet de caler la lecture sur les vraies démos sans transférer les démos elles-mêmes |
+| 2026-10-13 | L1 | Analyses en pandas + numpy (pas polars) | demoparser2 renvoie du pandas ; volumes modestes (~600 k lignes par DM) ; 2 s par match |
+| 2026-10-13 | L1 | Précision max sous 34 % de la vitesse max de l'arme | Règle du moteur ; vitesses max dans `armes.py`, à revérifier après les mises à jour |
+| 2026-10-13 | L1 | Direction du tir = vue + 2 × aim punch | `weapon_recoil_scale` = 2 ; permet de mesurer la compensation du recul sans évènement d'impact |
+| 2026-10-13 | L1 | Apparition = passage à « repéré par moi » après 0,5 s sans l'être | Exigence CS-AIM-05 ; lancer de rayons repoussé tant que la vérification manuelle ne montre pas de biais |
+| 2026-10-13 | L1 | En DM (≤ 1 round), tous les autres joueurs sont adversaires | Le DM officiel peut être en chacun pour soi ; l'indicateur « repéré » ne concerne de toute façon que les ennemis |
+| 2026-10-13 | L1 | Toute mesure naît `fiable=False` | NF-06 : seule une vérification manuelle sur données réelles la rend utilisable par le débrief |

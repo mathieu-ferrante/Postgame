@@ -5,9 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from postgame.config import Config
-from postgame.db import Mesure
 from postgame.games.base import Fiche
 from postgame.games.cs2.demo import construire_fiche, extraire
+from postgame.games.cs2.donnees import extraire_match
+from postgame.games.cs2.mecanique import analyser_mecanique
+from postgame.mesures import ResultatAnalyse
 
 
 class ModuleCS2:
@@ -21,6 +23,6 @@ class ModuleCS2:
     def lire_fiche(self, chemin: Path, cfg: Config) -> Fiche:
         return construire_fiche(extraire(chemin), cfg.steamid)
 
-    def analyser(self, chemin: Path, cfg: Config) -> list[Mesure]:
-        # Les mesures arrivent au lot L1 (mécanique) et suivants.
-        return []
+    def analyser(self, chemin: Path, cfg: Config) -> ResultatAnalyse:
+        donnees = extraire_match(chemin, cfg.steamid)
+        return analyser_mecanique(donnees)

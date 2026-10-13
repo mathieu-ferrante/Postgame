@@ -45,3 +45,26 @@ résultat (ou me le dire).
   - `http://localhost:8765/api/import/etat` ne montre pas d'erreur.
 - [ ] Depuis le téléphone (même Wi-Fi) : `http://<IP du PC>:8765/api/sante` répond.
       Si non : autoriser Python dans le pare-feu Windows (réseau privé).
+
+## L1 — Mécanique CS2
+
+Dépend du point L0-3 (une démo de DM enregistrée) et du SteamID (L0-2).
+
+### 5. Vérifier les mesures à la main sur une démo DM (PC de jeu)
+- [ ] Importer une démo DM (automatique si le service tourne), relever son numéro avec
+      `.venv\Scripts\python -m postgame parties`.
+- [ ] `.venv\Scripts\python -m postgame verifier <numéro>` → crée
+      `dataerifications\partie_<numéro>.md`.
+- [ ] Dans CS2 : `playdemo "<chemin indiqué dans la fiche>"`, puis pour chaque ligne
+      `demo_gototick <tick>` ; regarder depuis les yeux de Mathieu (touche espace / clic).
+- **Attendu** : pour chaque mesure, les 5 cas décrits sont visibles à l'écran (ex. « première
+  balle à 180 u/s » : Mathieu tire en courant ; « apparaît à 20° à gauche, 5° trop bas » :
+  l'adversaire surgit bien à gauche, viseur sous sa tête). Cocher, ou noter ce qui diffère.
+- **Me renvoyer** la fiche cochée : les mesures confirmées passeront « fiables ».
+- Point particulier : si tous les moments sont décalés d'un même délai, le dire (décalage
+  de ticks entre demoparser2 et le lecteur du jeu).
+
+### 6. Mesurer le temps d'analyse (PC de jeu)
+- [ ] Noter le temps d'import d'une démo Premier complète (visible dans le journal du
+      service, entre « découvert » et « importe »).
+- **Attendu** : moins de 60 s (NF-03).

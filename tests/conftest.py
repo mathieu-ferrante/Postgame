@@ -15,6 +15,7 @@ from postgame.config import Config
 from postgame.db import Base, Mesure
 from postgame.games import MODULES, enregistrer
 from postgame.games.base import ErreurLecture, Fiche
+from postgame.mesures import Preuve, ResultatAnalyse
 
 DOSSIER_DONNEES_TEST = Path(__file__).parent / "donnees"
 
@@ -48,8 +49,11 @@ class ModuleFactice:
             duree_s=1800.0,
         )
 
-    def analyser(self, chemin: Path, cfg: Config) -> list[Mesure]:
-        return [Mesure("factice.taille", 1, float(chemin.stat().st_size), "octets")]
+    def analyser(self, chemin: Path, cfg: Config) -> ResultatAnalyse:
+        return ResultatAnalyse(
+            mesures=[Mesure("factice.taille", 1, float(chemin.stat().st_size), "octets")],
+            preuves=[Preuve("factice.taille", 0, "début du fichier")],
+        )
 
 
 @pytest.fixture

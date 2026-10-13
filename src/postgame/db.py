@@ -63,6 +63,21 @@ MIGRATIONS: list[list[str]] = [
         )
         """,
     ],
+    # 2 — preuves des mesures (L1, COM-04)
+    [
+        """
+        CREATE TABLE preuves (
+            id         INTEGER PRIMARY KEY,
+            partie_id  INTEGER NOT NULL REFERENCES parties (id) ON DELETE CASCADE,
+            mesure     TEXT NOT NULL,             -- nom de la mesure illustrée
+            tick       INTEGER,                   -- ou position dans le niveau (GD)
+            round      INTEGER,
+            texte      TEXT NOT NULL,
+            donnees    TEXT NOT NULL DEFAULT '{}'
+        )
+        """,
+        "CREATE INDEX preuves_partie ON preuves (partie_id, mesure)",
+    ],
 ]
 
 
@@ -254,6 +269,37 @@ class Base:
                     for m in mesures
                 ],
             )
+
+    def remplacer_preuves(self, partie_id: int, preuves: list[Any]) -> None:
+        """Remplace les preuves d'une partie (objets `postgame.mesures.Preuve`)."""
+        with self.transaction() as cx:
+            cx.execute("DELETE FROM preuves WHERE partie_id = ?", (partie_id,))
+            cx.executemany(
+                "INSERT INTO preuves (partie_id, mesure, tick, round, texte, donnees) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                [
+                    (
+                        partie_id,
+                        p.mesure,
+                        p.tick,
+                        p.round,
+                        p.texte,
+                        json.dumps(p.donnees, ensure_ascii=False, default=float),
+                    )
+                    for p in preuves
+                ],
+            )
+
+    def preuves_partie(self, partie_id: int, mesure: str | None = None) -> list[dict[str, Any]]:
+        sql = "SELECT mesure, tick, round, texte, donnees FROM preuves WHERE partie_id = ?"
+        params: list[Any] = [partie_id]
+        if mesure:
+            sql += " AND mesure = ?"
+            params.append(mesure)
+        sql += " ORDER BY mesure, tick"
+        with self._verrou:
+            lignes = self._cx.execute(sql, params).fetchall()
+        return [{**dict(lg), "donnees": json.loads(lg["donnees"])} for lg in lignes]
 
     def mesures_partie(self, partie_id: int) -> list[dict[str, Any]]:
         with self._verrou:

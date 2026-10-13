@@ -4,6 +4,7 @@
 - importer    : importe un ou plusieurs fichiers à la main
 - parties     : liste les parties en base
 - reanalyser  : recalcule fiches et mesures de tout l'historique (COM-08)
+- verifier    : fiche de vérification manuelle des mesures d'une partie (5 cas par mesure)
 - diagnostic  : décrit une démo CS2 (en-tête, évènements, fiche) dans un fichier JSON
 """
 
@@ -38,6 +39,10 @@ def main(argv: list[str] | None = None) -> int:
 
     p_re = sous.add_parser("reanalyser", help="recalcule tout l'historique")
     p_re.add_argument("--jeu")
+
+    p_verif = sous.add_parser("verifier", help="fiche de vérification manuelle d'une partie")
+    p_verif.add_argument("partie_id", type=int)
+    p_verif.add_argument("--sortie", type=Path)
 
     p_diag = sous.add_parser("diagnostic", help="décrit une démo CS2 dans un fichier JSON")
     p_diag.add_argument("demo", type=Path)
@@ -88,6 +93,19 @@ def main(argv: list[str] | None = None) -> int:
                 f"#{p.id:<5} {p.date_partie[:16]}  {p.jeu:<4} {p.mode:<11} {p.carte:<14} "
                 f"{p.resultat:<10} {score}"
             )
+        return 0
+
+    if args.commande == "verifier":
+        from postgame.games.cs2 import mecanique  # noqa: F401  (définitions des mesures)
+        from postgame.verification import fiche_verification
+
+        texte = fiche_verification(base, args.partie_id)
+        sortie = (
+            args.sortie or cfg.dossier_donnees / "verifications" / f"partie_{args.partie_id}.md"
+        )
+        sortie.parent.mkdir(parents=True, exist_ok=True)
+        sortie.write_text(texte, encoding="utf-8")
+        print(f"Fiche de vérification écrite dans {sortie}")
         return 0
 
     if args.commande == "reanalyser":

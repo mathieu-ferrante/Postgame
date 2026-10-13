@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from postgame.config import Config
-from postgame.db import Mesure
+from postgame.mesures import ResultatAnalyse
 
 
 @dataclass
@@ -42,4 +42,4 @@ class ModuleJeu(Protocol):
 
     def lire_fiche(self, chemin: Path, cfg: Config) -> Fiche: ...
 
-    def analyser(self, chemin: Path, cfg: Config) -> list[Mesure]: ...
+    def analyser(self, chemin: Path, cfg: Config) -> ResultatAnalyse: ...

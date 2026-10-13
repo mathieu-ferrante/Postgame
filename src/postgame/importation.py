@@ -18,6 +18,7 @@ from postgame.config import Config
 from postgame.db import Base, Partie
 from postgame.games import module_pour
 from postgame.games.base import ErreurLecture
+from postgame.mesures import ResultatAnalyse
 
 journal = logging.getLogger(__name__)
 
@@ -87,13 +88,17 @@ def importer(
     # Les mesures ne doivent jamais faire perdre la fiche : une analyse en échec se rejoue
     # plus tard par la re-analyse.
     try:
-        mesures = module.analyser(archive, cfg)
-        base.remplacer_mesures(partie_id, mesures)
+        enregistrer_analyse(base, partie_id, module.analyser(archive, cfg))
     except Exception as exc:
         journal.exception("analyse en échec pour %s", archive)
         return ResultatImport("importe", f"fiche créée, analyse en échec : {exc}", partie_id)
 
     return ResultatImport("importe", f"{module.libelle} — {fiche.carte}, {fiche.mode}", partie_id)
+
+
+def enregistrer_analyse(base: Base, partie_id: int, resultat: ResultatAnalyse) -> None:
+    base.remplacer_mesures(partie_id, resultat.mesures)
+    base.remplacer_preuves(partie_id, resultat.preuves)
 
 
 def reanalyser(base: Base, cfg: Config, jeu: str | None = None) -> dict[str, int]:
@@ -125,7 +130,7 @@ def reanalyser(base: Base, cfg: Config, jeu: str | None = None) -> dict[str, int
                 ):
                     setattr(partie, cle, getattr(fiche, cle))
                 base.mettre_a_jour_fiche(partie)
-                base.remplacer_mesures(partie.id, module.analyser(archive, cfg))
+                enregistrer_analyse(base, partie.id, module.analyser(archive, cfg))
                 bilan["ok"] += 1
             except Exception:
                 journal.exception("re-analyse en échec pour %s", archive)

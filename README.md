@@ -9,7 +9,8 @@ PC de jeu. Spécification complète : [CAHIER_DES_CHARGES.md](CAHIER_DES_CHARGES
 | Lot | Contenu | État |
 |---|---|---|
 | L0 | Socle : service, stockage, import des démos, API, config d'enregistrement DM | Codé et testé sur données de substitution ; **à valider sur vraies démos et sur le PC de jeu** |
-| L1–L10 | Mécanique CS2, utilitaires, références pro, décisions, débrief, interface, second écran, GD, LoL/TFT, 3D | À faire |
+| L1 | Mécanique CS2 : contre-strafe, première balle, spray, réaction, placement du viseur, armes | Codé et testé sur scénarios synthétiques ; **jamais exécuté sur une vraie démo, aucune mesure vérifiée à la main** |
+| L2–L10 | Utilitaires, références pro, décisions, débrief, interface, second écran, GD, LoL/TFT, 3D | À faire |
 
 Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée de Mathieu :
 [A_VALIDER.md](A_VALIDER.md).
@@ -21,6 +22,9 @@ Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée
   terminée. Import manuel possible par l'API.
 - Chaque démo est archivée dans `data/archives/` et produit une fiche : carte, mode,
   résultat, score, durée (**lecture CS2 pas encore vérifiée sur une vraie démo**).
+- Chaque démo est analysée : mesures de mécanique (méthode : [docs/MESURES_CS2.md](docs/MESURES_CS2.md))
+  et preuves (moments précis du replay). `verifier <partie>` produit la fiche de
+  vérification manuelle des mesures.
 - Une API locale JSON (parties, fiches, mesures, progression) sert l'interface à venir et
   Jarvis : [docs/API.md](docs/API.md).
 
@@ -51,6 +55,7 @@ Ligne de commande (`.venv\Scripts\python -m postgame …`) :
 | `importer <fichiers…>` | Importe des fichiers à la main |
 | `parties [--jeu cs2]` | Liste les parties en base |
 | `reanalyser [--jeu cs2]` | Recalcule fiches et mesures de tout l'historique |
+| `verifier <partie>` | Fiche de vérification manuelle : 5 moments par mesure, avec la commande CS2 pour y aller |
 | `diagnostic <demo.dem>` | Décrit une démo (en-tête, évènements, fiche) dans un JSON |
 
 Documentation interactive de l'API : `http://localhost:8765/docs`.
@@ -73,10 +78,13 @@ src/postgame/
   config.py        configuration locale (postgame.toml)
   db.py            stockage SQLite versionné : parties, mesures, fichiers vus
   importation.py   import d'un fichier : déduplication, archive, fiche, mesures, re-analyse
+  mesures.py       registre des mesures (nom, version, unité, fiabilité) et preuves
+  verification.py  fiche de vérification manuelle d'une partie
   surveillance.py  scrutation des dossiers surveillés
   api.py           API HTTP (FastAPI)
   games/           un module par jeu derrière une interface commune (base.py)
-    cs2/           lecture des démos (demoparser2), diagnostic
+    cs2/           lecture des démos (demoparser2), diagnostic, armes, géométrie,
+                   analyses (mecanique.py…)
 config/cs2/        config d'enregistrement des démos DM
 scripts/           installation et lancement sur le PC de jeu
 tests/             tests ; tests/donnees/ (ignoré par git) pour les vraies démos

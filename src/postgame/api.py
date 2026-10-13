@@ -9,6 +9,7 @@ from __future__ import annotations
 import shutil
 import tempfile
 from contextlib import asynccontextmanager
+from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,7 @@ from postgame.config import Config
 from postgame.db import Base
 from postgame.games import MODULES
 from postgame.importation import importer
+from postgame.mesures import DEFINITIONS
 from postgame.surveillance import Surveillant
 
 PERIODES = {"7j": timedelta(days=7), "30j": timedelta(days=30), "tout": None}
@@ -125,13 +127,29 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         p = base.partie(partie_id)
         if p is None:
             raise HTTPException(404, "partie inconnue")
-        return {**p.en_dict(), "mesures": base.mesures_partie(partie_id)}
+        return {
+            **p.en_dict(),
+            "mesures": base.mesures_partie(partie_id),
+            "preuves": base.preuves_partie(partie_id),
+        }
 
     @app.get("/api/parties/{partie_id}/mesures", tags=["mesures"])
     def mesures_partie(partie_id: int) -> list[dict[str, Any]]:
         if base.partie(partie_id) is None:
             raise HTTPException(404, "partie inconnue")
         return base.mesures_partie(partie_id)
+
+    @app.get("/api/parties/{partie_id}/preuves", tags=["mesures"])
+    def preuves_partie(partie_id: int, mesure: str | None = None) -> list[dict[str, Any]]:
+        """Moments du replay qui illustrent les mesures (COM-04)."""
+        if base.partie(partie_id) is None:
+            raise HTTPException(404, "partie inconnue")
+        return base.preuves_partie(partie_id, mesure)
+
+    @app.get("/api/mesures/definitions", tags=["mesures"])
+    def definitions() -> list[dict[str, Any]]:
+        """Toutes les mesures connues : nom, version, unité, description, sens, fiabilité."""
+        return [asdict(d) for d in sorted(DEFINITIONS.values(), key=lambda d: d.nom)]
 
     @app.get("/api/mesures", tags=["mesures"])
     def noms_mesures() -> list[str]:
