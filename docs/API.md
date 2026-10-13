@@ -48,6 +48,14 @@ Une mesure a un nom à points (`cs2.contre_strafe.part_tirs_precis`), une versio
 (incrémentée quand son calcul change ; `python -m postgame reanalyser` recalcule alors tout
 l'historique, COM-08), une unité et un contexte JSON (arme, camp, taille d'échantillon…).
 
+## Débrief
+
+| Méthode | Chemin | Rôle |
+|---|---|---|
+| GET | `/api/parties/{id}/debrief?regenerer=false` | Dernier débrief (généré s'il n'existe pas) : `texte` (Markdown), `statut` (`redige`, `structure`, `rejete`), `contenu.priorites / points_forts / details` (constats avec `valeur, reference, cible, impact, preuves[{tick, round, texte, lien}]`), `jetons_entree`, `jetons_sortie`, `cout` |
+| GET | `/api/debriefs/couts` | `{nb, total, entree, sortie, moyen}` (dollars, jetons) |
+| POST | `/api/mesures/fiabilite` | Corps `{"nom", "fiable", "note"}` : marque la version courante d'une mesure comme vérifiée à la main |
+
 ## CS2
 
 | Méthode | Chemin | Rôle |

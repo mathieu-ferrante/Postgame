@@ -13,7 +13,8 @@ PC de jeu. Spécification complète : [CAHIER_DES_CHARGES.md](CAHIER_DES_CHARGES
 | L2 | Utilitaires et positionnement CS2 : flashs, HE, molotovs, gaspillage, chaleur, morts isolées, trades | Codé et testé sur scénarios synthétiques ; **jamais exécuté sur une vraie démo** |
 | L3 | Références pros : catalogue de lancers et positions appris sur démos pros, rattachement des smokes | Codé et testé sur données synthétiques ; **aucune démo pro lue, catalogue vide** |
 | L4 | Décisions et économie CS2 : ouvertures, rotations, saves, après pose, clutchs, achats, stratégie | Codé et testé sur scénarios synthétiques ; **jamais exécuté sur une vraie démo** |
-| L5–L10 | Débrief, interface, second écran, GD, LoL/TFT, 3D | À faire |
+| L5 | Débrief : 3 priorités chiffrées, preuves, rédaction Gemini / locale contrôlée, coût | Codé et testé avec réponses simulées ; **aucun appel Gemini réel, coût réel non mesuré** |
+| L6–L10 | Interface, second écran, GD, LoL/TFT, 3D | À faire |
 
 Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée de Mathieu :
 [A_VALIDER.md](A_VALIDER.md).
@@ -29,6 +30,9 @@ Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée
   décisions, économie (méthode : [docs/MESURES_CS2.md](docs/MESURES_CS2.md))
   et preuves (moments précis du replay). `verifier <partie>` produit la fiche de
   vérification manuelle des mesures.
+- Chaque partie reçoit un débrief : 3 priorités classées par impact, chiffres et moments
+  du replay à l'appui, rédigé par Gemini (ou un modèle local) sans qu'il puisse inventer de
+  chiffre : [docs/DEBRIEF.md](docs/DEBRIEF.md).
 - Une API locale JSON (parties, fiches, mesures, progression) sert l'interface à venir et
   Jarvis : [docs/API.md](docs/API.md).
 
@@ -41,7 +45,8 @@ powershell -ExecutionPolicy Bypass -File scripts\installer.ps1
 ```
 
 Puis éditer `postgame.toml` (créé à partir de `postgame.exemple.toml`, jamais commité) :
-SteamID64 et dossiers CS2.
+SteamID64 et dossiers CS2. La clé Gemini va dans `secrets.toml` (modèle :
+`secrets.exemple.toml`, jamais commité).
 
 Pour enregistrer les parties de deathmatch : [config/cs2/LISEZMOI.md](config/cs2/LISEZMOI.md).
 
@@ -60,6 +65,9 @@ Ligne de commande (`.venv\Scripts\python -m postgame …`) :
 | `parties [--jeu cs2]` | Liste les parties en base |
 | `reanalyser [--jeu cs2]` | Recalcule fiches et mesures de tout l'historique |
 | `references ajouter <dossier>` | Ajoute des démos pros au catalogue CS2 (`reconstruire`, `lister` aussi) |
+| `debrief <partie> [--sans-modele]` | (Re)génère le débrief d'une partie |
+| `fiabilite <mesure> [--non]` | Marque une mesure vérifiée à la main : elle entre dans le débrief |
+| `couts` | Coût cumulé des débriefs rédigés |
 | `verifier <partie>` | Fiche de vérification manuelle : 5 moments par mesure, avec la commande CS2 pour y aller |
 | `diagnostic <demo.dem>` | Décrit une démo (en-tête, évènements, fiche) dans un JSON |
 
@@ -85,6 +93,7 @@ src/postgame/
   importation.py   import d'un fichier : déduplication, archive, fiche, mesures, re-analyse
   mesures.py       registre des mesures (nom, version, unité, fiabilité) et preuves
   verification.py  fiche de vérification manuelle d'une partie
+  debrief/         constats priorisés, cibles, rédaction par modèle de langage
   surveillance.py  scrutation des dossiers surveillés
   api.py           API HTTP (FastAPI)
   games/           un module par jeu derrière une interface commune (base.py)

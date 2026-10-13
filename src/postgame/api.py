@@ -17,16 +17,25 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from postgame import __version__
 from postgame.config import Config
 from postgame.db import Base
+from postgame.debrief import generer_debrief
+from postgame.debrief.constats import charger_definitions
 from postgame.games import MODULES
 from postgame.importation import importer
 from postgame.mesures import DEFINITIONS
 from postgame.surveillance import Surveillant
 
 PERIODES = {"7j": timedelta(days=7), "30j": timedelta(days=30), "tout": None}
+
+
+class CorpsFiabilite(BaseModel):
+    nom: str
+    fiable: bool = True
+    note: str = ""
 
 
 def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) -> FastAPI:
@@ -149,8 +158,39 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
 
     @app.get("/api/mesures/definitions", tags=["mesures"])
     def definitions() -> list[dict[str, Any]]:
-        """Toutes les mesures connues : nom, version, unité, description, sens, fiabilité."""
-        return [asdict(d) for d in sorted(DEFINITIONS.values(), key=lambda d: d.nom)]
+        """Toutes les mesures connues : nom, version, unité, description, sens, fiabilité
+        (validée à la main ou non)."""
+        charger_definitions()
+        fiab = base.fiabilites()
+        return [
+            {**asdict(d), "fiable": fiab.get((d.nom, d.version), d.fiable)}
+            for d in sorted(DEFINITIONS.values(), key=lambda d: d.nom)
+        ]
+
+    @app.post("/api/mesures/fiabilite", tags=["mesures"])
+    def fiabilite(corps: CorpsFiabilite) -> dict[str, Any]:
+        """Marque une mesure fiable (ou non) après vérification à la main (NF-06).
+        Corps : {"nom": "...", "fiable": true, "note": "5 cas vérifiés"}."""
+        charger_definitions()
+        d = DEFINITIONS.get(corps.nom)
+        if d is None:
+            raise HTTPException(404, "mesure inconnue")
+        base.noter_fiabilite(d.nom, d.version, corps.fiable, corps.note)
+        return {"nom": d.nom, "version": d.version, "fiable": corps.fiable}
+
+    @app.get("/api/parties/{partie_id}/debrief", tags=["debrief"])
+    def debrief(partie_id: int, regenerer: bool = False) -> dict[str, Any]:
+        """Débrief de la partie : 3 priorités, points forts, détail, preuves (COM-04/05/06).
+        Généré à la demande s'il n'existe pas, ou si `regenerer=true`."""
+        if base.partie(partie_id) is None:
+            raise HTTPException(404, "partie inconnue")
+        existant = None if regenerer else base.dernier_debrief(partie_id)
+        return existant or generer_debrief(base, cfg, partie_id)
+
+    @app.get("/api/debriefs/couts", tags=["debrief"])
+    def couts() -> dict[str, Any]:
+        """Coût cumulé des débriefs rédigés (NF-04), en dollars et en jetons."""
+        return base.couts_debriefs()
 
     @app.get("/api/cs2/chaleur", tags=["cs2"])
     def chaleur(

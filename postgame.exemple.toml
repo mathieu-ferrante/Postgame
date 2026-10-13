@@ -23,3 +23,15 @@ dossiers_demos = [
 [surveillance]
 intervalle_s = 5          # période de scrutation des dossiers
 delai_stabilite_s = 10    # un fichier doit garder la même taille ce temps-là avant import
+
+[debrief]
+# Fournisseur du débrief rédigé : "gemini" (défaut), "local" (Ollama) ou "aucun" (liste
+# structurée, sans modèle de langage). La clé Gemini va dans secrets.toml, jamais ici.
+fournisseur = "gemini"
+modele = "gemini-3.1-flash-lite"
+url_local = "http://localhost:11434"
+prix_entree = 0.25   # $ par million de jetons envoyés
+prix_sortie = 1.50   # $ par million de jetons reçus
+automatique = true   # rédiger le débrief dès l'import
+mesures_experimentales = false  # true pendant la validation des mesures (signalées)
+historique = 10      # parties précédentes servant de référence personnelle

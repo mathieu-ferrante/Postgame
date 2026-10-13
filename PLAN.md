@@ -76,7 +76,16 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 - [ ] Critère de fin : mesures produites et vérifiées sur 3 vrais matchs
 
 ## L5 — Débrief (COM-04/05/06)
-- [ ] Rédaction, priorisation, liens vers les preuves, coût mesuré
+- [x] Constats : référence personnelle, cible provisoire, impact estimé, 3 priorités
+- [x] Preuves rattachées à chaque constat, avec lien vers le replay (COM-04)
+- [x] Fiabilité validée à la main par version de mesure (`fiabilite`, NF-06)
+- [x] Rédaction Gemini / Ollama / aucune ; données sans nom ni identifiant (NF-05)
+- [x] Rejet de tout texte contenant un chiffre absent des mesures (COM-05)
+- [x] Coût par débrief calculé sur les jetons facturés, cumul (NF-04)
+- [x] Débrief automatique à l'import, API `GET /api/parties/{id}/debrief`
+- [~] Gemini et Ollama testés avec des réponses simulées uniquement : **aucun appel réel**
+- [ ] Coût mesuré sur un vrai débrief (clé Gemini de Mathieu)
+- [ ] Critère de fin : le débrief d'un vrai match apprend quelque chose à Mathieu
 
 ## L6 — Interface et replay 2D (COM-03, CS-RPL-01, NF-02)
 - [ ] Tableau de bord, débrief, progression, replay radar, PWA
@@ -125,3 +134,8 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 | 2026-10-13 | L4 | Rotation déclenchée par la pose seulement | La démo ne contient ni les annonces vocales ni les pings |
 | 2026-10-13 | L4 | Types d'achat : éco < 1 500 $, partiel < 4 000 $, complet au-delà ; rounds 1 et 13 = pistolet | Seuils usuels ; MR12 en Premier et compétitif |
 | 2026-10-13 | L4 | Site de pose déduit du lieu du poseur (« BombsiteA » → A) | `bomb_planted.site` est un index d'entité, pas une lettre |
+| 2026-10-13 | L5 | Modèle par défaut `gemini-3.1-flash-lite` | Le moins cher de la génération 3 (0,25 $ / 1,50 $ par Mjetons) ; la tâche est de la reformulation contrainte |
+| 2026-10-13 | L5 | Contrôle automatique des chiffres de la réponse | Garantit « n'invente aucun chiffre » sans relecture humaine |
+| 2026-10-13 | L5 | Les textes des preuves ne partent pas vers le modèle | Ils contiennent des pseudos (NF-05) ; les preuves sont rattachées par l'appli, pas par le modèle |
+| 2026-10-13 | L5 | Fiabilité stockée en base par (mesure, version), modifiable sans toucher au code | Mathieu valide ses mesures au fil des vérifications |
+| 2026-10-13 | L5 | `httpx` passe en dépendance principale | Client HTTP testable (MockTransport) pour Gemini, Ollama, puis l'API Riot |

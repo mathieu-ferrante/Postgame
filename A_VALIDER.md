@@ -113,3 +113,31 @@ Dépend du point L0-3 (une démo de DM enregistrée) et du SteamID (L0-2).
   l'équipe est en éco » : vrai dans le tableau d'achat du jeu).
 - Point particulier : la numérotation des rounds suit les fins de freeze vues dans la
   démo ; si un round d'échauffement ou une pause technique décale tout d'un cran, le dire.
+
+## L5 — Débrief
+
+### 11. Créer la clé Gemini (n'importe quelle machine)
+- [ ] Sur aistudio.google.com → « Get API key » → créer une clé (le projet doit avoir la
+      facturation activée pour utiliser le crédit de 15 € ; sinon le niveau gratuit suffit
+      pour essayer).
+- [ ] Copier `secrets.exemple.toml` en `secrets.toml` (à côté de `postgame.toml`, ignoré
+      par git) et y coller la clé dans `[gemini] cle = "…"`.
+- **Attendu** : `.venv\Scripts\python -m postgame debrief <numéro>` affiche un débrief
+  rédigé et une ligne `[redige] gemini gemini-3.1-flash-lite — N + M jetons, 0.00x $`.
+- Si la ligne affiche `[rejete]`, me transmettre le message (le modèle a écrit un chiffre
+  qui n'est pas dans les mesures).
+
+### 12. Juger le débrief d'un vrai match (PC de jeu)
+- [ ] Pendant la validation des mesures, mettre `mesures_experimentales = true` dans la
+      section `[debrief]` de `postgame.toml` (sinon le débrief est vide tant qu'aucune
+      mesure n'est marquée fiable).
+- [ ] Lire le débrief d'un match Premier récent.
+- **Attendu** (critère de fin de L5) : au moins un des 3 points prioritaires apprend quelque
+  chose de précis à Mathieu, et les moments cités se retrouvent dans le replay.
+- Me dire ce qui sonne faux, générique ou mal priorisé : j'ajusterai les poids et les
+  cibles (`src/postgame/debrief/objectifs.py`).
+
+### 13. Marquer les mesures fiables (au fil des vérifications)
+- [ ] Pour chaque mesure dont les 5 cas sont confirmés (points 5, 7, 9, 10) :
+      `.venv\Scripts\python -m postgame fiabilite <nom de la mesure> --note "5 cas vérifiés"`
+- **Attendu** : elle apparaît dans le débrief même avec `mesures_experimentales = false`.

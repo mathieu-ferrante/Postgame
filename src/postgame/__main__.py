@@ -5,6 +5,9 @@
 - parties     : liste les parties en base
 - reanalyser  : recalcule fiches et mesures de tout l'historique (COM-08)
 - references  : ajoute des démos pros au catalogue CS2 (lancers et positions de référence)
+- debrief     : (re)génère le débrief d'une partie
+- fiabilite   : marque une mesure vérifiée à la main (elle entre alors dans le débrief)
+- couts       : coût cumulé des débriefs rédigés
 - verifier    : fiche de vérification manuelle des mesures d'une partie (5 cas par mesure)
 - diagnostic  : décrit une démo CS2 (en-tête, évènements, fiche) dans un fichier JSON
 """
@@ -47,6 +50,17 @@ def main(argv: list[str] | None = None) -> int:
     p_ref_aj.add_argument("chemins", nargs="+", type=Path)
     sous_ref.add_parser("reconstruire", help="recalcule le catalogue à partir des observations")
     sous_ref.add_parser("lister", help="résumé du catalogue par carte")
+
+    p_deb = sous.add_parser("debrief", help="(re)génère le débrief d'une partie")
+    p_deb.add_argument("partie_id", type=int)
+    p_deb.add_argument("--sans-modele", action="store_true", help="débrief structuré seul")
+
+    p_fiab = sous.add_parser("fiabilite", help="marque une mesure vérifiée à la main")
+    p_fiab.add_argument("nom")
+    p_fiab.add_argument("--non", action="store_true", help="la marquer non fiable")
+    p_fiab.add_argument("--note", default="")
+
+    sous.add_parser("couts", help="coût cumulé des débriefs rédigés")
 
     p_verif = sous.add_parser("verifier", help="fiche de vérification manuelle d'une partie")
     p_verif.add_argument("partie_id", type=int)
@@ -123,6 +137,39 @@ def main(argv: list[str] | None = None) -> int:
                 f"{ligne['carte']:<14} {ligne['demos']} démo(s), {ligne['lancers']} lancers, "
                 f"{ligne['positions']} positions"
             )
+        return 0
+
+    if args.commande == "debrief":
+        from postgame.debrief import generer_debrief
+
+        d = generer_debrief(base, cfg, args.partie_id, None if args.sans_modele else "config")
+        print(d["texte"])
+        print(
+            f"\n[{d['statut']}] {d['fournisseur']} {d['modele']} — "
+            f"{d['jetons_entree']} + {d['jetons_sortie']} jetons, {d['cout']:.5f} $"
+            + (f" — {d['message']}" if d["message"] else "")
+        )
+        return 0
+
+    if args.commande == "fiabilite":
+        from postgame.debrief.constats import charger_definitions
+        from postgame.mesures import DEFINITIONS
+
+        charger_definitions()
+        definition = DEFINITIONS.get(args.nom)
+        if definition is None:
+            print(f"mesure inconnue : {args.nom}")
+            return 1
+        base.noter_fiabilite(definition.nom, definition.version, not args.non, args.note)
+        print(f"{definition.nom} v{definition.version} : {'non ' if args.non else ''}fiable")
+        return 0
+
+    if args.commande == "couts":
+        c = base.couts_debriefs()
+        print(
+            f"{c['nb']} débrief(s), {c['entree']} + {c['sortie']} jetons, "
+            f"{c['total']:.4f} $ au total, {c['moyen']:.5f} $ par débrief rédigé"
+        )
         return 0
 
     if args.commande == "verifier":

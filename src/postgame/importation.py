@@ -93,6 +93,14 @@ def importer(
         journal.exception("analyse en échec pour %s", archive)
         return ResultatImport("importe", f"fiche créée, analyse en échec : {exc}", partie_id)
 
+    if cfg.debrief.automatique:
+        try:
+            from postgame.debrief import generer_debrief
+
+            generer_debrief(base, cfg, partie_id)
+        except Exception:
+            journal.exception("débrief automatique en échec pour la partie %s", partie_id)
+
     return ResultatImport("importe", f"{module.libelle} — {fiche.carte}, {fiche.mode}", partie_id)
 
 

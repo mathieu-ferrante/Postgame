@@ -116,6 +116,36 @@ MIGRATIONS: list[list[str]] = [
         )
         """,
     ],
+    # 4 — débriefs et fiabilité des mesures validée à la main (L5)
+    [
+        """
+        CREATE TABLE debriefs (
+            id           INTEGER PRIMARY KEY,
+            partie_id    INTEGER NOT NULL REFERENCES parties (id) ON DELETE CASCADE,
+            cree_le      TEXT NOT NULL,
+            fournisseur  TEXT NOT NULL,
+            modele       TEXT NOT NULL DEFAULT '',
+            contenu      TEXT NOT NULL,          -- JSON : priorités, détail, preuves
+            texte        TEXT NOT NULL,          -- débrief rédigé (Markdown)
+            statut       TEXT NOT NULL,          -- redige, structure, rejete, erreur
+            message      TEXT NOT NULL DEFAULT '',
+            jetons_entree INTEGER NOT NULL DEFAULT 0,
+            jetons_sortie INTEGER NOT NULL DEFAULT 0,
+            cout         REAL NOT NULL DEFAULT 0  -- dollars
+        )
+        """,
+        "CREATE INDEX debriefs_partie ON debriefs (partie_id, cree_le)",
+        """
+        CREATE TABLE fiabilite_mesures (
+            nom      TEXT NOT NULL,
+            version  INTEGER NOT NULL,
+            fiable   INTEGER NOT NULL,
+            note     TEXT NOT NULL DEFAULT '',
+            le       TEXT NOT NULL,
+            PRIMARY KEY (nom, version)
+        )
+        """,
+    ],
 ]
 
 
@@ -359,6 +389,63 @@ class Base:
         with self._verrou:
             lignes = self._cx.execute(sql, params).fetchall()
         return [{**dict(lg), "donnees": json.loads(lg["donnees"])} for lg in lignes]
+
+    # --- Fiabilité et débriefs ------------------------------------------------------------
+
+    def fiabilites(self) -> dict[tuple[str, int], bool]:
+        with self._verrou:
+            lignes = self._cx.execute("SELECT nom, version, fiable FROM fiabilite_mesures")
+            return {(r["nom"], r["version"]): bool(r["fiable"]) for r in lignes.fetchall()}
+
+    def noter_fiabilite(self, nom: str, version: int, fiable: bool, note: str = "") -> None:
+        with self.transaction() as cx:
+            cx.execute(
+                "INSERT INTO fiabilite_mesures (nom, version, fiable, note, le) VALUES "
+                "(?, ?, ?, ?, ?) ON CONFLICT (nom, version) DO UPDATE SET fiable = "
+                "excluded.fiable, note = excluded.note, le = excluded.le",
+                (nom, version, int(fiable), note, maintenant()),
+            )
+
+    def enregistrer_debrief(self, partie_id: int, d: dict[str, Any]) -> int:
+        with self.transaction() as cx:
+            cur = cx.execute(
+                "INSERT INTO debriefs (partie_id, cree_le, fournisseur, modele, contenu, texte, "
+                "statut, message, jetons_entree, jetons_sortie, cout) VALUES "
+                "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    partie_id,
+                    maintenant(),
+                    d["fournisseur"],
+                    d.get("modele", ""),
+                    json.dumps(d["contenu"], ensure_ascii=False, default=float),
+                    d["texte"],
+                    d["statut"],
+                    d.get("message", ""),
+                    d.get("jetons_entree", 0),
+                    d.get("jetons_sortie", 0),
+                    d.get("cout", 0.0),
+                ),
+            )
+            return cur.lastrowid
+
+    def dernier_debrief(self, partie_id: int) -> dict[str, Any] | None:
+        with self._verrou:
+            ligne = self._cx.execute(
+                "SELECT * FROM debriefs WHERE partie_id = ? ORDER BY id DESC LIMIT 1",
+                (partie_id,),
+            ).fetchone()
+        if ligne is None:
+            return None
+        return {**dict(ligne), "contenu": json.loads(ligne["contenu"])}
+
+    def couts_debriefs(self) -> dict[str, Any]:
+        with self._verrou:
+            ligne = self._cx.execute(
+                "SELECT COUNT(*) AS nb, COALESCE(SUM(cout), 0) AS total, "
+                "COALESCE(SUM(jetons_entree), 0) AS entree, COALESCE(SUM(jetons_sortie), 0) "
+                "AS sortie, COALESCE(AVG(NULLIF(cout, 0)), 0) AS moyen FROM debriefs"
+            ).fetchone()
+        return dict(ligne)
 
     def mesures_partie(self, partie_id: int) -> list[dict[str, Any]]:
         with self._verrou:

@@ -17,6 +17,21 @@ DOSSIER_CS2 = (
 
 
 @dataclass
+class ConfigDebrief:
+    fournisseur: str = "gemini"  # gemini, local, aucun
+    modele: str = "gemini-3.1-flash-lite"
+    url_local: str = "http://localhost:11434"  # serveur Ollama
+    # Prix en dollars par million de jetons (page de tarifs Gemini, octobre 2026).
+    prix_entree: float = 0.25
+    prix_sortie: float = 1.50
+    automatique: bool = True  # rédiger le débrief dès l'import d'une partie
+    # Inclure les mesures pas encore vérifiées à la main (NF-06) : à n'activer que pendant
+    # la phase de validation, elles sont alors signalées comme telles.
+    mesures_experimentales: bool = False
+    historique: int = 10  # parties précédentes servant de référence personnelle
+
+
+@dataclass
 class Config:
     hote: str = "0.0.0.0"
     port: int = 8765
@@ -27,6 +42,15 @@ class Config:
     )
     intervalle_s: float = 5.0
     delai_stabilite_s: float = 10.0
+    debrief: ConfigDebrief = field(default_factory=lambda: ConfigDebrief())
+    # Secrets (clé Gemini, clé Riot…) : lus dans secrets.toml ou l'environnement, jamais
+    # dans postgame.toml ni dans le dépôt.
+    secrets: dict[str, dict[str, str]] = field(default_factory=dict)
+
+    def secret(self, section: str, cle: str, variable: str | None = None) -> str:
+        if variable and os.environ.get(variable):
+            return os.environ[variable]
+        return str(self.secrets.get(section, {}).get(cle, "")).strip()
 
     @property
     def chemin_base(self) -> Path:
@@ -43,6 +67,7 @@ def charger_config(chemin: Path | None = None) -> Config:
         chemin = Path(os.environ.get("POSTGAME_CONFIG", "postgame.toml"))
     cfg = Config()
     if not chemin.exists():
+        cfg.secrets = charger_secrets(chemin.parent / "secrets.toml")
         return cfg
     with chemin.open("rb") as f:
         brut = tomllib.load(f)
@@ -64,4 +89,28 @@ def charger_config(chemin: Path | None = None) -> Config:
     surv = brut.get("surveillance", {})
     cfg.intervalle_s = float(surv.get("intervalle_s", cfg.intervalle_s))
     cfg.delai_stabilite_s = float(surv.get("delai_stabilite_s", cfg.delai_stabilite_s))
+
+    deb = brut.get("debrief", {})
+    for nom, type_ in (
+        ("fournisseur", str),
+        ("modele", str),
+        ("url_local", str),
+        ("prix_entree", float),
+        ("prix_sortie", float),
+        ("automatique", bool),
+        ("mesures_experimentales", bool),
+        ("historique", int),
+    ):
+        if nom in deb:
+            setattr(cfg.debrief, nom, type_(deb[nom]))
+
+    cfg.secrets = charger_secrets(chemin.parent / "secrets.toml")
     return cfg
+
+
+def charger_secrets(chemin: Path) -> dict[str, dict[str, str]]:
+    """secrets.toml (ignoré par git) : [gemini] cle = "…", [riot] cle = "…"."""
+    if not chemin.exists():
+        return {}
+    with chemin.open("rb") as f:
+        return tomllib.load(f)

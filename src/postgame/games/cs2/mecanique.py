@@ -58,7 +58,8 @@ D_CS_PREMIERES = definir(
     "cs2.contre_strafe.part_premieres_balles_precises",
     1,
     "%",
-    "Idem, sur la première balle de chaque engagement seulement.",
+    "Part des premières balles d'engagement tirées sous 34 % de la vitesse max de "
+    "l'arme (contre-strafe réussi).",
 )
 D_CS_VITESSE = definir(
     "cs2.contre_strafe.vitesse_mediane_premiere_balle",
