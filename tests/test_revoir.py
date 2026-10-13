@@ -162,3 +162,13 @@ def test_api_capture_de_la_vue_du_pro(base, cfg, tmp_path):
         assert c.get("/api/cs2/stuffs/cle1/image").content == b"\xff\xd8vue du pro"
         assert c.get("/api/cs2/stuffs/cle1/capture").json()["attente"] is False
         assert c.post("/api/cs2/radars/exporter").status_code == 409  # outil non configuré
+
+
+def test_toutes_les_cartes(base, cfg, tmp_path):
+    _remplir(base, _demo(tmp_path / "pro.dem"))
+    with TestClient(creer_app(cfg, base=base, surveiller=False)) as c:
+        cartes = {x["code"]: x["categorie"] for x in c.get("/api/cs2/cartes").json()["cartes"]}
+    # Pool actif, cartes officielles hors pool et Wingman, cartes des démos pros.
+    assert cartes["de_cache"] == "pool" and cartes["de_overpass"] == "hors pool"
+    assert cartes["de_train"] == "hors pool" and cartes["de_eldorado"] == "wingman"
+    assert len([c for c, cat in cartes.items() if cat == "pool"]) == 7

@@ -9,7 +9,7 @@ import { Etat, useDonnee } from "../composants/Chargement";
 interface Cartes {
   date: string;
   source: string;
-  cartes: { code: string; nom: string; pool: boolean }[];
+  cartes: { code: string; nom: string; pool: boolean; categorie?: string }[];
 }
 
 async function chargerCartes(): Promise<Cartes> {
@@ -90,8 +90,8 @@ export default function Chaleur() {
             <optgroup label="Pool actif (Premier, compétitif)">
               {cartes.donnee?.cartes.filter((c) => c.pool).map((c) => <option key={c.code} value={c.code}>{c.nom}</option>)}
             </optgroup>
-            <optgroup label="Autres cartes jouées">
-              {cartes.donnee?.cartes.filter((c) => !c.pool).map((c) => <option key={c.code} value={c.code}>{c.nom}</option>)}
+            <optgroup label="Autres cartes (hors pool, Wingman, jouées)">
+              {cartes.donnee?.cartes.filter((c) => !c.pool).map((c) => <option key={c.code} value={c.code}>{c.nom} ({c.categorie ?? "hors pool"})</option>)}
             </optgroup>
           </select>
           <button className={type === "mort" ? "actif" : ""} onClick={() => setType("mort")}>Morts</button>

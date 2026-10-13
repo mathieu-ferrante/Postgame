@@ -369,17 +369,32 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
                     "ORDER BY COUNT(*) DESC"
                 ).fetchall()
             ]
-        return {
-            **etat,
-            "cartes": [
-                {"code": c, "nom": cartes.nom_affiche(c), "pool": True} for c in etat["pool"]
-            ]
-            + [
-                {"code": c, "nom": cartes.nom_affiche(c), "pool": False}
-                for c in jouees
-                if c not in etat["pool"]
-            ],
-        }
+            pros = [r[0] for r in cx.execute("SELECT DISTINCT carte FROM cs2_ref_demos")]
+        # Toutes les cartes : pool actif, puis les autres cartes officielles (compétitif
+        # occasionnel, Wingman), puis celles vues dans mes démos ou les démos pros.
+        liste: list[dict[str, Any]] = [
+            {"code": c, "nom": cartes.nom_affiche(c), "pool": True, "categorie": "pool"}
+            for c in etat["pool"]
+        ]
+        autres = etat.get("autres_modes") or cartes.BASE["autres_modes"]
+        for categorie, noms in (
+            ("hors pool", autres.get("competitif_occasionnel_dm", [])),
+            ("wingman", autres.get("wingman", [])),
+            ("jouée", jouees),
+            ("démos pros", pros),
+        ):
+            for nom in noms:
+                code = cartes.code_carte(nom)
+                if code and not any(x["code"] == code for x in liste):
+                    liste.append(
+                        {
+                            "code": code,
+                            "nom": cartes.nom_affiche(code),
+                            "pool": False,
+                            "categorie": categorie,
+                        }
+                    )
+        return {**etat, "cartes": liste}
 
     @app.get("/api/cs2/stuffs", tags=["stuffs"])
     def stuffs_carte(carte: str) -> dict[str, Any]:

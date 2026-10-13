@@ -132,7 +132,7 @@ function OuViser({ s, recharger }: { s: Stuff; recharger: () => void }) {
   );
 }
 
-interface Cartes { cartes: { code: string; nom: string; pool: boolean }[] }
+interface Cartes { cartes: { code: string; nom: string; pool: boolean; categorie?: string }[] }
 
 function regard(s: Stuff): string | null {
   if (s.lpitch === null) return null;
@@ -234,7 +234,7 @@ export default function Stuffs() {
       <h1>Stuffs</h1>
       <div className="ligne">
         <select value={carte} onChange={(e) => { setChoix(e.target.value); setSelection(null); }}>
-          {cartes.donnee?.cartes.map((c) => <option key={c.code} value={c.code}>{c.nom}{c.pool ? "" : " (hors pool)"}</option>)}
+          {cartes.donnee?.cartes.map((c) => <option key={c.code} value={c.code}>{c.nom}{c.pool ? "" : ` (${c.categorie ?? "hors pool"})`}</option>)}
         </select>
         {["smoke", "flash", "molotov"].map((t) => (
           <button key={t} className={type === t ? "actif" : ""} onClick={() => setType(t)}>{t}</button>
