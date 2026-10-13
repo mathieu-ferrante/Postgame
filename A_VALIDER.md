@@ -80,3 +80,24 @@ Dépend du point L0-3 (une démo de DM enregistrée) et du SteamID (L0-2).
   vengée : Y (450 u) à proximité » : Y était bien tout près et n'a pas tué le tueur).
 - Point particulier : vérifier qu'un molotov lancé par Mathieu est bien compté comme le
   sien (le rattachement du feu au lanceur est indirect).
+
+## L3 — Références pros
+
+### 8. Fournir des démos pros (n'importe quelle machine)
+- [ ] Télécharger sur HLTV (onglet « Matches » → un match → « GOTV Demo ») des démos
+      récentes de **CS2**, en priorité sur les cartes que Mathieu joue le plus. Viser
+      **5 démos par carte** au minimum (une démo = une carte d'un match).
+- [ ] Décompresser les archives (`.rar` / `.zip`) et poser les `.dem` dans un dossier,
+      par exemple `D:\Postgame\demos_pros\`.
+- [ ] `.venv\Scripts\python -m postgame references ajouter D:\Postgame\demos_pros`
+- **Attendu** : pour chaque carte, plusieurs dizaines de lancers et une dizaine de
+  positions (`references lister`). `http://localhost:8765/api/cs2/references?carte=de_mirage`
+  montre des smokes nommées avec des lieux connus (« Window », « Jungle »…).
+- [ ] Puis `.venv\Scripts\python -m postgame reanalyser --jeu cs2` pour rattacher les
+      smokes des parties déjà importées.
+
+### 9. Vérifier le rattachement des smokes (PC de jeu)
+- [ ] `verifier <numéro>` sur un match Premier, section `cs2.smoke.part_reconnues`.
+- **Attendu** : une smoke « reconnue : smoke Window depuis TSpawn » est bien la smoke
+  fenêtre classique ; une smoke « ratée de 220 u » est visiblement à côté ; une smoke
+  « hors référence » n'est pas une smoke usuelle.

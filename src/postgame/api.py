@@ -6,6 +6,7 @@ Description lisible : docs/API.md.
 
 from __future__ import annotations
 
+import json
 import shutil
 import tempfile
 from contextlib import asynccontextmanager
@@ -176,6 +177,21 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
             if p["carte"] == carte and (camp is None or p["donnees"].get("camp") == camp)
         ]
         return {"carte": carte, "type": type, "camp": camp, "points": points}
+
+    @app.get("/api/cs2/references", tags=["cs2"])
+    def references_cs2(carte: str | None = None) -> dict[str, Any]:
+        """Catalogue appris sur démos pros (CS-REF-01) : résumé par carte, ou lancers et
+        positions de référence d'une carte."""
+        from postgame.games.cs2 import references
+
+        if carte is None:
+            return {"cartes": references.resume_catalogue(base)}
+        cat = references.charger_catalogue(base, carte)
+        return {
+            "carte": carte,
+            "lancers": json.loads(cat.lancers.to_json(orient="records")),
+            "positions": json.loads(cat.positions.to_json(orient="records")),
+        }
 
     @app.get("/api/mesures", tags=["mesures"])
     def noms_mesures() -> list[str]:

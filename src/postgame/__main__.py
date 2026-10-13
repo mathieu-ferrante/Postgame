@@ -4,6 +4,7 @@
 - importer    : importe un ou plusieurs fichiers à la main
 - parties     : liste les parties en base
 - reanalyser  : recalcule fiches et mesures de tout l'historique (COM-08)
+- references  : ajoute des démos pros au catalogue CS2 (lancers et positions de référence)
 - verifier    : fiche de vérification manuelle des mesures d'une partie (5 cas par mesure)
 - diagnostic  : décrit une démo CS2 (en-tête, évènements, fiche) dans un fichier JSON
 """
@@ -39,6 +40,13 @@ def main(argv: list[str] | None = None) -> int:
 
     p_re = sous.add_parser("reanalyser", help="recalcule tout l'historique")
     p_re.add_argument("--jeu")
+
+    p_ref = sous.add_parser("references", help="catalogue CS2 appris sur démos pros")
+    sous_ref = p_ref.add_subparsers(dest="action", required=True)
+    p_ref_aj = sous_ref.add_parser("ajouter", help="ajoute des démos pros (fichiers ou dossiers)")
+    p_ref_aj.add_argument("chemins", nargs="+", type=Path)
+    sous_ref.add_parser("reconstruire", help="recalcule le catalogue à partir des observations")
+    sous_ref.add_parser("lister", help="résumé du catalogue par carte")
 
     p_verif = sous.add_parser("verifier", help="fiche de vérification manuelle d'une partie")
     p_verif.add_argument("partie_id", type=int)
@@ -92,6 +100,28 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 f"#{p.id:<5} {p.date_partie[:16]}  {p.jeu:<4} {p.mode:<11} {p.carte:<14} "
                 f"{p.resultat:<10} {score}"
+            )
+        return 0
+
+    if args.commande == "references":
+        from postgame.games.cs2 import references
+
+        if args.action == "ajouter":
+            demos = []
+            for chemin in args.chemins:
+                demos += sorted(chemin.glob("*.dem")) if chemin.is_dir() else [chemin]
+            for demo in demos:
+                try:
+                    print(f"{demo.name} : {references.ajouter_demo_pro(base, demo)}")
+                except Exception as exc:  # une démo pro illisible ne bloque pas les autres
+                    print(f"{demo.name} : erreur — {exc}")
+            print(references.reconstruire_catalogue(base))
+        elif args.action == "reconstruire":
+            print(references.reconstruire_catalogue(base))
+        for ligne in references.resume_catalogue(base):
+            print(
+                f"{ligne['carte']:<14} {ligne['demos']} démo(s), {ligne['lancers']} lancers, "
+                f"{ligne['positions']} positions"
             )
         return 0
 

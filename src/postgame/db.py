@@ -78,6 +78,44 @@ MIGRATIONS: list[list[str]] = [
         """,
         "CREATE INDEX preuves_partie ON preuves (partie_id, mesure)",
     ],
+    # 3 — références apprises sur démos pros (L3, CS-REF-01)
+    [
+        """
+        CREATE TABLE cs2_ref_demos (
+            empreinte  TEXT PRIMARY KEY,
+            fichier    TEXT NOT NULL,
+            carte      TEXT NOT NULL,
+            ajoute_le  TEXT NOT NULL
+        )
+        """,
+        """
+        CREATE TABLE cs2_ref_observations (
+            id          INTEGER PRIMARY KEY,
+            empreinte   TEXT NOT NULL REFERENCES cs2_ref_demos (empreinte) ON DELETE CASCADE,
+            carte       TEXT NOT NULL,
+            genre       TEXT NOT NULL,      -- lancer, position, lieu
+            type        TEXT,               -- smoke, flash, molotov (lancers)
+            camp        TEXT,               -- T, CT
+            lieu        TEXT,               -- lieu du joueur (ou du lanceur)
+            x REAL, y REAL, z REAL,         -- arrivée (lancer) ou position du joueur
+            lx REAL, ly REAL, lz REAL       -- position de lancer
+        )
+        """,
+        "CREATE INDEX cs2_ref_obs_carte ON cs2_ref_observations (carte, genre)",
+        """
+        CREATE TABLE cs2_ref_lancers (
+            id INTEGER PRIMARY KEY, carte TEXT NOT NULL, type TEXT NOT NULL,
+            x REAL, y REAL, z REAL, lx REAL, ly REAL, lz REAL,
+            lieu_arrivee TEXT, lieu_lancer TEXT, nb INTEGER, nb_demos INTEGER, construit_le TEXT
+        )
+        """,
+        """
+        CREATE TABLE cs2_ref_positions (
+            id INTEGER PRIMARY KEY, carte TEXT NOT NULL, camp TEXT NOT NULL, lieu TEXT NOT NULL,
+            x REAL, y REAL, nb INTEGER, part REAL, construit_le TEXT
+        )
+        """,
+    ],
 ]
 
 

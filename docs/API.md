@@ -54,6 +54,9 @@ l'historique, COM-08), une unité et un contexte JSON (arme, camp, taille d'éch
 |---|---|---|
 | GET | `/api/cs2/chaleur?carte=de_mirage&type=mort\|kill&camp=T\|CT&periode=7j\|30j\|tout` | Positions des morts ou kills de Mathieu sur une carte, toutes parties confondues : `points: [{x, y, z, camp, arme, partie_id, tick, round}]` |
 
+| GET | `/api/cs2/references` | Résumé du catalogue appris sur démos pros : `cartes: [{carte, demos, lancers, positions}]` |
+| GET | `/api/cs2/references?carte=de_mirage` | Lancers de référence (`type, x, y, z, lx, ly, lz, lieu_arrivee, lieu_lancer, nb, nb_demos`) et positions de référence (`camp, lieu, x, y, nb, part`) |
+
 ## Pour Jarvis
 
 Questions typiques et appels correspondants :

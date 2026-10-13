@@ -57,3 +57,31 @@ proche (± 2 ticks, < 300 u) quand l'évènement ne porte pas le lanceur.
 | `cs2.trades.reussis`, `.delai_median`, `.occasions_manquees` | Coéquipier tué : Mathieu tue le tueur dans les 5 s (réussi), ou était vivant à moins de 800 u et personne ne l'a vengé (manqué). | |
 
 Mesures d'équipe (gaspillage, isolement, trades) non calculées en deathmatch.
+
+## L3 — Références pros (CS-REF-01, CS-UTL-01, CS-POS-04)
+
+Le catalogue est appris, jamais écrit à la main. Pour chaque démo pro ajoutée
+(`python -m postgame references ajouter <dossier>`), on stocke des observations :
+
+- chaque smoke, flash et molotov : point d'arrivée (éclatement), point de lancer (position
+  du lanceur à `grenade_thrown`, appariés « premier lancé, premier éclaté » par joueur et par
+  type), camp et lieu du lanceur ;
+- la position de chaque joueur vivant 20 s après la fin du freeze (« installée »), avec son
+  lieu ;
+- des positions échantillonnées toutes les 5 s avec leur lieu, pour nommer les points
+  d'arrivée.
+
+Les noms de lieux viennent de la carte (`last_place_name` : « BombsiteA », « Window »…).
+
+Catalogue : par carte et par type, les points d'arrivée sont regroupés (rayon 120 u) ; un
+groupe d'au moins 3 lancers devient une référence, nommée par le lieu le plus proche de son
+point d'arrivée et le lieu de lancer le plus fréquent. Positions : part des rounds pros où
+chaque lieu est tenu à l'installation, par carte et par camp.
+
+| Mesure | Calcul | Limites connues |
+|---|---|---|
+| `cs2.smoke.part_reconnues` | Smokes de Mathieu à moins de 150 u (2D) d'une smoke de référence. Preuves : « reconnue : smoke Window depuis TSpawn, à 40 u », « ratée de 220 u : … », ou « hors référence ». | Absente tant que le catalogue de la carte est vide. |
+| `cs2.smoke.ecart_median_reference` | Écart médian à la référence la plus proche, pour les smokes à moins de 400 u. | |
+| `cs2.smoke.part_ligne_coupee` | Smoke qui, pendant sa durée (échantillonnée toutes les 0,5 s), traverse au moins une ligne adversaire–allié de moins de 3000 u (distance du centre au segment ≤ 144 u). | Approximation 2D sans murs : une ligne déjà bloquée par un mur compte comme coupée. Calculée même sans catalogue. |
+| `cs2.molotov.part_reconnues` | Idem pour les molotovs. | |
+| `cs2.position.part_positions_pro` | Rounds où le lieu tenu par Mathieu 20 s après le freeze est tenu par les pros (même carte, même camp) dans au moins 5 % des rounds. Les preuves citent les 3 lieux pros les plus courants quand Mathieu en est loin. | Granularité du lieu (un nom de zone, pas un point précis). |

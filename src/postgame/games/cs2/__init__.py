@@ -9,6 +9,7 @@ from postgame.games.base import Fiche
 from postgame.games.cs2.analyse import analyser_match
 from postgame.games.cs2.demo import construire_fiche, extraire
 from postgame.games.cs2.donnees import extraire_match
+from postgame.games.cs2.references import catalogue_pour
 from postgame.mesures import ResultatAnalyse
 
 
@@ -25,4 +26,4 @@ class ModuleCS2:
 
     def analyser(self, chemin: Path, cfg: Config) -> ResultatAnalyse:
         donnees = extraire_match(chemin, cfg.steamid)
-        return analyser_match(donnees)
+        return analyser_match(donnees, catalogue_pour(cfg.chemin_base, donnees.carte))

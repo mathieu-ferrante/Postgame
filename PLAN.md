@@ -51,7 +51,16 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 - [ ] Critère de fin : sur une démo Premier réelle, chaque mesure vérifiée à la main sur 5 cas
 
 ## L3 — Références pro (CS-REF-01, CS-UTL-01, CS-POS-04)
-- [ ] Catalogue des lancers et positions appris sur démos pros
+- [x] Observations par démo pro (lancers, positions installées, lieux), stockées une fois
+- [x] Regroupement des points d'arrivée et construction du catalogue par carte (migration 3)
+- [x] Commandes `references ajouter / reconstruire / lister`, route `GET /api/cs2/references`
+- [~] Rattachement des smokes et molotovs de Mathieu : reconnue / ratée de N u / hors
+      référence (CS-UTL-01) — données synthétiques uniquement
+- [~] Lignes de vue coupées par les smokes (approximation 2D) — idem
+- [~] Positions installées comparées aux pros (CS-POS-04) — idem
+- [ ] **Aucune démo pro lue** : catalogue vide tant que Mathieu n'en a pas fourni
+- [ ] Critère de fin : chaque smoke de Mathieu rattachée à une référence ou signalée hors
+      référence, sur un vrai match
 
 ## L4 — Décisions et économie (CS-DEC-*, CS-ECO-01, CS-STR-01)
 - [ ] Duels d'ouverture, rotations, saves, retakes, clutchs, économie, stratégie
@@ -97,3 +106,8 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 | 2026-10-13 | L2 | Aveuglement significatif ≥ 1 s ; flash convertie = kill de l'équipe sur un aveuglé dans les 2 s | Exigence CS-UTL-02 ; seuils notés dans docs/MESURES_CS2.md, ajustables après vérification |
 | 2026-10-13 | L2 | Trade = tueur abattu par l'équipe dans les 5 s ; tradable = coéquipier à moins de 800 u ; isolée au-delà de 1000 u | Seuils usuels des outils d'analyse ; distance 2D sans géométrie de carte |
 | 2026-10-13 | L2 | Kills et morts stockés comme preuves avec position et camp | Une seule table sert les débriefs et les cartes de chaleur multi-parties |
+| 2026-10-13 | L3 | Lieux nommés par `last_place_name` (callouts de la carte) | Exigence « rien n'est écrit à la main » : la carte fournit ses propres noms |
+| 2026-10-13 | L3 | Regroupement maison (centres mobiles, rayon 120 u, ≥ 3 lancers) plutôt que scikit-learn | Évite une dépendance lourde ; volumes de quelques milliers de points |
+| 2026-10-13 | L3 | Observations brutes stockées par démo pro, catalogue recalculé à chaque ajout | Ajout incrémental de démos ; seuils ajustables sans relire les démos |
+| 2026-10-13 | L3 | Smoke reconnue < 150 u, ratée < 400 u, hors référence au-delà | Une smoke CS2 fait ~144 u de rayon : à 150 u, elle couvre encore l'essentiel de la zone visée |
+| 2026-10-13 | L3 | « Ligne de vue utile » approchée en 2D (segment adversaire–allié traversant la smoke) | Pas de géométrie de carte disponible ; le lancer de rayons reste une piste (CS-AIM-05) |

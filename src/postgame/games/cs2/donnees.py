@@ -14,6 +14,7 @@ aveuglements : tick, attaquant (lanceur), victime, duree (s)  (player_blind)
 grenades : tick, lanceur, type, x, y, z, entite, fin           (éclatement ; fin = fin d'effet)
 lancers  : tick, steamid, type                                 (grenade_thrown)
 inventaires : tick, steamid, grenades (liste de codes)         (début/fin de round, avant mort)
+lieux    : tick, steamid, lieu (nom de zone de la carte)       (installation, lancers)
 
 Types de grenade : flash, he, smoke, molotov (incendiaire comprise), decoy.
 """
@@ -31,6 +32,8 @@ from postgame.games.base import ErreurLecture
 from postgame.games.cs2.armes import normaliser
 
 TICKS_PAR_SECONDE = 64
+# Moment où l'on relève les positions « installées » de chaque round (CS-POS-04).
+DELAI_INSTALLATION_TICKS = 20 * TICKS_PAR_SECONDE
 
 PROPS_TICKS = [
     "X",
@@ -116,6 +119,9 @@ class DonneesMatch:
     )
     inventaires: pd.DataFrame = field(
         default_factory=lambda: pd.DataFrame(columns=["tick", "steamid", "grenades"])
+    )
+    lieux: pd.DataFrame = field(
+        default_factory=lambda: pd.DataFrame(columns=["tick", "steamid", "lieu"])
     )
 
     def numero_round(self, tick: int) -> int | None:
@@ -355,6 +361,22 @@ def extraire_match(chemin: Path, steamid: str) -> DonneesMatch:
         except Exception:
             pass  # inventaire indisponible : les mesures de gaspillage seront absentes
 
+    # Noms de lieux (callouts de la carte) à l'installation de chaque round et aux lancers.
+    instants = {t + DELAI_INSTALLATION_TICKS for t in debuts} | set(lancers["tick"].astype(int))
+    lieux = pd.DataFrame(columns=["tick", "steamid", "lieu"])
+    if instants:
+        try:
+            brut_lieux = parser.parse_ticks(["last_place_name"], ticks=sorted(instants))
+            lieux = pd.DataFrame(
+                {
+                    "tick": brut_lieux["tick"].astype("int64"),
+                    "steamid": _steamid(brut_lieux["steamid"]),
+                    "lieu": brut_lieux["last_place_name"].fillna("").astype(str),
+                }
+            )
+        except Exception:
+            pass  # lieux indisponibles : positions de référence non calculées
+
     return DonneesMatch(
         moi=moi,
         ticks=normaliser_ticks(brut, moi),
@@ -367,6 +389,7 @@ def extraire_match(chemin: Path, steamid: str) -> DonneesMatch:
         grenades=grenades,
         lancers=lancers,
         inventaires=inventaires,
+        lieux=lieux,
     )
 
 
