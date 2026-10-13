@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from postgame.api import creer_app
 from postgame.games.cs2 import annotations_jeu as annotations
 from postgame.games.cs2.techniques import (
+    lachers,
     reconnaitre,
     technique_majoritaire,
     techniques_des_lancers,
@@ -78,19 +79,47 @@ def test_technique_majoritaire_et_association():
         ["jumpthrow (clic gauche)"] * 3 + ["immobile, clic gauche", None]
     ) == ("jumpthrow (clic gauche)", 0.75)
     assert technique_majoritaire([None]) == (None, None)
+    # Schéma réel (démo ESL Pro League S24) : clic tenu, relâché au décollage, et
+    # grenade_thrown enregistré 6 ticks plus tard ; le pro a déjà tourné la tête.
+    ticks = list(range(90, 101))
     etats = pd.DataFrame(
         {
-            "tick": [98, 99, 100],
+            "tick": ticks,
             "steamid": "A",
-            "FIRE": True,
+            "FIRE": [t < 94 for t in ticks],
             "vx": 0.0,
             "vy": 0.0,
-            "en_l_air": [False, True, False],
+            "en_l_air": [t >= 94 for t in ticks],
             "accroupi": False,
+            "x": [float(t) for t in ticks],
+            "y": 0.0,
+            "z": 0.0,
+            "pitch": [-40.0 if t <= 94 else 5.0 for t in ticks],
+            "yaw": [170.0 if t <= 94 else 90.0 for t in ticks],
         }
     )
     lancers = pd.DataFrame({"tick": [100], "steamid": ["A"], "type": ["smoke"]})
     assert techniques_des_lancers(etats, lancers) == {("A", 100): "jumpthrow (clic gauche)"}
+    lacher = lachers(etats, lancers)[("A", 100)]
+    assert (lacher.tick, lacher.x, lacher.pitch, lacher.yaw) == (94, 94.0, -40.0, 170.0)
+
+
+def test_saut_puis_lancer_en_l_air():
+    # Décollage 10 ticks avant le lâcher : ce n'est pas un jumpthrow.
+    ticks = list(range(80, 101))
+    etats = pd.DataFrame(
+        {
+            "tick": ticks,
+            "steamid": "A",
+            "FIRE": [t < 95 for t in ticks],
+            "vx": 0.0,
+            "vy": 0.0,
+            "en_l_air": [85 <= t <= 99 for t in ticks],
+            "accroupi": False,
+        }
+    )
+    lancers = pd.DataFrame({"tick": [100], "steamid": ["A"], "type": ["flash"]})
+    assert techniques_des_lancers(etats, lancers)[("A", 100)] == "en l'air + clic gauche"
 
 
 STUFF = {

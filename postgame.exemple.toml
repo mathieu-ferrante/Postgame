@@ -27,6 +27,9 @@ dossiers_demos = [
 # Radars officiels exportés automatiquement des fichiers du jeu avec Source2Viewer-CLI
 # (outil libre, https://s2v.app/, à télécharger soi-même). Vide = pas d'export.
 source2viewer = ""
+# Démos pros (.dem) et extraits (.pgpro) importés automatiquement, hors partie : par exemple
+# le dossier Google Drive synchronisé sur le PC de jeu.
+dossiers_pros = []  # ex. ["G:/Mon Drive/Postgame/pros"]
 
 [gd]
 # Journaux écrits par le mod Geode « Postgame — journal » (mods/gd-journal).

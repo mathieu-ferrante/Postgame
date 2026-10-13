@@ -253,8 +253,13 @@ def normaliser_ticks(brut: pd.DataFrame, moi: str) -> pd.DataFrame:
         )
         for v in brut["approximate_spotted_by"]
     ]
-    df["punch_pitch"] = [_composante(v, 0) for v in brut["aim_punch_angle"]]
-    df["punch_yaw"] = [_composante(v, 1) for v in brut["aim_punch_angle"]]
+    # Certaines démos (GOTV de tournoi) n'ont pas aim_punch_angle : recul inconnu.
+    if "aim_punch_angle" in brut:
+        df["punch_pitch"] = [_composante(v, 0) for v in brut["aim_punch_angle"]]
+        df["punch_yaw"] = [_composante(v, 1) for v in brut["aim_punch_angle"]]
+    else:
+        df["punch_pitch"] = np.nan  # les mesures de spray qui en dépendent sont écartées
+        df["punch_yaw"] = np.nan
     df["lunette"] = _col(brut, "is_scoped", False).fillna(False).astype(bool)
     df["en_l_air"] = _col(brut, "is_airborne", False).fillna(False).astype(bool)
     df["repere_par"] = [_steamids(v) for v in brut["approximate_spotted_by"]]
@@ -531,7 +536,17 @@ def etats_avant_lancers(parser: Any, ticks_lancers: list[int]) -> pd.DataFrame:
     ticks = sorted({t - k for t in ticks_lancers for k in range(TICKS_AVANT + 1) if t - k >= 0})
     if not ticks:
         return pd.DataFrame(columns=["tick", "steamid"])
-    base_props = ["velocity_X", "velocity_Y", "is_airborne", "ducked"]
+    base_props = [
+        "X",
+        "Y",
+        "Z",
+        "pitch",
+        "yaw",
+        "velocity_X",
+        "velocity_Y",
+        "is_airborne",
+        "ducked",
+    ]
     for props in (base_props + BOUTONS, base_props):
         try:
             brut = parser.parse_ticks(props, ticks=ticks)
@@ -544,6 +559,11 @@ def etats_avant_lancers(parser: Any, ticks_lancers: list[int]) -> pd.DataFrame:
         {
             "tick": brut["tick"].astype("int64"),
             "steamid": _steamid(brut["steamid"]),
+            "x": brut["X"].astype(float),
+            "y": brut["Y"].astype(float),
+            "z": brut["Z"].astype(float),
+            "pitch": brut["pitch"].astype(float),
+            "yaw": brut["yaw"].astype(float),
             "vx": brut["velocity_X"].astype(float).fillna(0.0),
             "vy": brut["velocity_Y"].astype(float).fillna(0.0),
             "en_l_air": brut["is_airborne"].fillna(False).astype(bool),
@@ -586,14 +606,17 @@ def extraire_grenades(evts: dict[str, pd.DataFrame]) -> pd.DataFrame:
         else pd.DataFrame(columns=COLONNES_GRENADES)
     )
 
-    # Durée des smokes : smokegrenade_expired porte le même entityid.
+    # Durée des smokes : smokegrenade_expired porte le même entityid. Le jeu réutilise les
+    # identifiants d'un round à l'autre : on prend la première fin APRÈS l'éclatement.
     expirations = evts.get("smokegrenade_expired")
     if expirations is not None and len(expirations) and "entityid" in expirations:
-        fins = expirations.groupby("entityid")["tick"].max()
         masque = grenades["type"] == "smoke"
-        grenades.loc[masque, "fin"] = (
-            grenades.loc[masque, "entite"].map(fins).fillna(grenades.loc[masque, "tick"])
-        ).astype("int64")
+        grenades.loc[masque, "fin"] = [
+            fin_apres(expirations, e, t, t, DUREE_MAX_SMOKE)
+            for e, t in zip(
+                grenades.loc[masque, "entite"], grenades.loc[masque, "tick"], strict=True
+            )
+        ]
 
     # Molotovs : le feu (inferno_*) n'a pas toujours de lanceur ; on le rattache au
     # molotov_detonate le plus proche (même tick à 2 près, moins de 300 u).
@@ -601,11 +624,6 @@ def extraire_grenades(evts: dict[str, pd.DataFrame]) -> pd.DataFrame:
     if feux is not None and len(feux):
         detonations = evts.get("molotov_detonate", pd.DataFrame(columns=["tick"]))
         extinctions = evts.get("inferno_expire", pd.DataFrame(columns=["tick"]))
-        fin_par_entite = (
-            extinctions.groupby("entityid")["tick"].max()
-            if len(extinctions) and "entityid" in extinctions
-            else pd.Series(dtype="int64")
-        )
         molotovs = []
         for _, feu in feux.iterrows():
             lanceur = ""
@@ -627,11 +645,35 @@ def extraire_grenades(evts: dict[str, pd.DataFrame]) -> pd.DataFrame:
                     "y": float(feu["y"]),
                     "z": float(feu["z"]),
                     "entite": entite,
-                    "fin": int(fin_par_entite.get(entite, feu["tick"] + DUREE_MOLOTOV_DEFAUT)),
+                    "fin": fin_apres(
+                        extinctions,
+                        entite,
+                        int(feu["tick"]),
+                        int(feu["tick"]) + DUREE_MOLOTOV_DEFAUT,
+                        DUREE_MAX_FEU,
+                    ),
                 }
             )
         grenades = pd.concat([grenades, pd.DataFrame(molotovs)], ignore_index=True)
     return grenades[COLONNES_GRENADES].sort_values("tick").reset_index(drop=True)
+
+
+DUREE_MAX_SMOKE = 30 * TICKS_PAR_SECONDE  # une smoke CS2 tient ~20 s
+DUREE_MAX_FEU = 15 * TICKS_PAR_SECONDE  # un molotov brûle ~7 s
+
+
+def fin_apres(fins: pd.DataFrame, entite, debut: int, defaut: int, duree_max: int) -> int:
+    """Premier évènement de fin de cette entité après `debut` (les identifiants d'entité
+    sont réutilisés au fil du match) ; `defaut` s'il n'y en a pas dans la durée plausible."""
+    if fins is None or not len(fins) or "entityid" not in fins:
+        return int(defaut)
+    candidats = fins.loc[
+        (fins["entityid"] == entite)
+        & (fins["tick"] >= debut)
+        & (fins["tick"] <= debut + duree_max),
+        "tick",
+    ]
+    return int(candidats.min()) if len(candidats) else int(defaut)
 
 
 def construire_rounds(

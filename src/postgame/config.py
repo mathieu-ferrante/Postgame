@@ -51,6 +51,8 @@ class Config:
     # Source2Viewer-CLI.exe (outil libre ValveResourceFormat) : exporte les radars officiels
     # depuis les fichiers du jeu. Vide = pas d'export automatique.
     source2viewer: Path | None = None
+    # Dossiers de démos / extraits pros importés automatiquement (ex. Google Drive).
+    dossiers_pros: list[Path] = field(default_factory=list)
     dossier_steam: Path = Path(DOSSIER_STEAM)  # captures d'écran Steam (F12)
     faceit_pseudo: str = ""
     steam_code_connu: str = ""  # un code de partage déjà connu (point de départ de l'API)
@@ -118,6 +120,7 @@ def charger_config(chemin: Path | None = None) -> Config:
     cs2 = brut.get("cs2", {})
     if "dossiers_demos" in cs2:
         cfg.dossiers_cs2 = [Path(d) for d in cs2["dossiers_demos"]]
+    cfg.dossiers_pros = [Path(os.path.expandvars(d)) for d in cs2.get("dossiers_pros", [])]
     if cs2.get("source2viewer"):
         cfg.source2viewer = Path(cs2["source2viewer"])
 

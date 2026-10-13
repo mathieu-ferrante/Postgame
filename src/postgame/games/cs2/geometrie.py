@@ -40,5 +40,8 @@ def vecteur(yaw: float, pitch: float) -> tuple[float, float, float]:
 def angle_entre(yaw1: float, pitch1: float, yaw2: float, pitch2: float) -> float:
     """Angle (degrés) entre deux directions de visée."""
     a, b = vecteur(yaw1, pitch1), vecteur(yaw2, pitch2)
-    prod = max(-1.0, min(1.0, sum(i * j for i, j in zip(a, b, strict=True))))
+    prod = sum(i * j for i, j in zip(a, b, strict=True))
+    if prod != prod:  # angle inconnu (NaN) : ne pas le ramener à 0°
+        return math.nan
+    prod = max(-1.0, min(1.0, prod))
     return math.degrees(math.acos(prod))

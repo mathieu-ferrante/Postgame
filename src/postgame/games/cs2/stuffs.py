@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
@@ -195,6 +196,7 @@ def stuffs_carte(base: Base, carte: str) -> list[dict[str, Any]]:
             "SELECT * FROM cs2_ref_lancers WHERE carte = ? ORDER BY nb DESC", cx, params=(carte,)
         )
     m = maitrise(base, carte)
+    vols = trajectoires_exemples(base, carte)
     rev = revisions(base)
     toutes_notes = notes(base, carte)
     sortie = []
@@ -203,6 +205,7 @@ def stuffs_carte(base: Base, carte: str) -> list[dict[str, Any]]:
         cle = s.get("cle")
         image = chemin_image(base.chemin.parent, cle) if cle else None
         s.update(
+            trajectoire=vols.get((s.get("exemple_empreinte"), s.get("exemple_tick"))),
             image=f"/api/cs2/stuffs/{cle}/image" if image else None,
             nom=nom(s),
             commandes=commandes(s),
@@ -235,3 +238,17 @@ def a_reviser(
         candidats.append((priorite, s))
     candidats.sort(key=lambda c: c[0])
     return [s for _, s in candidats[:nombre]]
+
+
+def trajectoires_exemples(base: Base, carte: str) -> dict[tuple[str, int], list]:
+    """Trajectoire réelle (relevée dans la démo) du lancer pro qui sert d'exemple à chaque
+    stuff : [[tick, x, y, z], …]."""
+    with base.transaction() as cx:
+        lignes = cx.execute(
+            "SELECT o.empreinte, o.tick, o.trajectoire FROM cs2_ref_observations o "
+            "JOIN cs2_ref_lancers l ON l.exemple_empreinte = o.empreinte "
+            "AND l.exemple_tick = o.tick WHERE l.carte = ? AND o.genre = 'lancer' "
+            "AND o.trajectoire IS NOT NULL",
+            (carte,),
+        ).fetchall()
+    return {(e, int(t)): json.loads(v) for e, t, v in lignes}

@@ -222,28 +222,49 @@ def test_sans_catalogue_seule_la_ligne_de_vue():
 
 
 def test_stockage_catalogue(base, tmp_path, monkeypatch):
-    sans_ticks = _observations().drop(columns=["empreinte"])
-    obs = sans_ticks.assign(tick=range(len(sans_ticks)))
-    monkeypatch.setattr(ref, "extraire_observations", lambda chemin: sans_ticks)
+    from postgame.games.cs2 import extrait_pro
+    from postgame.games.cs2.extrait_pro import _tableau
+
+    obs = _observations().drop(columns=["empreinte"])
+    obs = obs.assign(tick=range(len(obs)))
     # 6 pros mesurés sur l'AK : 70, 72, 75, 80, 81, 90 % de premières balles précises.
-    echantillons = [
-        (
-            f"pro{i}",
-            "cs2.contre_strafe.part_premieres_balles_precises",
-            {"arme": "ak47", "categorie": "fusil"},
-            v,
-            20,
-        )
+    mesures = [
+        {
+            "joueur": f"pro{i}",
+            "nom": "cs2.contre_strafe.part_premieres_balles_precises",
+            "contexte": {"arme": "ak47", "categorie": "fusil"},
+            "valeur": v,
+            "n": 20,
+        }
         for i, v in enumerate([70, 72, 75, 80, 81, 90])
     ]
-    monkeypatch.setattr(ref, "mesures_des_joueurs", lambda chemin: echantillons)
+    version = {"v": 1}
+
+    def extraire(chemin):
+        return {
+            "format": 1,
+            "version": version["v"],
+            "empreinte": "e" * 64,
+            "fichier": chemin.name,
+            "carte": "de_test",
+            "observations": _tableau(obs),
+            "mesures": mesures,
+        }
+
+    monkeypatch.setattr(extrait_pro, "extraire", extraire)
+    monkeypatch.setattr("postgame.importation.empreinte_fichier", lambda chemin: "e" * 64)
     demo = tmp_path / "pro.dem"
     demo.write_bytes(b"demo pro factice")
-    assert ref.ajouter_demo_pro(base, demo).startswith("ajoutee")
-    # Lue sans ticks (avant la version 9 de la base) : relue au prochain ajout.
-    monkeypatch.setattr(ref, "extraire_observations", lambda chemin: obs)
-    assert ref.ajouter_demo_pro(base, demo).startswith("ajoutee")
-    assert ref.ajouter_demo_pro(base, demo) == "deja_connue"
+    extraits = tmp_path / "extraits"
+    assert ref.ajouter_demo_pro(base, demo, extraits).startswith("ajoutee")
+    # Lue par une version plus ancienne de Postgame : relue au prochain ajout.
+    version["v"] = extrait_pro.VERSION_EXTRACTION
+    assert ref.ajouter_demo_pro(base, demo, extraits).startswith("ajoutee")
+    assert ref.ajouter_demo_pro(base, demo, extraits) == "deja_connue"
+    # L'extrait compact se réimporte ailleurs (PC de jeu) sans la démo.
+    fichier = extraits / "pro.pgpro"
+    assert extrait_pro.lire(fichier)["mesures"] == mesures
+    assert ref.ajouter_demo_pro(base, fichier) == "deja_connue"
     assert ref.reconstruire_catalogue(base) == {
         "lancers": 1,
         "positions": 3,

@@ -318,6 +318,17 @@ Riot ID enregistré dans `postgame.toml` (local) : `iamheremyfriend#hiii`.
 - [ ] Replay 2D d'une de mes parties → « Chercher à cet instant » : la liste montre des
       pros du même camp au même endroit, et « ▶ CS2 » les montre vraiment là.
 
+### 32. Démos pros de toutes les cartes (n'importe quel PC)
+- [ ] Sur HLTV (https://www.hltv.org/results?stars=1, filtre par carte), télécharger des
+      démos récentes de chaque carte, y compris hors pool (Overpass, Train, Vertigo…).
+      Plus il y en a, plus il y a de lineups (un lineup doit être vu au moins 3 fois).
+      HLTV affiche parfois « Vérifiez que vous êtes humain » : c'est à toi de cocher.
+- [ ] Extraire les .dem des archives .rar dans le dossier `[cs2] dossiers_pros` (ex.
+      `G:/Mon Drive/Postgame/pros`) : le service les lit seul (≈ 2 min par démo, hors
+      partie) et écrit leurs extraits `.pgpro` dans `data/extraits_pros`.
+- [ ] Pour une autre machine : ne copier que les `.pgpro` (2 Mo chacun), importés en 1 s.
+- **Attendu** : page Stuffs → chaque carte montre ses lineups avec « Quand et pourquoi ».
+
 ### 30. Voir par les yeux des autres joueurs (PC de jeu)
 - [ ] Après `exec postgame` et `pg`, taper `v2`, `v3`… (la liste des joueurs s'affiche dans
       Postgame sous le bouton).

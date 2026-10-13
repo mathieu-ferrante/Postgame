@@ -164,6 +164,28 @@ jouées par le jeu lui-même. La vue 3D (three.js) est retirée.
 - [~] Vérifié sur données **simulées** (fichiers préparés, listes) ; jamais dans CS2
 - [ ] Critère de fin : un vrai moment (le mien et un pro) revu dans CS2 sur le PC de jeu
 
+## Vrais lineups pros (LINEUP-01, demande du 2026-10-13)
+Mathieu : seulement les meilleures grenades (pas celles « à l'arrache »), avec timing et
+pourquoi ce timing ; toutes les cartes, même hors pool ; le plus d'infos possible.
+- [x] Testé sur **2 vraies démos** HLTV (ESL Pro League S24, Falcons vs Spirit : Mirage,
+      Anubis) : 775 grenades → **67 lineups** retenus
+- [x] Vrai lâcher retrouvé (le clic est relâché 5 à 10 ticks avant grenade_thrown) : position,
+      visée et technique prises à ce moment-là (jumpthrow, W + saut, clic gauche/droit…)
+- [x] Lineup = même point de lancer (48 u), même visée (3°), au moins 3 fois ou 2 joueurs
+- [x] Contexte réel de chaque lancer : secondes depuis le début du round, pose de bombe qui
+      suit (site, délai), round gagné (score des équipes, les démos GOTV n'ont pas
+      round_end), aveuglement des joueurs, dégâts, durée réelle de la smoke, trajectoire
+- [x] Raison du timing écrite à partir de ces faits seulement (phase, délai avant la pose,
+      durée de la smoke, effet, victoires)
+- [x] Extrait compact `.pgpro` (1,9 Mo au lieu de 375 Mo) importé en 1 s sans la démo ;
+      dossier surveillé (`[cs2] dossiers_pros`, ex. Google Drive) importé automatiquement
+- [x] Corrigés grâce aux vraies démos : identifiants d'entités réutilisés (durées de smoke
+      fausses, trajectoires fusionnées), recul absent (`aim_punch_angle`) qui donnait un
+      écart de 0° au spray
+- [ ] Toutes les cartes : il faut beaucoup plus de démos (HLTV demande une vérification
+      humaine que Claude ne peut pas passer) — voir A_VALIDER.md point 32
+- [ ] Captures de la vraie vue de chaque lineup : sur le PC de jeu (point 31)
+
 ## Demandes ajoutées par Mathieu (2026-10-13, en cours de projet)
 
 Exigences nouvelles, au même rang que le cahier des charges :

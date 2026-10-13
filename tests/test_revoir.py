@@ -145,7 +145,7 @@ def test_api_capture_de_la_vue_du_pro(base, cfg, tmp_path):
             json={"empreinte": "abc123", "tick": 4000, "joueur": "b1t"},
         ).json()
         assert r["dossiers"] == [str(captures)] and r["vues"][0]["joueur"] == "ZywOo"
-        assert r["tick"] == 4000 - 3
+        assert r["tick"] == 4000 - 2  # 2 ticks avant le vrai lâcher
         assert c.get("/api/cs2/stuffs/cle1/capture").json()["attente"] is True
         nouvelle = captures / "20261013_vue.jpg"
         nouvelle.write_bytes(b"\xff\xd8vue du pro")

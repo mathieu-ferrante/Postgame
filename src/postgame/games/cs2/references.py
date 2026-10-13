@@ -38,7 +38,8 @@ from postgame.games.cs2.donnees import (
     construire_rounds,
     extraire_grenades,
 )
-from postgame.games.cs2.techniques import technique_majoritaire
+from postgame.games.cs2.lineups import ContexteDemo, contexte_lancer, exemple, expliquer, lineups
+from postgame.games.cs2.techniques import Lacher, technique_majoritaire
 from postgame.mesures import Preuve, ResultatAnalyse, definir, mesure
 
 journal = logging.getLogger(__name__)
@@ -120,6 +121,7 @@ def observations_depuis(
     etats: pd.DataFrame,
     debuts: list[int],
     techniques: dict[tuple[str, int], str] | None = None,
+    contexte: ContexteDemo | None = None,
 ) -> pd.DataFrame:
     """Observations d'une démo à partir de données déjà extraites (fonction pure).
 
@@ -146,14 +148,29 @@ def observations_depuis(
         "tick",
         "joueur",
         "round",
+        *COLONNES_CONTEXTE,
     ]
     techniques = techniques or {}
+    contexte = contexte or ContexteDemo()
     debuts_tries = sorted(debuts)
 
     def numero_round(tick) -> int | None:
         # Numéro du round (1 = premier freeze terminé) ; None avant le premier round.
         n = bisect.bisect_right(debuts_tries, int(tick))
         return n or None
+
+    def contexte_du_lancer(g, e, vrai) -> dict:
+        n = numero_round(g["tick_lancer"])
+        return contexte_lancer(
+            contexte,
+            str(g["lanceur"]),
+            int(g["tick_lancer"]),
+            vrai.tick if vrai is not None else None,
+            n,
+            debuts_tries[n - 1] if n else None,
+            debuts_tries[n] if n and n < len(debuts_tries) else None,
+            int(e["equipe"]) if e is not None and pd.notna(e.get("equipe")) else None,
+        )
 
     def nom(e) -> str | None:
         if e is None:
@@ -176,6 +193,20 @@ def observations_depuis(
         if g["type"] not in TYPES_REFERENCE or pd.isna(g["x"]):
             continue
         e = etat(g["tick_lancer"], g["lanceur"]) if pd.notna(g["tick_lancer"]) else None
+        lacher = (
+            techniques.get((str(g["lanceur"]), int(g["tick_lancer"])))
+            if pd.notna(g["tick_lancer"])
+            else None
+        )
+        vrai = lacher if isinstance(lacher, Lacher) else None
+
+        def au_lacher(champ: str, cle: str, e=e, vrai=vrai):
+            # Valeur au vrai lâcher si connue, sinon à grenade_thrown.
+            v = getattr(vrai, champ) if vrai is not None else None
+            if v is not None:
+                return v
+            return e.get(cle) if e is not None else None
+
         lignes.append(
             {
                 "carte": carte,
@@ -186,19 +217,22 @@ def observations_depuis(
                 "x": g["x"],
                 "y": g["y"],
                 "z": g["z"],
-                "lx": e["x"] if e is not None else None,
-                "ly": e["y"] if e is not None else None,
-                "lz": e["z"] if e is not None else None,
-                "lpitch": e.get("pitch") if e is not None else None,
-                "lyaw": e.get("yaw") if e is not None else None,
+                "lx": au_lacher("x", "x"),
+                "ly": au_lacher("y", "y"),
+                "lz": au_lacher("z", "z"),
+                "lpitch": au_lacher("pitch", "pitch"),
+                "lyaw": au_lacher("yaw", "yaw"),
                 "saut": int(bool(e.get("en_l_air"))) if e is not None else None,
                 "accroupi": int(bool(e.get("accroupi"))) if e is not None else None,
-                "technique": techniques.get((str(g["lanceur"]), int(g["tick_lancer"])))
-                if pd.notna(g["tick_lancer"])
-                else None,
+                "technique": vrai.technique if vrai is not None else lacher,
                 "tick": int(g["tick_lancer"]) if pd.notna(g["tick_lancer"]) else None,
                 "joueur": nom(e),
                 "round": numero_round(g["tick_lancer"]) if pd.notna(g["tick_lancer"]) else None,
+                **(
+                    contexte_du_lancer(g, e, vrai)
+                    if pd.notna(g["tick_lancer"])
+                    else dict.fromkeys(COLONNES_CONTEXTE)
+                ),
             }
         )
     installations = {d + DELAI_INSTALLATION_TICKS for d in debuts}
@@ -244,6 +278,7 @@ EVENEMENTS_PRO = [
     "inferno_expire",
     "round_freeze_end",
     "round_end",
+    "player_hurt",
 ]
 
 
@@ -314,12 +349,52 @@ def extraire_observations(chemin: Path) -> pd.DataFrame:
             }
         )
     from postgame.games.cs2.donnees import etats_avant_lancers
-    from postgame.games.cs2.techniques import techniques_des_lancers
+    from postgame.games.cs2.techniques import lachers
 
-    techniques = techniques_des_lancers(
-        etats_avant_lancers(parser, lancers["tick"].astype(int).tolist()), lancers
+    techniques = lachers(etats_avant_lancers(parser, lancers["tick"].astype(int).tolist()), lancers)
+    return observations_depuis(
+        carte,
+        grenades,
+        lancers,
+        etats,
+        debuts,
+        techniques,
+        lire_contexte(parser, evts, grenades, lancers, debuts),
     )
-    return observations_depuis(carte, grenades, lancers, etats, debuts, techniques)
+
+
+def lire_contexte(
+    parser,
+    evts: dict[str, pd.DataFrame],
+    grenades: pd.DataFrame,
+    lancers: pd.DataFrame,
+    debuts: list[int],
+) -> ContexteDemo:
+    """Vainqueurs des rounds, poses de bombe, effets et trajectoires réelles des lancers."""
+    from postgame.games.cs2.lineups import (
+        effets_grenades,
+        gagnants_rounds,
+        poses_bombe,
+        trajectoires_lancers,
+    )
+
+    dernier = max([int(df["tick"].max()) for df in evts.values() if len(df)] + [0])
+    poses = {}
+    try:
+        poses["bomb_planted"] = parser.parse_event("bomb_planted", player=["last_place_name"])
+    except Exception:
+        poses = {}
+    try:
+        vols = trajectoires_lancers(parser.parse_grenades(), lancers)
+    except Exception as exc:
+        journal.warning("trajectoires illisibles : %s", exc)
+        vols = {}
+    return ContexteDemo(
+        gagnants=gagnants_rounds(parser, sorted(debuts), dernier + 1),
+        poses=poses_bombe(poses),
+        effets=effets_grenades(parser, associer_lancers(lancers, grenades), evts),
+        trajectoires=vols,
+    )
 
 
 # --- Regroupement et catalogue ------------------------------------------------------------
@@ -375,6 +450,45 @@ def _lieu_le_plus_proche(lieux: pd.DataFrame, x: float, y: float) -> str | None:
     return str(lieux.loc[d2.idxmin(), "lieu"])
 
 
+def _reference_lineup(carte: str, type_: str, groupe: pd.DataFrame, lieux: pd.DataFrame) -> dict:
+    """Une ligne du catalogue pour un lineup : point moyen, visée, technique, timing, raison."""
+    x, y, z = groupe[["x", "y", "z"]].mean()
+    lieux_lancer = groupe["lieu"].dropna()
+    angles = groupe.dropna(subset=["lyaw"]) if "lyaw" in groupe else groupe.iloc[0:0]
+    ex = exemple(groupe)
+    return {
+        "carte": carte,
+        "type": type_,
+        "x": x,
+        "y": y,
+        "z": z,
+        "lx": groupe["lx"].mean(),
+        "ly": groupe["ly"].mean(),
+        "lz": groupe["lz"].mean(),
+        "lieu_arrivee": _lieu_le_plus_proche(lieux, x, y),
+        "lieu_lancer": Counter(lieux_lancer).most_common(1)[0][0] if len(lieux_lancer) else None,
+        "nb": len(groupe),
+        "nb_demos": int(groupe["empreinte"].nunique()) if "empreinte" in groupe else 1,
+        "lpitch": float(angles["lpitch"].median()) if len(angles) else None,
+        "lyaw": yaw_moyen(angles["lyaw"]) if len(angles) else None,
+        "part_saut": float(angles["saut"].mean()) if len(angles) else None,
+        "part_accroupi": float(angles["accroupi"].mean()) if len(angles) else None,
+        **dict(
+            zip(
+                ("technique", "part_technique"),
+                technique_majoritaire(list(groupe["technique"]) if "technique" in groupe else []),
+                strict=True,
+            )
+        ),
+        "nb_joueurs": int(groupe["joueur"].nunique()) if "joueur" in groupe else None,
+        **expliquer(groupe, type_),
+        "exemple_empreinte": ex.get("empreinte"),
+        "exemple_tick": ex.get("tick"),
+        "exemple_tick_lacher": ex.get("tick_lacher"),
+        "exemple_joueur": ex.get("joueur"),
+    }
+
+
 def construire_catalogue(
     observations: pd.DataFrame, nb_demos_par_obs: pd.Series | None = None
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -388,45 +502,11 @@ def construire_catalogue(
                 continue
             etiquettes = regrouper(lots[["x", "y"]].to_numpy(float))
             for k in np.unique(etiquettes):
-                groupe = lots[etiquettes == k]
-                if len(groupe) < MIN_OCCURRENCES:
+                arrivee = lots[etiquettes == k]
+                if len(arrivee) < 2:
                     continue
-                x, y, z = groupe[["x", "y", "z"]].mean()
-                lieux_lancer = groupe["lieu"].dropna()
-                angles = groupe.dropna(subset=["lyaw"]) if "lyaw" in groupe else groupe.iloc[0:0]
-                lancers_ref.append(
-                    {
-                        "carte": carte,
-                        "type": type_,
-                        "x": x,
-                        "y": y,
-                        "z": z,
-                        "lx": groupe["lx"].mean(),
-                        "ly": groupe["ly"].mean(),
-                        "lz": groupe["lz"].mean(),
-                        "lieu_arrivee": _lieu_le_plus_proche(lieux, x, y),
-                        "lieu_lancer": Counter(lieux_lancer).most_common(1)[0][0]
-                        if len(lieux_lancer)
-                        else None,
-                        "nb": len(groupe),
-                        "nb_demos": int(groupe["empreinte"].nunique())
-                        if "empreinte" in groupe
-                        else 1,
-                        "lpitch": float(angles["lpitch"].median()) if len(angles) else None,
-                        "lyaw": yaw_moyen(angles["lyaw"]) if len(angles) else None,
-                        "part_saut": float(angles["saut"].mean()) if len(angles) else None,
-                        "part_accroupi": float(angles["accroupi"].mean()) if len(angles) else None,
-                        **dict(
-                            zip(
-                                ("technique", "part_technique"),
-                                technique_majoritaire(
-                                    list(groupe["technique"]) if "technique" in groupe else []
-                                ),
-                                strict=True,
-                            )
-                        ),
-                    }
-                )
+                for groupe in lineups(arrivee):
+                    lancers_ref.append(_reference_lineup(carte, type_, groupe, lieux))
         installes = obs[(obs["genre"] == "position") & obs["camp"].notna()]
         for camp, lot in installes.groupby("camp"):
             total = len(lot)
@@ -461,6 +541,20 @@ def construire_catalogue(
         "part_accroupi",
         "technique",
         "part_technique",
+        "nb_joueurs",
+        "phase",
+        "part_phase",
+        "temps_median",
+        "temps_q1",
+        "temps_q3",
+        "duree_moyenne",
+        "effet_moyen",
+        "part_victoire",
+        "raison",
+        "exemple_empreinte",
+        "exemple_tick",
+        "exemple_tick_lacher",
+        "exemple_joueur",
     ]
     colonnes_p = ["carte", "camp", "lieu", "x", "y", "nb", "part"]
     return (
@@ -500,6 +594,18 @@ def mesures_des_joueurs(chemin: Path) -> list[tuple[str, str, dict, float, int |
     return sortie
 
 
+COLONNES_CONTEXTE = [
+    "tick_lacher",
+    "temps",
+    "avant_pose",
+    "site_pose",
+    "apres_pose",
+    "gagne",
+    "effet",
+    "allies",
+    "duree",
+    "trajectoire",
+]
 COLONNES_OBSERVATION = [
     "carte",
     "genre",
@@ -520,61 +626,115 @@ COLONNES_OBSERVATION = [
     "tick",
     "joueur",
     "round",
+    *COLONNES_CONTEXTE,
 ]
 
 
-def ajouter_demo_pro(base: Base, chemin: Path) -> str:
-    """Lit une démo pro et stocke ses observations (une seule fois par démo)."""
+def ajouter_demo_pro(base: Base, chemin: Path, dossier_extraits: Path | None = None) -> str:
+    """Ajoute une démo pro (.dem) ou son extrait (.pgpro), une seule fois.
+
+    Une démo est lue entièrement puis résumée dans un extrait (data/extraits_pros) : c'est
+    ce fichier de quelques Mo qui se copie sur le PC de jeu (Google Drive…). Une démo déjà
+    lue avec la version courante n'est pas relue ; on retient seulement son emplacement."""
+    from postgame.games.cs2 import extrait_pro
     from postgame.importation import empreinte_fichier
 
+    if chemin.suffix.lower() == extrait_pro.EXTENSION:
+        extrait = extrait_pro.lire(chemin)
+        demo = chemin.with_name(extrait["fichier"])
+        return importer_extrait(base, extrait, demo if demo.is_file() else None, chemin)
     empreinte = empreinte_fichier(chemin)
+    if _a_jour(base, empreinte):
+        with base.transaction() as cx:
+            cx.execute(
+                "UPDATE cs2_ref_demos SET chemin = ? WHERE empreinte = ?",
+                (str(chemin.resolve()), empreinte),
+            )
+        return "deja_connue"
+    extrait = extrait_pro.extraire(chemin)
+    fichier = extrait_pro.ecrire(extrait, dossier_extraits or base.chemin.parent / "extraits_pros")
+    return importer_extrait(base, extrait, chemin, fichier)
+
+
+def _a_jour(base: Base, empreinte: str) -> bool:
+    from postgame.games.cs2.extrait_pro import VERSION_EXTRACTION
+
     with base.transaction() as cx:
-        if cx.execute("SELECT 1 FROM cs2_ref_demos WHERE empreinte = ?", (empreinte,)).fetchone():
-            avec_ticks = cx.execute(
-                "SELECT 1 FROM cs2_ref_observations WHERE empreinte = ? AND tick IS NOT NULL",
-                (empreinte,),
-            ).fetchone()
-            if avec_ticks:
-                # Démo déjà lue : on retient seulement son emplacement actuel (pour la revoir).
+        ligne = cx.execute(
+            "SELECT version FROM cs2_ref_demos WHERE empreinte = ?", (empreinte,)
+        ).fetchone()
+    return ligne is not None and ligne[0] >= VERSION_EXTRACTION
+
+
+def importer_extrait(
+    base: Base, extrait: dict, demo: Path | None, fichier_extrait: Path | None = None
+) -> str:
+    """Stocke observations et mesures d'un extrait (remplace une lecture plus ancienne)."""
+    from postgame.games.cs2.extrait_pro import vers_dataframe
+
+    empreinte = extrait["empreinte"]
+    if _a_jour(base, empreinte) and extrait.get("version", 1) <= _version(base, empreinte):
+        if demo is not None:
+            with base.transaction() as cx:
                 cx.execute(
                     "UPDATE cs2_ref_demos SET chemin = ? WHERE empreinte = ?",
-                    (str(chemin.resolve()), empreinte),
+                    (str(demo.resolve()), empreinte),
                 )
-                return "deja_connue"
-            # Lue avant la version 9 de la base (sans ticks) : on la relit entièrement.
-            cx.execute("DELETE FROM cs2_ref_demos WHERE empreinte = ?", (empreinte,))
-    obs = extraire_observations(chemin)
-    carte = str(obs["carte"].iloc[0]) if len(obs) else ""
+        return "deja_connue"
+    obs = vers_dataframe(extrait["observations"])
+    carte = extrait.get("carte") or (str(obs["carte"].iloc[0]) if len(obs) else "")
     with base.transaction() as cx:
+        cx.execute("DELETE FROM cs2_ref_demos WHERE empreinte = ?", (empreinte,))
         cx.execute(
-            "INSERT INTO cs2_ref_demos (empreinte, fichier, carte, ajoute_le, chemin) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (empreinte, chemin.name, carte, maintenant(), str(chemin.resolve())),
+            "INSERT INTO cs2_ref_demos (empreinte, fichier, carte, ajoute_le, chemin, version, "
+            "extrait) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                empreinte,
+                extrait["fichier"],
+                carte,
+                maintenant(),
+                str(demo.resolve()) if demo is not None else None,
+                int(extrait.get("version", 1)),
+                str(fichier_extrait) if fichier_extrait is not None else None,
+            ),
         )
         cx.executemany(
-            "INSERT INTO cs2_ref_observations (empreinte, carte, genre, type, camp, lieu, x, y, "
-            "z, lx, ly, lz, lpitch, lyaw, saut, accroupi, technique, tick, joueur, round) "
+            f"INSERT INTO cs2_ref_observations (empreinte, {', '.join(COLONNES_OBSERVATION)}) "
             f"VALUES ({', '.join('?' * (len(COLONNES_OBSERVATION) + 1))})",
             [
                 (empreinte, *[None if pd.isna(v) else v for v in ligne])
                 for ligne in obs.reindex(columns=COLONNES_OBSERVATION).itertuples(index=False)
             ],
         )
-    try:
-        mesures = mesures_des_joueurs(chemin)
-    except ErreurLecture as exc:
-        journal.warning("mesures pros : %s", exc)
-        mesures = []
-    with base.transaction() as cx:
+        mesures = extrait.get("mesures", [])
         cx.executemany(
             "INSERT INTO cs2_ref_mesures (empreinte, joueur, nom, contexte, valeur, n) "
             "VALUES (?, ?, ?, ?, ?, ?)",
             [
-                (empreinte, j, nom, json.dumps(ctx, sort_keys=True, ensure_ascii=False), v, n)
-                for j, nom, ctx, v, n in mesures
+                (
+                    empreinte,
+                    m["joueur"],
+                    m["nom"],
+                    json.dumps(m["contexte"], sort_keys=True, ensure_ascii=False),
+                    m["valeur"],
+                    m["n"],
+                )
+                for m in mesures
             ],
         )
-    return f"ajoutee ({len(obs)} observations, {len(mesures)} mesures de joueurs, {carte})"
+    lancers = int((obs["genre"] == "lancer").sum()) if len(obs) else 0
+    return (
+        f"ajoutee ({lancers} grenades, {len(obs)} observations, {len(mesures)} mesures de "
+        f"joueurs, {carte})"
+    )
+
+
+def _version(base: Base, empreinte: str) -> int:
+    with base.transaction() as cx:
+        ligne = cx.execute(
+            "SELECT version FROM cs2_ref_demos WHERE empreinte = ?", (empreinte,)
+        ).fetchone()
+    return int(ligne[0]) if ligne else 0
 
 
 def references_mecanique(base: Base, minimum: int = 5) -> int:
@@ -639,11 +799,10 @@ def reconstruire_catalogue(base: Base) -> dict[str, int]:
         cx.execute("DELETE FROM cs2_ref_lancers")
         cx.execute("DELETE FROM cs2_ref_positions")
         for _, ref in lancers.iterrows():
+            colonnes = [*lancers.columns]
             cx.execute(
-                "INSERT INTO cs2_ref_lancers (carte, type, x, y, z, lx, ly, lz, lieu_arrivee, "
-                "lieu_lancer, nb, nb_demos, lpitch, lyaw, part_saut, part_accroupi, technique, "
-                "part_technique, cle, construit_le) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                f"INSERT INTO cs2_ref_lancers ({', '.join(colonnes)}, construit_le) "
+                f"VALUES ({', '.join('?' * (len(colonnes) + 1))})",
                 (
                     *[
                         None if pd.isna(v) else (v.item() if hasattr(v, "item") else v)

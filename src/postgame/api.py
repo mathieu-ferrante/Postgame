@@ -33,7 +33,7 @@ from pydantic import BaseModel
 
 from postgame import __version__
 from postgame.config import Config
-from postgame.db import Base
+from postgame.db import Base, maintenant
 from postgame.debrief import generer_debrief
 from postgame.debrief.constats import charger_definitions
 from postgame.games import MODULES
@@ -85,7 +85,7 @@ class DemandeRevoir(BaseModel):
     pause: bool = False
 
 
-AVANCE_CAPTURE_S = 0.05  # ~3 ticks avant le lâcher : la visée du lancer
+AVANCE_CAPTURE_S = 2 / 64  # 2 ticks avant le vrai lâcher : la visée exacte du lineup
 
 
 def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) -> FastAPI:
@@ -143,6 +143,13 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
                     args=(app.state.arret,),
                     daemon=True,
                     name="sources-cs2",
+                ).start()
+            if cfg.dossiers_pros:
+                threading.Thread(
+                    target=app.state.boucle_pros,
+                    args=(app.state.arret,),
+                    daemon=True,
+                    name="pros-cs2",
                 ).start()
             if cfg.source2viewer is not None:
                 threading.Thread(target=radars_au_demarrage, daemon=True, name="radars").start()
@@ -721,7 +728,6 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
     etat_sources: dict[str, Any] = {"faceit": None, "steam": None, "derniere_synchro": None}
 
     def synchroniser_sources() -> dict[str, Any]:
-        from postgame.db import maintenant
         from postgame.games.cs2.sources import CodesSteam, CollecteurFaceit, ErreurSource
 
         if cfg.faceit_pseudo:
@@ -747,6 +753,34 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
                 synchroniser_sources()
             arret.wait(cfg.sources_synchro_minutes * 60)
 
+    pros_vus: set[str] = set()
+    etat_pros: dict[str, Any] = {"derniere_synchro": None, "bilan": {}}
+
+    def boucle_pros(arret: threading.Event) -> None:
+        """Démos et extraits pros déposés dans les dossiers configurés (Google Drive…)."""
+        from postgame.games.cs2 import pros_auto
+
+        while not arret.is_set():
+            if not garde.doit_attendre("leger"):
+                bilan = pros_auto.synchroniser(
+                    base,
+                    cfg.dossiers_pros,
+                    pros_vus,
+                    peut_lire_demo=lambda: not garde.doit_attendre("lourd"),
+                    dossier_extraits=cfg.dossier_donnees / "extraits_pros",
+                )
+                if bilan:
+                    journal.info("pros : %s", bilan)
+                    etat_pros["bilan"] = bilan
+                etat_pros["derniere_synchro"] = maintenant()
+            arret.wait(15 * 60)
+
+    @app.get("/api/cs2/pros/synchro", tags=["revoir"])
+    def pros_synchro() -> dict[str, Any]:
+        """Dernier import automatique des démos et extraits pros."""
+        return {"dossiers": [str(d) for d in cfg.dossiers_pros], **etat_pros}
+
+    app.state.boucle_pros = boucle_pros
     app.state.boucle_sources = boucle_sources
     app.state.arret = threading.Event()
 

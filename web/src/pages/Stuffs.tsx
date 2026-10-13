@@ -11,6 +11,10 @@ import { projectionRadar } from "../lib/projection";
 interface Stuff {
   cle: string; type: string; nom: string; technique: string; commandes: string | null;
   lieu_lancer: string | null; lieu_arrivee: string | null;
+  phase: string | null; part_phase: number | null; temps_median: number | null;
+  temps_q1: number | null; temps_q3: number | null; raison: string | null;
+  part_victoire: number | null; nb_joueurs: number | null; exemple_joueur: string | null;
+  trajectoire: [number, number, number, number][] | null;
   x: number; y: number; lx: number | null; ly: number | null; lz: number | null; nb: number; nb_demos: number;
   lpitch: number | null; lyaw: number | null; image: string | null;
   maitrise: { tentatives: number; reussites: number; dernier_ecart: number | null; derniere_reussite: string | null };
@@ -50,16 +54,20 @@ function OuTePlacer({ s, vue, vers, C }: { s: Stuff; vue: VueStuffs; vers: Vers;
   if (s.lx === null || s.ly === null) return <p className="discret">Point de lancer inconnu.</p>;
   if (!vue.radar.image || !vue.radar.parametres) return <RadarManquant />;
   const [px, py] = vers(s.lx, s.ly), [ax, ay] = vers(s.x, s.y);
+  const vol = (s.trajectoire ?? []).map(([, x, y]) => vers(x, y));
+  const xs = [px, ax, ...vol.map((p) => p[0])], ys = [py, ay, ...vol.map((p) => p[1])];
   const marge = 70;
-  const x0 = Math.min(px, ax) - marge, y0 = Math.min(py, ay) - marge;
-  const cote = Math.max(Math.abs(px - ax), Math.abs(py - ay)) + 2 * marge;
+  const x0 = Math.min(...xs) - marge, y0 = Math.min(...ys) - marge;
+  const cote = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) + 2 * marge;
   const echelle = cote / 300; // tailles constantes à l'écran
   const yaw = ((s.lyaw ?? 0) * Math.PI) / 180;
   const [dx, dy] = [Math.cos(yaw), -Math.sin(yaw)];
   return (
     <svg viewBox={`${x0} ${y0} ${cote} ${cote}`} style={{ width: "100%", maxWidth: 360, background: "#0e1013", borderRadius: 10 }}>
       <FondCarte vue={vue} C={C} z={s.lz} />
-      <line x1={px} y1={py} x2={ax} y2={ay} stroke={COULEURS[s.type]} strokeWidth={2 * echelle} strokeDasharray={`${6 * echelle} ${4 * echelle}`} />
+      {vol.length > 1
+        ? <polyline points={vol.map((p) => p.join(",")).join(" ")} fill="none" stroke={COULEURS[s.type]} strokeWidth={2 * echelle} />
+        : <line x1={px} y1={py} x2={ax} y2={ay} stroke={COULEURS[s.type]} strokeWidth={2 * echelle} strokeDasharray={`${6 * echelle} ${4 * echelle}`} />}
       <circle cx={ax} cy={ay} r={9 * echelle} fill={COULEURS[s.type]} fillOpacity={0.5} />
       <line x1={px} y1={py} x2={px + dx * 30 * echelle} y2={py + dy * 30 * echelle} stroke="#f0b429" strokeWidth={3 * echelle} />
       <circle cx={px} cy={py} r={7 * echelle} fill="#f0b429" stroke="#000" strokeWidth={echelle} />
@@ -293,8 +301,19 @@ export default function Stuffs() {
                 <h3>{choisi.nom}</h3>
                 <h4>1. Où te placer{choisi.lieu_lancer ? ` — ${choisi.lieu_lancer}` : ""}</h4>
                 <OuTePlacer s={choisi} vue={vue.donnee} vers={vers} C={C} />
-                {vue.donnee.radar.image && <p className="discret">Le trait jaune donne la direction du regard ; l'arrivée est{choisi.lieu_arrivee ? ` sur ${choisi.lieu_arrivee}` : " au bout des pointillés"}.</p>}
-                <h4>2. Où viser (vue réelle du pro)</h4>
+                {vue.donnee.radar.image && <p className="discret">Le trait jaune donne la direction du regard ; {choisi.trajectoire ? `la ligne est la vraie trajectoire de la grenade de ${choisi.exemple_joueur ?? "l'exemple pro"} (relevée dans la démo)` : "les pointillés vont du lancer à l'arrivée"}{choisi.lieu_arrivee ? `, arrivée sur ${choisi.lieu_arrivee}` : ""}.</p>}
+                <h4>Quand et pourquoi</h4>
+                {choisi.phase ? (
+                  <>
+                    <p><strong>{choisi.phase}</strong>
+                      {choisi.temps_median !== null && <> · à {nombre(choisi.temps_median, "s")} du début du round</>}
+                      {choisi.part_phase !== null && <span className="discret"> ({Math.round(100 * choisi.part_phase)} % des lancers)</span>}
+                    </p>
+                    {choisi.raison && <p>{choisi.raison}</p>}
+                    <p className="discret">Lineup reproduit {choisi.nb} fois par {choisi.nb_joueurs ?? "?"} joueur(s) pro, même point de lancer et même visée (à 3° près). Les grenades lancées au jugé ne sont pas retenues.</p>
+                  </>
+                ) : <p className="discret">Timing inconnu : ce stuff vient d'une démo lue par une ancienne version (relance « postgame references ajouter »).</p>}
+                <h4>2. Où viser (vraie vue du pro dans la démo)</h4>
                 <OuViser s={choisi} recharger={recharger} />
                 <h4>3. Comment lancer</h4>
                 <p style={{ fontSize: "1.15rem" }}><strong>{choisi.technique}</strong>{regard(choisi) ? <span className="discret"> · {regard(choisi)}</span> : null}</p>

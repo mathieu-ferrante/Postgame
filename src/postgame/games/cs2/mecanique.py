@@ -466,6 +466,8 @@ def erreurs_spray(d: DonneesMatch, tirs: pd.DataFrame, positions: _Positions) ->
                     yaw_t = s["yaw"] + ECHELLE_RECUL * s["punch_yaw"]
                     pitch_t = s["pitch"] + ECHELLE_RECUL * s["punch_pitch"]
                     erreur = angle_entre(yaw_t, pitch_t, yaw_c, pitch_c)
+                    if erreur != erreur:  # NaN : recul absent de la démo
+                        erreur = None
             lignes.append(
                 {
                     "rafale": rafale,
@@ -518,6 +520,7 @@ def spray(d: DonneesMatch, tirs: pd.DataFrame, positions: _Positions) -> Resulta
     toutes = erreurs_spray(d, tirs, positions)
     if not len(toutes):
         return r
+    toutes["erreur"] = pd.to_numeric(toutes["erreur"], errors="coerce")
     for code, e in toutes.groupby("arme"):
         ctx = contexte_arme(code)
         r.mesures.append(
@@ -636,9 +639,10 @@ def _reaction_et_ttk(
         if cible is None or not bool(cible["vivant"]):
             break
         yaw_c, pitch_c, _ = _visee_vers(tir, cible)
+        # Recul absent de la démo : la première balle n'en a pas, on le compte nul.
         visee = angle_entre(
-            tir["yaw"] + ECHELLE_RECUL * tir["punch_yaw"],
-            tir["pitch"] + ECHELLE_RECUL * tir["punch_pitch"],
+            tir["yaw"] + ECHELLE_RECUL * _ou_zero(tir["punch_yaw"]),
+            tir["pitch"] + ECHELLE_RECUL * _ou_zero(tir["punch_pitch"]),
             yaw_c,
             pitch_c,
         )
@@ -655,6 +659,10 @@ def _reaction_et_ttk(
                     (int(kill["tick"].iloc[0]) - int(tir["tick"])) * 1000 / TICKS_PAR_SECONDE
                 )
             return
+
+
+def _ou_zero(v: float) -> float:
+    return 0.0 if v is None or v != v else float(v)
 
 
 def _cote(valeur: float, positif: str, negatif: str) -> str:

@@ -245,7 +245,8 @@ def exemples_stuff(base, cle: str, limite: int = 10) -> list[dict]:
             raise KeyError(cle)
         carte, type_, x, y, lx, ly = stuff
         brutes = cx.execute(
-            "SELECT empreinte, joueur, round, tick, lieu, x, y, lx, ly FROM cs2_ref_observations "
+            "SELECT empreinte, joueur, round, COALESCE(tick_lacher, tick), lieu, x, y, lx, ly "
+            "FROM cs2_ref_observations "
             "WHERE carte = ? AND genre = 'lancer' AND type = ? AND tick IS NOT NULL",
             (carte, type_),
         ).fetchall()
