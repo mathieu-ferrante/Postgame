@@ -6,9 +6,9 @@ from pathlib import Path
 
 from postgame.config import Config
 from postgame.games.base import Fiche
+from postgame.games.cs2.analyse import analyser_match
 from postgame.games.cs2.demo import construire_fiche, extraire
 from postgame.games.cs2.donnees import extraire_match
-from postgame.games.cs2.mecanique import analyser_mecanique
 from postgame.mesures import ResultatAnalyse
 
 
@@ -25,4 +25,4 @@ class ModuleCS2:
 
     def analyser(self, chemin: Path, cfg: Config) -> ResultatAnalyse:
         donnees = extraire_match(chemin, cfg.steamid)
-        return analyser_mecanique(donnees)
+        return analyser_match(donnees)

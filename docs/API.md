@@ -48,6 +48,12 @@ Une mesure a un nom à points (`cs2.contre_strafe.part_tirs_precis`), une versio
 (incrémentée quand son calcul change ; `python -m postgame reanalyser` recalcule alors tout
 l'historique, COM-08), une unité et un contexte JSON (arme, camp, taille d'échantillon…).
 
+## CS2
+
+| Méthode | Chemin | Rôle |
+|---|---|---|
+| GET | `/api/cs2/chaleur?carte=de_mirage&type=mort\|kill&camp=T\|CT&periode=7j\|30j\|tout` | Positions des morts ou kills de Mathieu sur une carte, toutes parties confondues : `points: [{x, y, z, camp, arme, partie_id, tick, round}]` |
+
 ## Pour Jarvis
 
 Questions typiques et appels correspondants :

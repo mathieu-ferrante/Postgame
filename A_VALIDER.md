@@ -68,3 +68,15 @@ Dépend du point L0-3 (une démo de DM enregistrée) et du SteamID (L0-2).
 - [ ] Noter le temps d'import d'une démo Premier complète (visible dans le journal du
       service, entre « découvert » et « importe »).
 - **Attendu** : moins de 60 s (NF-03).
+
+## L2 — Utilitaires et positionnement CS2
+
+### 7. Vérifier les mesures à la main sur une démo Premier (PC de jeu)
+- [ ] Même mode opératoire que le point 5, sur une démo **Premier** (`verifier <numéro>`).
+- Mesures concernées : `cs2.flash.*`, `cs2.he.*`, `cs2.molotov.*`, `cs2.utilitaires.*`,
+  `cs2.position.*`, `cs2.trades.*`.
+- **Attendu** : pour chaque mesure, les 5 moments listés correspondent à ce qu'on voit
+  (ex. « Flash qui aveugle X 1,8 s » : l'écran de X est bien blanc ; « Mort tradable non
+  vengée : Y (450 u) à proximité » : Y était bien tout près et n'a pas tué le tueur).
+- Point particulier : vérifier qu'un molotov lancé par Mathieu est bien compté comme le
+  sien (le rattachement du feu au lanceur est indirect).

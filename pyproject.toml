@@ -29,7 +29,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-filterwarnings = ["ignore::DeprecationWarning:fastapi.testclient"]
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`"]
 markers = [
     "demo_reelle: test qui exige une vraie démo CS2 dans tests/donnees/ (ignoré sinon)",
 ]

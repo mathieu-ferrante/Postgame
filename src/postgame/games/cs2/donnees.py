@@ -10,6 +10,12 @@ tirs    : tick, steamid, arme                                  (weapon_fire)
 degats  : tick, attaquant, victime, arme, degats, zone         (player_hurt ; zone 'tete'…)
 morts   : tick, attaquant, victime, arme, headshot (bool)      (player_death)
 rounds  : numero, debut, fin                                   (fin du freeze → fin du round)
+aveuglements : tick, attaquant (lanceur), victime, duree (s)  (player_blind)
+grenades : tick, lanceur, type, x, y, z, entite, fin           (éclatement ; fin = fin d'effet)
+lancers  : tick, steamid, type                                 (grenade_thrown)
+inventaires : tick, steamid, grenades (liste de codes)         (début/fin de round, avant mort)
+
+Types de grenade : flash, he, smoke, molotov (incendiaire comprise), decoy.
 """
 
 from __future__ import annotations
@@ -97,6 +103,20 @@ class DonneesMatch:
         default_factory=lambda: pd.DataFrame(columns=["numero", "debut", "fin"])
     )
     carte: str = ""
+    aveuglements: pd.DataFrame = field(
+        default_factory=lambda: pd.DataFrame(columns=["tick", "attaquant", "victime", "duree"])
+    )
+    grenades: pd.DataFrame = field(
+        default_factory=lambda: pd.DataFrame(
+            columns=["tick", "lanceur", "type", "x", "y", "z", "entite", "fin"]
+        )
+    )
+    lancers: pd.DataFrame = field(
+        default_factory=lambda: pd.DataFrame(columns=["tick", "steamid", "type"])
+    )
+    inventaires: pd.DataFrame = field(
+        default_factory=lambda: pd.DataFrame(columns=["tick", "steamid", "grenades"])
+    )
 
     def numero_round(self, tick: int) -> int | None:
         if not len(self.rounds):
@@ -106,6 +126,16 @@ class DonneesMatch:
 
     def mes_ticks(self) -> pd.DataFrame:
         return self.ticks[self.ticks["steamid"] == self.moi]
+
+    def round_de(self, tick: int) -> pd.Series | None:
+        """Ligne du round en cours à ce tick (entre fin du freeze et fin du round)."""
+        if not len(self.rounds):
+            return None
+        dedans = self.rounds[(self.rounds["debut"] <= tick) & (self.rounds["fin"] >= tick)]
+        return dedans.iloc[0] if len(dedans) else None
+
+    def est_deathmatch(self) -> bool:
+        return len(self.rounds) <= 1
 
 
 def _zone(valeur: Any) -> str:
@@ -179,6 +209,68 @@ def normaliser_ticks(brut: pd.DataFrame, moi: str) -> pd.DataFrame:
     return df.sort_values(["tick", "steamid"]).reset_index(drop=True)
 
 
+EVENEMENTS = [
+    "weapon_fire",
+    "player_hurt",
+    "player_death",
+    "round_freeze_end",
+    "round_end",
+    "player_blind",
+    "grenade_thrown",
+    "flashbang_detonate",
+    "hegrenade_detonate",
+    "smokegrenade_detonate",
+    "smokegrenade_expired",
+    "molotov_detonate",
+    "inferno_startburn",
+    "inferno_expire",
+    "decoy_started",
+]
+
+# Noms d'inventaire (propriété « inventory ») et d'évènements → code de grenade.
+GRENADES = {
+    "flashbang": "flash",
+    "smoke grenade": "smoke",
+    "smokegrenade": "smoke",
+    "high explosive grenade": "he",
+    "hegrenade": "he",
+    "molotov": "molotov",
+    "incendiary grenade": "molotov",
+    "incgrenade": "molotov",
+    "decoy grenade": "decoy",
+    "decoy": "decoy",
+}
+PRIX_GRENADES = {"flash": 200, "smoke": 300, "he": 300, "molotov": 400, "decoy": 50}
+
+
+def code_grenade(nom: object) -> str | None:
+    texte = str(nom or "").strip().lower()
+    if texte.startswith("weapon_"):
+        texte = texte[len("weapon_") :]
+    return GRENADES.get(texte)
+
+
+def _col(df: pd.DataFrame, nom: str, defaut: Any = None) -> pd.Series:
+    return df[nom] if nom in df else pd.Series(defaut, index=df.index)
+
+
+def _cadre(colonnes: list[str], df: pd.DataFrame | None, **series) -> pd.DataFrame:
+    """DataFrame au schéma `colonnes`, vide si l'évènement est absent de la démo."""
+    if df is None or not len(df):
+        return pd.DataFrame(columns=colonnes)
+    return pd.DataFrame({c: series[c](df) for c in colonnes})
+
+
+def _tick(df: pd.DataFrame) -> pd.Series:
+    return df["tick"].astype("int64")
+
+
+def _grenades_inventaire(valeur: Any) -> list[str]:
+    if valeur is None or isinstance(valeur, float):
+        return []
+    return [c for c in (code_grenade(x) for x in valeur) if c]
+
+
 def extraire_match(chemin: Path, steamid: str) -> DonneesMatch:
     try:
         from demoparser2 import DemoParser
@@ -192,47 +284,77 @@ def extraire_match(chemin: Path, steamid: str) -> DonneesMatch:
         moi = identifier_moi(joueurs, steamid, str(entete.get("client_name", "")))
         brut = parser.parse_ticks(PROPS_TICKS)
         presents = set(parser.list_game_events())
-        voulus = ["weapon_fire", "player_hurt", "player_death", "round_freeze_end", "round_end"]
-        voulus = [e for e in voulus if e in presents]
+        voulus = [e for e in EVENEMENTS if e in presents]
         evts = dict(parser.parse_events(voulus)) if voulus else {}
     except ErreurLecture:
         raise
     except Exception as exc:
         raise ErreurLecture(f"extraction impossible : {exc}") from exc
 
+    tirs = _cadre(
+        ["tick", "steamid", "arme"],
+        evts.get("weapon_fire"),
+        tick=_tick,
+        steamid=lambda df: _steamid(df["user_steamid"]),
+        arme=lambda df: df["weapon"].map(normaliser),
+    )
+    degats = _cadre(
+        ["tick", "attaquant", "victime", "arme", "degats", "zone"],
+        evts.get("player_hurt"),
+        tick=_tick,
+        attaquant=lambda df: _steamid(df["attacker_steamid"]),
+        victime=lambda df: _steamid(df["user_steamid"]),
+        arme=lambda df: df["weapon"].map(normaliser),
+        degats=lambda df: df["dmg_health"].astype(float),
+        zone=lambda df: df["hitgroup"].map(_zone),
+    )
+    morts = _cadre(
+        ["tick", "attaquant", "victime", "arme", "headshot"],
+        evts.get("player_death"),
+        tick=_tick,
+        attaquant=lambda df: _steamid(df["attacker_steamid"]),
+        victime=lambda df: _steamid(df["user_steamid"]),
+        arme=lambda df: df["weapon"].map(normaliser),
+        headshot=lambda df: df["headshot"].fillna(False).astype(bool),
+    )
+    aveuglements = _cadre(
+        ["tick", "attaquant", "victime", "duree"],
+        evts.get("player_blind"),
+        tick=_tick,
+        attaquant=lambda df: _steamid(df["attacker_steamid"]),
+        victime=lambda df: _steamid(df["user_steamid"]),
+        duree=lambda df: df["blind_duration"].astype(float),
+    )
+    lancers = _cadre(
+        ["tick", "steamid", "type"],
+        evts.get("grenade_thrown"),
+        tick=_tick,
+        steamid=lambda df: _steamid(df["user_steamid"]),
+        type=lambda df: df["weapon"].map(code_grenade),
+    )
+    grenades = extraire_grenades(evts)
+
     vide = pd.DataFrame(columns=["tick"])
-    f = evts.get("weapon_fire", vide)
-    tirs = pd.DataFrame(
-        {
-            "tick": f["tick"].astype("int64") if len(f) else [],
-            "steamid": _steamid(f["user_steamid"]) if len(f) else [],
-            "arme": f["weapon"].map(normaliser) if len(f) else [],
-        }
-    )
-    h = evts.get("player_hurt", vide)
-    degats = pd.DataFrame(
-        {
-            "tick": h["tick"].astype("int64") if len(h) else [],
-            "attaquant": _steamid(h["attacker_steamid"]) if len(h) else [],
-            "victime": _steamid(h["user_steamid"]) if len(h) else [],
-            "arme": h["weapon"].map(normaliser) if len(h) else [],
-            "degats": h["dmg_health"].astype(float) if len(h) else [],
-            "zone": h["hitgroup"].map(_zone) if len(h) else [],
-        }
-    )
-    d = evts.get("player_death", vide)
-    morts = pd.DataFrame(
-        {
-            "tick": d["tick"].astype("int64") if len(d) else [],
-            "attaquant": _steamid(d["attacker_steamid"]) if len(d) else [],
-            "victime": _steamid(d["user_steamid"]) if len(d) else [],
-            "arme": d["weapon"].map(normaliser) if len(d) else [],
-            "headshot": d["headshot"].fillna(False).astype(bool) if len(d) else [],
-        }
-    )
     debuts = sorted(evts.get("round_freeze_end", vide)["tick"].astype(int).tolist())
     fins = sorted(evts.get("round_end", vide)["tick"].astype(int).tolist())
     rounds = construire_rounds(debuts, fins)
+
+    # Inventaires aux moments utiles : début et fin de round, juste avant chaque mort.
+    moments = set(debuts) | set(fins) | {max(0, int(t) - 1) for t in morts["tick"]}
+    inventaires = pd.DataFrame(columns=["tick", "steamid", "grenades"])
+    if moments:
+        try:
+            inv = parser.parse_ticks(["inventory"], ticks=sorted(moments))
+            inventaires = pd.DataFrame(
+                {
+                    "tick": inv["tick"].astype("int64"),
+                    "steamid": _steamid(inv["steamid"]),
+                    "grenades": inv["inventory"].map(_grenades_inventaire),
+                }
+            )
+        except Exception:
+            pass  # inventaire indisponible : les mesures de gaspillage seront absentes
+
     return DonneesMatch(
         moi=moi,
         ticks=normaliser_ticks(brut, moi),
@@ -241,7 +363,96 @@ def extraire_match(chemin: Path, steamid: str) -> DonneesMatch:
         morts=morts,
         rounds=rounds,
         carte=str(entete.get("map_name", "")),
+        aveuglements=aveuglements,
+        grenades=grenades,
+        lancers=lancers,
+        inventaires=inventaires,
     )
+
+
+COLONNES_GRENADES = ["tick", "lanceur", "type", "x", "y", "z", "entite", "fin"]
+DUREE_MOLOTOV_DEFAUT = 7 * TICKS_PAR_SECONDE
+
+
+def extraire_grenades(evts: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    """Une ligne par grenade qui a éclaté : où, quand, par qui, et jusqu'à quand elle agit
+    (smoke : jusqu'à sa dissipation ; molotov : jusqu'à l'extinction ; sinon = tick)."""
+    morceaux = []
+    for nom, type_ in (
+        ("flashbang_detonate", "flash"),
+        ("hegrenade_detonate", "he"),
+        ("smokegrenade_detonate", "smoke"),
+        ("decoy_started", "decoy"),
+    ):
+        df = evts.get(nom)
+        if df is None or not len(df):
+            continue
+        morceaux.append(
+            pd.DataFrame(
+                {
+                    "tick": _tick(df),
+                    "lanceur": _steamid(_col(df, "user_steamid", "")),
+                    "type": type_,
+                    "x": _col(df, "x", np.nan).astype(float),
+                    "y": _col(df, "y", np.nan).astype(float),
+                    "z": _col(df, "z", np.nan).astype(float),
+                    "entite": _col(df, "entityid", -1),
+                    "fin": _tick(df),
+                }
+            )
+        )
+    grenades = (
+        pd.concat(morceaux, ignore_index=True)
+        if morceaux
+        else pd.DataFrame(columns=COLONNES_GRENADES)
+    )
+
+    # Durée des smokes : smokegrenade_expired porte le même entityid.
+    expirations = evts.get("smokegrenade_expired")
+    if expirations is not None and len(expirations) and "entityid" in expirations:
+        fins = expirations.groupby("entityid")["tick"].max()
+        masque = grenades["type"] == "smoke"
+        grenades.loc[masque, "fin"] = (
+            grenades.loc[masque, "entite"].map(fins).fillna(grenades.loc[masque, "tick"])
+        ).astype("int64")
+
+    # Molotovs : le feu (inferno_*) n'a pas toujours de lanceur ; on le rattache au
+    # molotov_detonate le plus proche (même tick à 2 près, moins de 300 u).
+    feux = evts.get("inferno_startburn")
+    if feux is not None and len(feux):
+        detonations = evts.get("molotov_detonate", pd.DataFrame(columns=["tick"]))
+        extinctions = evts.get("inferno_expire", pd.DataFrame(columns=["tick"]))
+        fin_par_entite = (
+            extinctions.groupby("entityid")["tick"].max()
+            if len(extinctions) and "entityid" in extinctions
+            else pd.Series(dtype="int64")
+        )
+        molotovs = []
+        for _, feu in feux.iterrows():
+            lanceur = ""
+            if "user_steamid" in feu and pd.notna(feu["user_steamid"]):
+                lanceur = str(feu["user_steamid"]).removesuffix(".0")
+            if not lanceur and len(detonations):
+                proches = detonations[(detonations["tick"] - feu["tick"]).abs() <= 2]
+                if len(proches):
+                    d2 = (proches["x"] - feu["x"]) ** 2 + (proches["y"] - feu["y"]) ** 2
+                    if d2.min() <= 300**2:
+                        lanceur = str(proches.loc[d2.idxmin(), "user_steamid"]).removesuffix(".0")
+            entite = feu.get("entityid", -1)
+            molotovs.append(
+                {
+                    "tick": int(feu["tick"]),
+                    "lanceur": lanceur,
+                    "type": "molotov",
+                    "x": float(feu["x"]),
+                    "y": float(feu["y"]),
+                    "z": float(feu["z"]),
+                    "entite": entite,
+                    "fin": int(fin_par_entite.get(entite, feu["tick"] + DUREE_MOLOTOV_DEFAUT)),
+                }
+            )
+        grenades = pd.concat([grenades, pd.DataFrame(molotovs)], ignore_index=True)
+    return grenades[COLONNES_GRENADES].sort_values("tick").reset_index(drop=True)
 
 
 def construire_rounds(debuts: list[int], fins: list[int]) -> pd.DataFrame:
@@ -255,3 +466,29 @@ def construire_rounds(debuts: list[int], fins: list[int]) -> pd.DataFrame:
             fin = suivant if suivant is not None else np.iinfo(np.int64).max
         lignes.append({"numero": i + 1, "debut": debut, "fin": fin})
     return pd.DataFrame(lignes, columns=["numero", "debut", "fin"])
+
+
+class Positions:
+    """Accès rapide à l'état de n'importe quel joueur à un tick donné."""
+
+    def __init__(self, ticks: pd.DataFrame):
+        self._par_joueur = {
+            sid: (g["tick"].to_numpy(), g.reset_index(drop=True))
+            for sid, g in ticks.sort_values("tick").groupby("steamid")
+        }
+
+    def etat(self, steamid: str, tick: int) -> pd.Series | None:
+        """Dernier état connu du joueur à ce tick (ou avant)."""
+        entree = self._par_joueur.get(steamid)
+        if entree is None:
+            return None
+        ticks, lignes = entree
+        pos = int(np.searchsorted(ticks, tick, side="right")) - 1
+        return lignes.iloc[pos] if pos >= 0 else None
+
+    def equipe(self, steamid: str, tick: int) -> int | None:
+        etat = self.etat(steamid, tick)
+        return int(etat["equipe"]) if etat is not None else None
+
+    def joueurs(self) -> list[str]:
+        return list(self._par_joueur)

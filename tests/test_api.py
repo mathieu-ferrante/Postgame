@@ -76,3 +76,26 @@ def test_definitions(client):
     defs = {d["nom"]: d for d in client.get("/api/mesures/definitions").json()}
     d = defs["cs2.contre_strafe.part_tirs_precis"]
     assert d["unite"] == "%" and d["version"] >= 1 and d["fiable"] is False
+
+
+def test_chaleur(client, base):
+    from postgame.mesures import Preuve
+
+    r = client.post("/api/import", files={"fichier": ("m.factice", b"carte=de_mirage")})
+    pid = r.json()["partie_id"]
+    base.remplacer_preuves(
+        pid,
+        [
+            Preuve("cs2.position.mort", 10, "Mort (T)", 1, {"x": 1.0, "y": 2.0, "camp": "T"}),
+            Preuve("cs2.position.mort", 20, "Mort (CT)", 2, {"x": 3.0, "y": 4.0, "camp": "CT"}),
+            Preuve("cs2.position.kill", 30, "Kill (T)", 2, {"x": 5.0, "y": 6.0, "camp": "T"}),
+        ],
+    )
+    # La partie factice n'est pas du jeu cs2 : rien.
+    assert client.get("/api/cs2/chaleur?carte=de_mirage").json()["points"] == []
+    with base.transaction() as cx:
+        cx.execute("UPDATE parties SET jeu = 'cs2' WHERE id = ?", (pid,))
+    points = client.get("/api/cs2/chaleur?carte=de_mirage&camp=T").json()["points"]
+    assert [(p["x"], p["round"]) for p in points] == [(1.0, 1)]
+    kills = client.get("/api/cs2/chaleur?carte=de_mirage&type=kill").json()["points"]
+    assert len(kills) == 1

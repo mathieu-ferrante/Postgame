@@ -30,3 +30,30 @@ cadence de l'arme. **Touche** : un `player_hurt` du joueur dans les 2 ticks suiv
 | `cs2.armes.kills`, `.headshot`, `.precision`, `.degats` | Par arme, plus globaux pour headshot et précision. | |
 
 En deathmatch (un seul round), tous les autres joueurs sont traités comme adversaires.
+
+## L2 — Utilitaires et positionnement (CS-UTL-02/03/04, CS-POS-01/02/03)
+
+Données supplémentaires : `player_blind`, éclatements de grenades (`flashbang_detonate`,
+`hegrenade_detonate`, `smokegrenade_detonate/expired`, `molotov_detonate`,
+`inferno_startburn/expire`), `grenade_thrown`, inventaire (propriété `inventory`) en début et
+fin de round et juste avant chaque mort. Un feu est rattaché au `molotov_detonate` le plus
+proche (± 2 ticks, < 300 u) quand l'évènement ne porte pas le lanceur.
+
+| Mesure | Calcul | Limites connues |
+|---|---|---|
+| `cs2.flash.nombre`, `.adversaires_aveugles_par_flash`, `.duree_aveuglement_adversaires` | Aveuglements ≥ 1 s rattachés à la flash (même tick à 2 près, lanceur = Mathieu). | Seuil de 1 s arbitraire (un aveuglement plus court gêne peu). |
+| `cs2.flash.coequipiers_aveugles` | Coéquipiers (et Mathieu) aveuglés ≥ 1 s. | |
+| `cs2.flash.part_convertie` | Flash suivie dans les 2 s d'un kill de l'équipe sur un adversaire aveuglé. | |
+| `cs2.flash.part_inutile` | Flash sans adversaire aveuglé ≥ 1 s. | Une flash « de sortie » qui empêche un peek sans aveugler compte comme inutile. |
+| `cs2.he.degats_moyens`, `.degats_coequipiers` | `player_hurt` avec l'arme `hegrenade` dans les 2 ticks de l'éclatement. | |
+| `cs2.molotov.duree_moyenne`, `.degats_moyens` | Du début à la fin du feu ; dégâts `inferno` sur cette durée. | |
+| `cs2.molotov.adversaires_deloges` | Adversaires vivants à moins de 250 u du feu à l'allumage, hors zone 3 s plus tard (et vivants). | Rayon fixe : la forme réelle du feu dépend du sol. |
+| `cs2.utilitaires.valeur_perdue_par_mort` | Prix des grenades en poche 1 tick avant la mort (flash 200, smoke 300, HE 300, molotov 400, leurre 50). | Le prix de l'incendiaire (500 $ côté CT) est compté comme un molotov. |
+| `cs2.utilitaires.part_rounds_sans_lancer` | Rounds commencés avec au moins une grenade sans aucun lancer. | |
+| `cs2.position.kill`, `.mort` (preuves) | Position, camp, arme de chaque kill / mort : cartes de chaleur (`GET /api/cs2/chaleur`). | |
+| `cs2.position.distance_coequipier_a_la_mort`, `.part_morts_isolees` | Distance 2D au coéquipier vivant le plus proche 1 tick avant la mort ; isolée au-delà de 1000 u. | Distance à vol d'oiseau : un mur entre les deux n'est pas pris en compte. |
+| `cs2.trades.part_morts_tradees` | Le tueur de Mathieu meurt sous les balles de son équipe dans les 5 s. | |
+| `cs2.trades.part_tradables_non_tradees` | Parmi les morts avec un coéquipier à moins de 800 u, part non vengée ; les preuves nomment les coéquipiers proches. | |
+| `cs2.trades.reussis`, `.delai_median`, `.occasions_manquees` | Coéquipier tué : Mathieu tue le tueur dans les 5 s (réussi), ou était vivant à moins de 800 u et personne ne l'a vengé (manqué). | |
+
+Mesures d'équipe (gaspillage, isolement, trades) non calculées en deathmatch.

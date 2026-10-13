@@ -151,6 +151,32 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         """Toutes les mesures connues : nom, version, unité, description, sens, fiabilité."""
         return [asdict(d) for d in sorted(DEFINITIONS.values(), key=lambda d: d.nom)]
 
+    @app.get("/api/cs2/chaleur", tags=["cs2"])
+    def chaleur(
+        carte: str,
+        type: str = Query("mort", pattern="^(mort|kill)$"),
+        camp: str | None = Query(None, pattern="^(T|CT)$"),
+        periode: str = Query("tout", pattern="^(7j|30j|tout)$"),
+    ) -> dict[str, Any]:
+        """Positions des morts ou des kills de Mathieu sur une carte (CS-POS-01)."""
+        duree = PERIODES[periode]
+        depuis = (datetime.now(UTC) - duree).isoformat() if duree else None
+        points = [
+            {
+                "x": p["donnees"]["x"],
+                "y": p["donnees"]["y"],
+                "z": p["donnees"].get("z"),
+                "camp": p["donnees"].get("camp"),
+                "arme": p["donnees"].get("arme"),
+                "partie_id": p["partie_id"],
+                "tick": p["tick"],
+                "round": p["round"],
+            }
+            for p in base.preuves_toutes_parties(f"cs2.position.{type}", "cs2", depuis)
+            if p["carte"] == carte and (camp is None or p["donnees"].get("camp") == camp)
+        ]
+        return {"carte": carte, "type": type, "camp": camp, "points": points}
+
     @app.get("/api/mesures", tags=["mesures"])
     def noms_mesures() -> list[str]:
         """Noms des mesures disponibles en base."""

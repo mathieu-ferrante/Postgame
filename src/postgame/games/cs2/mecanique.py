@@ -23,6 +23,7 @@ from postgame.games.cs2.armes import (
     est_arme_de_rafale,
 )
 from postgame.games.cs2.donnees import TICKS_PAR_SECONDE, DonneesMatch
+from postgame.games.cs2.donnees import Positions as _Positions
 from postgame.games.cs2.geometrie import (
     ECHELLE_RECUL,
     angle_entre,
@@ -209,25 +210,6 @@ def preparer_tirs(d: DonneesMatch) -> pd.DataFrame:
     return t
 
 
-class _Positions:
-    """Accès rapide à l'état de n'importe quel joueur à un tick donné."""
-
-    def __init__(self, ticks: pd.DataFrame):
-        self._par_joueur = {
-            sid: (g["tick"].to_numpy(), g.reset_index(drop=True))
-            for sid, g in ticks.sort_values("tick").groupby("steamid")
-        }
-
-    def etat(self, steamid: str, tick: int) -> pd.Series | None:
-        """Dernier état connu du joueur à ce tick (ou avant)."""
-        entree = self._par_joueur.get(steamid)
-        if entree is None:
-            return None
-        ticks, lignes = entree
-        pos = int(np.searchsorted(ticks, tick, side="right")) - 1
-        return lignes.iloc[pos] if pos >= 0 else None
-
-
 def _visee_vers(tireur: pd.Series, cible: pd.Series) -> tuple[float, float, float]:
     """(yaw, pitch, distance) de l'œil du tireur vers la tête de la cible."""
     dx = cible["x"] - tireur["x"]
@@ -237,10 +219,6 @@ def _visee_vers(tireur: pd.Series, cible: pd.Series) -> tuple[float, float, floa
     )
     yaw, pitch = direction(dx, dy, dz)
     return yaw, pitch, math.sqrt(dx * dx + dy * dy + dz * dz)
-
-
-def _est_deathmatch(d: DonneesMatch) -> bool:
-    return len(d.rounds) <= 1
 
 
 # --- CS-AIM-01 : contre-strafe ------------------------------------------------------------
@@ -456,7 +434,7 @@ def apparitions(d: DonneesMatch, tirs: pd.DataFrame, positions: _Positions) -> l
     autres = d.ticks[(d.ticks["steamid"] != d.moi) & d.ticks["vu_par_moi"] & d.ticks["vivant"]]
     autres = autres.merge(moi, on="tick", how="inner")
     autres = autres[autres["moi_vivant"]]
-    if not _est_deathmatch(d):
+    if not d.est_deathmatch():
         autres = autres[autres["equipe"] != autres["mon_equipe"]]
 
     mes_morts = d.morts[d.morts["attaquant"] == d.moi]

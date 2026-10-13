@@ -39,7 +39,16 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 - [ ] Critère de fin : sur une démo DM réelle, chaque mesure vérifiée à la main sur 5 cas
 
 ## L2 — CS2 utilitaires et positionnement (CS-UTL-02/03/04, CS-POS-01/02/03)
-- [ ] Flashs, HE, molotovs, gaspillage, chaleur, morts isolées, trades
+- [x] Extraction : aveuglements, éclatements de grenades (durées smoke / feu), lancers,
+      inventaires aux moments clés
+- [~] Flashs (CS-UTL-02) — scénarios synthétiques uniquement
+- [~] HE et molotovs : dégâts, durée, adversaires délogés (CS-UTL-03) — idem
+- [~] Gaspillage : valeur perdue à la mort, rounds sans lancer (CS-UTL-04) — idem
+- [~] Cartes de chaleur : preuves de position + `GET /api/cs2/chaleur` (CS-POS-01) — idem
+- [~] Morts isolées (CS-POS-02) — idem
+- [~] Trades : morts vengées, tradables non vengées (et par qui), trades réussis, délai,
+      occasions manquées (CS-POS-03) — idem
+- [ ] Critère de fin : sur une démo Premier réelle, chaque mesure vérifiée à la main sur 5 cas
 
 ## L3 — Références pro (CS-REF-01, CS-UTL-01, CS-POS-04)
 - [ ] Catalogue des lancers et positions appris sur démos pros
@@ -85,3 +94,6 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 | 2026-10-13 | L1 | Apparition = passage à « repéré par moi » après 0,5 s sans l'être | Exigence CS-AIM-05 ; lancer de rayons repoussé tant que la vérification manuelle ne montre pas de biais |
 | 2026-10-13 | L1 | En DM (≤ 1 round), tous les autres joueurs sont adversaires | Le DM officiel peut être en chacun pour soi ; l'indicateur « repéré » ne concerne de toute façon que les ennemis |
 | 2026-10-13 | L1 | Toute mesure naît `fiable=False` | NF-06 : seule une vérification manuelle sur données réelles la rend utilisable par le débrief |
+| 2026-10-13 | L2 | Aveuglement significatif ≥ 1 s ; flash convertie = kill de l'équipe sur un aveuglé dans les 2 s | Exigence CS-UTL-02 ; seuils notés dans docs/MESURES_CS2.md, ajustables après vérification |
+| 2026-10-13 | L2 | Trade = tueur abattu par l'équipe dans les 5 s ; tradable = coéquipier à moins de 800 u ; isolée au-delà de 1000 u | Seuils usuels des outils d'analyse ; distance 2D sans géométrie de carte |
+| 2026-10-13 | L2 | Kills et morts stockés comme preuves avec position et camp | Une seule table sert les débriefs et les cartes de chaleur multi-parties |

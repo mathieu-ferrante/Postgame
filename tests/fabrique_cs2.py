@@ -21,6 +21,7 @@ from postgame.games.cs2.donnees import COLONNES_TICKS, DonneesMatch, construire_
 MOI = "76561198000000001"
 ADV = "76561198000000002"
 ADV2 = "76561198000000003"
+COEQ = "76561198000000004"
 
 DEFAUT = {
     "x": 0.0,
@@ -48,6 +49,10 @@ class Scenario:
         self.morts: list[dict] = []
         self.debuts_rounds: list[int] = [0]
         self.fins_rounds: list[int] = []
+        self.aveuglements: list[dict] = []
+        self.grenades: list[dict] = []
+        self.lancers: list[dict] = []
+        self.inventaires: list[dict] = []
 
     def joueur(self, steamid: str, equipe: int = 2, nom: str | None = None, **etat) -> None:
         valeurs = {**DEFAUT, **etat}
@@ -101,6 +106,44 @@ class Scenario:
             }
         )
 
+    def aveugle(self, lanceur: str, victime: str, tick: int, duree: float) -> None:
+        self.aveuglements.append(
+            {"tick": tick, "attaquant": lanceur, "victime": victime, "duree": duree}
+        )
+
+    def grenade(
+        self,
+        lanceur: str,
+        tick: int,
+        type_: str,
+        x: float = 0.0,
+        y: float = 0.0,
+        fin: int | None = None,
+        lance_a: int | None = None,
+    ) -> None:
+        self.grenades.append(
+            {
+                "tick": tick,
+                "lanceur": lanceur,
+                "type": type_,
+                "x": x,
+                "y": y,
+                "z": 0.0,
+                "entite": len(self.grenades),
+                "fin": fin or tick,
+            }
+        )
+        self.lancers.append(
+            {
+                "tick": lance_a if lance_a is not None else tick - 64,
+                "steamid": lanceur,
+                "type": type_,
+            }
+        )
+
+    def inventaire(self, steamid: str, tick: int, grenades: list[str]) -> None:
+        self.inventaires.append({"tick": tick, "steamid": steamid, "grenades": grenades})
+
     def donnees(self, moi: str = MOI) -> DonneesMatch:
         ticks = pd.concat(self._tables.values(), ignore_index=True)[COLONNES_TICKS]
         return DonneesMatch(
@@ -115,4 +158,12 @@ class Scenario:
             ),
             rounds=construire_rounds(self.debuts_rounds, self.fins_rounds),
             carte="de_test",
+            aveuglements=pd.DataFrame(
+                self.aveuglements, columns=["tick", "attaquant", "victime", "duree"]
+            ),
+            grenades=pd.DataFrame(
+                self.grenades, columns=["tick", "lanceur", "type", "x", "y", "z", "entite", "fin"]
+            ),
+            lancers=pd.DataFrame(self.lancers, columns=["tick", "steamid", "type"]),
+            inventaires=pd.DataFrame(self.inventaires, columns=["tick", "steamid", "grenades"]),
         )

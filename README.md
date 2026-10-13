@@ -10,7 +10,8 @@ PC de jeu. Spécification complète : [CAHIER_DES_CHARGES.md](CAHIER_DES_CHARGES
 |---|---|---|
 | L0 | Socle : service, stockage, import des démos, API, config d'enregistrement DM | Codé et testé sur données de substitution ; **à valider sur vraies démos et sur le PC de jeu** |
 | L1 | Mécanique CS2 : contre-strafe, première balle, spray, réaction, placement du viseur, armes | Codé et testé sur scénarios synthétiques ; **jamais exécuté sur une vraie démo, aucune mesure vérifiée à la main** |
-| L2–L10 | Utilitaires, références pro, décisions, débrief, interface, second écran, GD, LoL/TFT, 3D | À faire |
+| L2 | Utilitaires et positionnement CS2 : flashs, HE, molotovs, gaspillage, chaleur, morts isolées, trades | Codé et testé sur scénarios synthétiques ; **jamais exécuté sur une vraie démo** |
+| L3–L10 | Références pro, décisions, débrief, interface, second écran, GD, LoL/TFT, 3D | À faire |
 
 Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée de Mathieu :
 [A_VALIDER.md](A_VALIDER.md).
@@ -22,7 +23,7 @@ Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée
   terminée. Import manuel possible par l'API.
 - Chaque démo est archivée dans `data/archives/` et produit une fiche : carte, mode,
   résultat, score, durée (**lecture CS2 pas encore vérifiée sur une vraie démo**).
-- Chaque démo est analysée : mesures de mécanique (méthode : [docs/MESURES_CS2.md](docs/MESURES_CS2.md))
+- Chaque démo est analysée : mécanique, utilitaires, positionnement (méthode : [docs/MESURES_CS2.md](docs/MESURES_CS2.md))
   et preuves (moments précis du replay). `verifier <partie>` produit la fiche de
   vérification manuelle des mesures.
 - Une API locale JSON (parties, fiches, mesures, progression) sert l'interface à venir et
@@ -84,7 +85,7 @@ src/postgame/
   api.py           API HTTP (FastAPI)
   games/           un module par jeu derrière une interface commune (base.py)
     cs2/           lecture des démos (demoparser2), diagnostic, armes, géométrie,
-                   analyses (mecanique.py…)
+                   analyses (mecanique.py, utilitaires.py, positionnement.py)
 config/cs2/        config d'enregistrement des démos DM
 scripts/           installation et lancement sur le PC de jeu
 tests/             tests ; tests/donnees/ (ignoré par git) pour les vraies démos

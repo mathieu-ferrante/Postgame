@@ -301,6 +301,27 @@ class Base:
             lignes = self._cx.execute(sql, params).fetchall()
         return [{**dict(lg), "donnees": json.loads(lg["donnees"])} for lg in lignes]
 
+    def preuves_toutes_parties(
+        self, mesure: str, jeu: str | None = None, depuis: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Preuves d'une mesure sur toutes les parties (cartes de chaleur, catalogues)."""
+        sql = (
+            "SELECT pr.partie_id, pr.tick, pr.round, pr.texte, pr.donnees, p.carte, "
+            "p.date_partie FROM preuves pr JOIN parties p ON p.id = pr.partie_id "
+            "WHERE pr.mesure = ?"
+        )
+        params: list[Any] = [mesure]
+        if jeu:
+            sql += " AND p.jeu = ?"
+            params.append(jeu)
+        if depuis:
+            sql += " AND p.date_partie >= ?"
+            params.append(depuis)
+        sql += " ORDER BY p.date_partie, pr.tick"
+        with self._verrou:
+            lignes = self._cx.execute(sql, params).fetchall()
+        return [{**dict(lg), "donnees": json.loads(lg["donnees"])} for lg in lignes]
+
     def mesures_partie(self, partie_id: int) -> list[dict[str, Any]]:
         with self._verrou:
             lignes = self._cx.execute(
