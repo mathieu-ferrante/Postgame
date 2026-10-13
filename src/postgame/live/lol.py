@@ -23,15 +23,29 @@ journal = logging.getLogger(__name__)
 URL = "https://127.0.0.1:2999/liveclientdata/allgamedata"
 
 
+CHAMPS_NOM = ("riotId", "riotIdGameName", "summonerName")
+
+
+def _noms(joueur: dict[str, Any]) -> set[str]:
+    """Toutes les façons dont le client nomme un joueur : Riot ID complet (« Nom#TAG »),
+    nom de jeu seul, ancien nom d'invocateur (en cours de retrait chez Riot)."""
+    noms = {str(joueur[c]).strip() for c in CHAMPS_NOM if joueur.get(c)}
+    if joueur.get("riotIdGameName") and joueur.get("riotIdTagLine"):
+        noms.add(f"{joueur['riotIdGameName']}#{joueur['riotIdTagLine']}")
+    return {n.lower() for n in noms}
+
+
+def trouver_moi(actif: dict[str, Any], joueurs: list[dict[str, Any]]) -> dict[str, Any] | None:
+    mes_noms = _noms(actif)
+    return next((j for j in joueurs if mes_noms & _noms(j)), None) if mes_noms else None
+
+
 def resumer(
     donnees: dict[str, Any], references: dict[str, float | None] | None = None
 ) -> dict[str, Any]:
     actif = donnees.get("activePlayer", {})
-    nom = actif.get("riotId") or actif.get("summonerName")
     joueurs = donnees.get("allPlayers", [])
-    moi = next(
-        (j for j in joueurs if nom and nom in (j.get("riotId"), j.get("summonerName"))), None
-    )
+    moi = trouver_moi(actif, joueurs)
     temps = float(donnees.get("gameData", {}).get("gameTime", 0.0))
     minutes = temps / 60
     resume: dict[str, Any] = {

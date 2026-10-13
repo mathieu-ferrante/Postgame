@@ -87,3 +87,20 @@ def test_scruteur(base):
     en_partie["oui"] = False
     s.passe()
     assert s.resume == {"actif": False}
+
+
+def test_trouver_le_joueur_actif_quel_que_soit_le_format_du_nom():
+    from postgame.live.lol import trouver_moi
+
+    joueurs = [
+        {"riotId": "Autre#EUW", "championName": "Ahri"},
+        {"riotIdGameName": "iamheremyfriend", "riotIdTagLine": "hiii", "championName": "Jinx"},
+    ]
+    # Format actuel (Riot ID complet), nom de jeu seul, ancien summonerName : même joueur.
+    for actif in (
+        {"riotId": "iamheremyfriend#hiii"},
+        {"riotIdGameName": "iamheremyfriend"},
+        {"summonerName": "IAMHEREMYFRIEND#hiii"},
+    ):
+        assert trouver_moi(actif, joueurs)["championName"] == "Jinx"
+    assert trouver_moi({}, joueurs) is None
