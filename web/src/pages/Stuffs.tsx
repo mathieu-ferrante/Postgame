@@ -292,7 +292,10 @@ export default function Stuffs() {
               <ul className="fil">
                 {liste.map((s) => (
                   <li key={s.cle} style={{ cursor: "pointer" }} onClick={() => setSelection(s.cle)}>
-                    <strong>{s.nom}</strong> <span className="discret">· {s.technique}</span>
+                    <strong>{s.nom}</strong>{" "}
+                    <span className="discret">
+                      {s.phase ? `· ${s.phase}${s.temps_median !== null ? ` à ${nombre(s.temps_median, "s")}` : ""} ` : ""}· {s.technique}
+                    </span>
                   </li>
                 ))}
               </ul>

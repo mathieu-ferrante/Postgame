@@ -71,7 +71,7 @@ def code_carte(nom: str) -> str:
 
 def nom_affiche(code: str) -> str:
     nom = re.sub(r"^(de|cs|ar)_", "", code)
-    return {"dust2": "Dust II"}.get(nom, nom.replace("_", " ").title())
+    return {"dust2": "Dust II", "eldorado": "El Dorado"}.get(nom, nom.replace("_", " ").title())
 
 
 def appliquer_actualites(etat: dict[str, Any], evenements: list[dict[str, Any]]) -> dict[str, Any]:
