@@ -32,7 +32,7 @@ Valeurs de `resultat` : `victoire`, `defaite`, `nul`, `sans_objet` (deathmatch,
 entraînement), `inconnu` (joueur non trouvé dans la démo : vérifier le SteamID dans
 `postgame.toml`).
 
-Valeurs de `mode` pour CS2 : `competitif`, `deathmatch`, `wingman`, `autre`.
+Valeurs de `mode` pour CS2 : `premier`, `competitif`, `faceit`, `wingman`, `deathmatch`, `autre` (type de classement du match, nom du serveur pour FACEIT).
 
 ## Mesures
 

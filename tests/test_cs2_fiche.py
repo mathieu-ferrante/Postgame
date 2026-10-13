@@ -129,6 +129,21 @@ def test_demo_sans_evenement():
     assert (fiche.carte, fiche.resultat, fiche.duree_s) == ("de_dust2", "inconnu", None)
 
 
+def test_deduire_mode_par_type_de_classement_et_serveur():
+    assert deduire_mode(10, 21, 150, 13, type_classement=11) == "premier"
+    assert deduire_mode(10, 21, 150, 13, type_classement=6) == "competitif"
+    assert deduire_mode(4, 14, 60, 9, type_classement=7) == "wingman"
+    assert deduire_mode(10, 21, 150, 13, serveur="FACEIT.com | EU Server 12") == "faceit"
+
+
+def test_premier_et_classement():
+    etat = _etat(13, 9)
+    etat["comp_rank_type"] = 11
+    etat["rank"] = 15230
+    fiche = construire_fiche(_donnees(etat, 22, 160), MOI)
+    assert fiche.mode == "premier" and fiche.details["classement"] == 15230
+
+
 def test_deduire_mode():
     assert deduire_mode(16, 1, 400, 0) == "deathmatch"
     assert deduire_mode(4, 14, 60, 9) == "wingman"

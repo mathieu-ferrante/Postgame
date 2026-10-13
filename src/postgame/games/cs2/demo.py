@@ -41,6 +41,9 @@ PROPS_ETAT_FINAL = [
     "is_matchmaking",
     "match_making_mode",
     "is_valve_dedicated_server",
+    "comp_rank_type",
+    "rank",
+    "comp_wins",
 ]
 PROPS_ETAT_FINAL_MINIMAL = ["team_num", "team_rounds_total"]
 
@@ -149,16 +152,33 @@ def trouver_joueur(
     return None
 
 
-def deduire_mode(nb_joueurs: int, nb_rounds: int, nb_morts: int, score_max: int | None) -> str:
-    """Heuristique de mode de jeu, à confirmer sur démos réelles (voir A_VALIDER.md).
+# Type de classement du match (CCSPlayerController.m_iCompetitiveRankType).
+TYPES_CLASSEMENT = {6: "competitif", 7: "wingman", 11: "premier"}
 
-    - deathmatch : beaucoup de morts pour au plus un round (réapparitions) ;
-    - wingman : 4 joueurs ou moins ;
-    - competitif : une équipe atteint 13 rounds (MR12, Premier et compétitif) ;
-    - autre : tout le reste (occasionnel, partie inachevée…).
+
+def deduire_mode(
+    nb_joueurs: int,
+    nb_rounds: int,
+    nb_morts: int,
+    score_max: int | None,
+    type_classement: int | None = None,
+    serveur: str = "",
+) -> str:
+    """Mode de la partie : premier, competitif, wingman, faceit, deathmatch ou autre.
+
+    Ordre de décision (à confirmer sur démos réelles, voir A_VALIDER.md) :
+    1. serveur FACEIT (nom du serveur) → faceit ;
+    2. beaucoup de morts pour au plus un round (réapparitions) → deathmatch ;
+    3. type de classement du match : 11 → premier, 6 → competitif, 7 → wingman ;
+    4. sinon : 4 joueurs ou moins → wingman ; une équipe à 13 rounds → competitif ;
+       le reste (occasionnel, partie inachevée…) → autre.
     """
+    if "faceit" in serveur.lower():
+        return "faceit"
     if nb_rounds <= 1 and nb_morts >= max(10, 2 * nb_joueurs):
         return "deathmatch"
+    if type_classement in TYPES_CLASSEMENT:
+        return TYPES_CLASSEMENT[type_classement]
     if 0 < nb_joueurs <= 4:
         return "wingman"
     if score_max is not None and score_max >= 13:
@@ -188,8 +208,20 @@ def construire_fiche(
                 scores[int(equipe)] = valeur
     score_max = max(scores.values()) if scores else None
 
-    mode = deduire_mode(nb_joueurs, len(rounds), len(morts), score_max)
     joueur = trouver_joueur(donnees, steamid, noms)
+    type_classement = None
+    if len(etat) and "comp_rank_type" in etat:
+        valeurs = etat["comp_rank_type"].dropna()
+        valeurs = valeurs[valeurs > 0]
+        type_classement = int(valeurs.mode().iloc[0]) if len(valeurs) else None
+    mode = deduire_mode(
+        nb_joueurs,
+        len(rounds),
+        len(morts),
+        score_max,
+        type_classement,
+        str(donnees.entete.get("server_name", "") or ""),
+    )
 
     details: dict[str, Any] = {
         "serveur": donnees.entete.get("server_name", ""),
@@ -199,6 +231,7 @@ def construire_fiche(
         "nb_rounds": len(rounds),
         "nb_morts": len(morts),
         "joueur_trouve": joueur is not None,
+        "type_classement": type_classement,
     }
     for prop in ("is_matchmaking", "match_making_mode", "is_valve_dedicated_server"):
         if len(etat) and prop in etat:
@@ -213,6 +246,8 @@ def construire_fiche(
     if joueur is not None:
         details["joueur"] = str(joueur.get("name", ""))
         for prop, cle in (
+            ("rank", "classement"),
+            ("comp_wins", "victoires_classees"),
             ("kills_total", "kills"),
             ("deaths_total", "morts"),
             ("assists_total", "assistances"),

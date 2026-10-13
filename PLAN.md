@@ -171,11 +171,19 @@ Exigences nouvelles, au même rang que le cahier des charges :
 
 - [ ] **MODES-01 — Toutes les parties CS2 analysées** : compétitif, Premier, FACEIT,
       Wingman (et deathmatch), sur toutes les cartes (pool actif, autres modes, Wingman)
-  - [ ] détection fiable du mode (Premier / compétitif / Wingman / FACEIT / DM) à caler sur
-        les diagnostics de vraies démos
+  - [~] détection du mode par le type de classement du match (11 Premier, 6 compétitif,
+        7 Wingman), le serveur (FACEIT) et la forme de la partie (DM) ; CS Rating / rang
+        gardés dans la fiche — à confirmer sur vraies démos
   - [ ] FACEIT : récupération des démos par l'API officielle FACEIT (CS-SRC-03, avancé)
   - [ ] mesures et cibles distinguées par mode quand le mode change le jeu (Wingman : 2v2,
         MR8, cartes réduites)
+
+- [ ] **AUTO-01 — Tout automatique de A à Z** : récupérer les démos sans action de Mathieu
+      (Premier / compétitif par les codes de partage Steam, FACEIT par son API, DM par la
+      config F8 + rappel sur le second écran), importer, analyser, débriefer
+- [ ] **PERF-01 — Aucune analyse pendant une partie** : import et analyse différés tant
+      qu'un jeu tourne (processus du jeu ou flux GSI actif), service en priorité basse ; seul
+      le second écran (léger) tourne pendant la partie
 
 ## Décisions
 

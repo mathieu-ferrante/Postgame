@@ -24,5 +24,5 @@ def test_fiche_coherente(demo):
     fiche = construire_fiche(donnees, charger_config().steamid)
     assert fiche.carte.startswith(("de_", "cs_", "ar_", "dz_"))
     assert fiche.duree_s and fiche.duree_s > 0
-    assert fiche.mode in {"competitif", "deathmatch", "wingman", "autre"}
+    assert fiche.mode in {"premier", "competitif", "faceit", "deathmatch", "wingman", "autre"}
     assert fiche.details["nb_joueurs"] > 0
