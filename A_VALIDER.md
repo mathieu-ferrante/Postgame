@@ -198,3 +198,29 @@ Dépend du point L0-3 (une démo de DM enregistrée) et du SteamID (L0-2).
 - [ ] Pendant un achat, comparer l'argent affiché en jeu et sur le téléphone : le
       téléphone doit suivre en moins d'une demi-seconde (NF-03). Une vidéo au ralenti du
       téléphone posé devant l'écran donne une mesure précise.
+
+## L8 — Geometry Dash
+
+### 19. Compiler et installer le mod (PC de jeu)
+- [ ] Vérifier la version de GD (écran titre, en bas) et de Geode installées ; me les
+      donner si ce n'est pas GD 2.2081 / Geode 5.11.x (`mods/gd-journal/mod.json`).
+- [ ] Suivre `mods/gd-journal/LISEZMOI.md` : Visual Studio Build Tools, Geode CLI,
+      `geode sdk install`, puis `geode build` dans `mods/gd-journal`.
+- **Attendu** : le mod « Postgame — journal » apparaît dans la liste des mods de Geode.
+  S'il ne compile pas, **me copier le message d'erreur** : le code n'a pas pu être compilé
+  sur le poste de développement.
+
+### 20. Enregistrer une vraie séance d'entraînement (PC de jeu)
+- [ ] Service lancé ; jouer 15 à 30 minutes sur un niveau en cours d'apprentissage
+      (essais normaux, puis un peu d'entraînement, puis normaux), puis quitter le niveau.
+- **Attendu** :
+  - un fichier `.gdsession` dans
+    `%LOCALAPPDATA%\GeometryDash\geode\mods\mathieu.postgame-journal\sessions\` ;
+  - la séance apparaît dans l'interface (badge « Geometry Dash »), avec son débrief et la
+    page « essais superposés » ;
+  - le jeu se comporte exactement comme sans le mod (aucune différence de gameplay).
+- [ ] Me donner la valeur de `gd.technique.resolution_ms` (fiche de la séance) : elle dit
+      si l'horodatage des clics est assez fin (≈ 4,17 ms attendu si le jeu tourne à 240
+      pas par seconde).
+- [ ] Juger les « inputs les plus irréguliers » : sont-ce bien les passages où Mathieu
+      se sent le moins sûr ? (critère de fin de L8)

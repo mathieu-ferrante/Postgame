@@ -289,6 +289,20 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
             replay_cs2.ecrire_cache(cache, donnees)
         return donnees
 
+    @app.get("/api/gd/replay/{partie_id}", tags=["gd"])
+    def replay_gd(partie_id: int) -> dict[str, Any]:
+        """Tous les essais d'une séance superposés sur le niveau, avec les appuis et les
+        inputs attendus (GD-07)."""
+        from postgame.games.gd import donnees_replay
+        from postgame.games.gd.session import lire_session
+
+        p = base.partie(partie_id)
+        if p is None or p.jeu != "gd":
+            raise HTTPException(404, "séance Geometry Dash inconnue")
+        if not Path(p.fichier).exists():
+            raise HTTPException(410, "journal archivé introuvable")
+        return donnees_replay(lire_session(Path(p.fichier)))
+
     # --- Second écran CS2 (Game State Integration) ---------------------------------------
 
     recepteur = RecepteurGSI(cfg.dossier_donnees, jeton_gsi(cfg.dossier_donnees))

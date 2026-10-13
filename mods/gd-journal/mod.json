@@ -1,0 +1,11 @@
+{
+	"geode": "5.11.1",
+	"gd": {
+		"win": "2.2081"
+	},
+	"id": "mathieu.postgame-journal",
+	"name": "Postgame — journal",
+	"version": "v1.0.0",
+	"developer": "Mathieu",
+	"description": "Journalise les essais, les clics et les morts pour l'analyse Postgame. Ne modifie rien au jeu."
+}

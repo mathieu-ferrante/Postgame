@@ -75,6 +75,12 @@ l'historique, COM-08), une unité et un contexte JSON (arme, camp, taille d'éch
 
 Toute autre adresse hors `/api/` sert l'interface web (`web/dist`).
 
+## Geometry Dash
+
+| Méthode | Chemin | Rôle |
+|---|---|---|
+| GET | `/api/gd/replay/{id}` | Essais superposés : `niveau, longueur, essais [{numero, mode, x_debut, x_fin, pct_fin, mort, complete, appuis[]}], inputs [{x, pct, ecart_type, decalage, n}]` |
+
 ## Pour Jarvis
 
 Questions typiques et appels correspondants :

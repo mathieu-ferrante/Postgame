@@ -58,7 +58,9 @@ class ModuleFactice:
 
 @pytest.fixture
 def cfg(tmp_path: Path) -> Config:
-    cfg = Config(dossier_donnees=tmp_path / "data", dossiers_cs2=[], delai_stabilite_s=0.0)
+    cfg = Config(
+        dossier_donnees=tmp_path / "data", dossiers_cs2=[], dossiers_gd=[], delai_stabilite_s=0.0
+    )
     cfg.debrief.fournisseur = "aucun"  # jamais d'appel réseau dans les tests
     return cfg
 

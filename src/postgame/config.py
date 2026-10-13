@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 RACINE = Path(__file__).resolve().parents[2]
+DOSSIER_GD = "GeometryDash/geode/mods/mathieu.postgame-journal/sessions"
 DOSSIER_CS2 = (
     "C:/Program Files (x86)/Steam/steamapps/common/Counter-Strike Global Offensive/game/csgo"
 )
@@ -40,6 +41,9 @@ class Config:
     steamid: str = ""
     dossiers_cs2: list[Path] = field(
         default_factory=lambda: [Path(DOSSIER_CS2) / "replays", Path(DOSSIER_CS2)]
+    )
+    dossiers_gd: list[Path] = field(
+        default_factory=lambda: [Path(os.environ.get("LOCALAPPDATA", "")) / DOSSIER_GD]
     )
     intervalle_s: float = 5.0
     delai_stabilite_s: float = 10.0
@@ -97,6 +101,10 @@ def charger_config(chemin: Path | None = None) -> Config:
     cs2 = brut.get("cs2", {})
     if "dossiers_demos" in cs2:
         cfg.dossiers_cs2 = [Path(d) for d in cs2["dossiers_demos"]]
+
+    gd = brut.get("gd", {})
+    if "dossiers_journaux" in gd:
+        cfg.dossiers_gd = [Path(os.path.expandvars(d)) for d in gd["dossiers_journaux"]]
 
     surv = brut.get("surveillance", {})
     cfg.intervalle_s = float(surv.get("intervalle_s", cfg.intervalle_s))

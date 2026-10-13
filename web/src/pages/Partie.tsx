@@ -4,7 +4,7 @@ import type { Constat, Debrief } from "../api";
 import { api } from "../api";
 import { Etat, useDonnee } from "../composants/Chargement";
 import Markdown from "../composants/Markdown";
-import { JEUX, RESULTATS, dateCourte, duree, nombre, nomCourt } from "../lib/format";
+import { JEUX, dateCourte, duree, nombre, nomCourt, score } from "../lib/format";
 
 function CarteConstat({ c, partieId, jeu }: { c: Constat; partieId: number; jeu: string }) {
   const contexte = Object.entries(c.contexte).map(([k, v]) => `${k} ${v}`).join(", ");
@@ -95,10 +95,11 @@ export default function PagePartie() {
           <h1 style={{ marginTop: "0.4rem" }}>
             {p.carte}{" "}
             <span className={p.resultat}>
-              {p.score_joueur !== null ? `${p.score_joueur} – ${p.score_adverse}` : RESULTATS[p.resultat]}
+              {score(p)}
             </span>
           </h1>
           {p.jeu === "cs2" && <Link to={`/replay/${p.id}`}>Ouvrir le replay 2D →</Link>}
+          {p.jeu === "gd" && <Link to={`/gd/${p.id}`}>Voir tous les essais superposés →</Link>}
         </>
       )}
       <Etat erreur={debrief.erreur} chargement={debrief.chargement} />

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { Etat, useDonnee } from "../composants/Chargement";
-import { JEUX, RESULTATS, dateCourte, duree } from "../lib/format";
+import { JEUX, dateCourte, duree, score } from "../lib/format";
 
 function Depot({ apresImport }: { apresImport: () => void }) {
   const [survol, setSurvol] = useState(false);
@@ -62,7 +62,7 @@ export default function Accueil() {
             <h3 style={{ marginTop: "0.4rem" }}>{p.carte}</h3>
             <div className="ligne">
               <span className={`score ${p.resultat}`}>
-                {p.score_joueur !== null ? `${p.score_joueur} – ${p.score_adverse}` : RESULTATS[p.resultat]}
+                {score(p)}
               </span>
               <span className="discret">{p.mode} · {duree(p.duree_s)}</span>
             </div>

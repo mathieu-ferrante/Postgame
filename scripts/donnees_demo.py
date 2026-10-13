@@ -9,6 +9,7 @@ puis   : .venv\\Scripts\\python -m postgame --config data_demo\\postgame.toml se
 
 from __future__ import annotations
 
+import json
 import math
 import random
 import sys
@@ -23,7 +24,7 @@ from postgame.debrief import generer_debrief
 from postgame.games.cs2.analyse import analyser_match
 from postgame.games.cs2.donnees import COLONNES_TICKS, DonneesMatch, construire_rounds
 from postgame.games.cs2.replay import chemin_cache, construire_replay, ecrire_cache
-from postgame.importation import enregistrer_analyse
+from postgame.importation import enregistrer_analyse, importer
 
 SOURCE = "DEMONSTRATION"
 MOI = "76561190000000000"
@@ -164,6 +165,72 @@ def simuler_match(graine: int, nb_rounds: int = 6) -> DonneesMatch:
     )
 
 
+def simuler_seance_gd(graine: int) -> list[str]:
+    """Séance Geometry Dash simulée : 45 essais normaux puis entraînement puis 15 normaux."""
+    rng = random.Random(graine)
+    vitesse, longueur = 0.311, 6000.0
+    inputs = []
+    x = 250.0
+    while x < longueur - 200:
+        inputs.append((x, rng.choice([6, 9, 14, 22, 35])))  # (position, écart-type en ms)
+        x += rng.uniform(90, 420)
+    lignes = [
+        {
+            "type": "session",
+            "format": 1,
+            "debut": datetime.now().replace(microsecond=0).isoformat(),
+            "niveau": {"id": 123456, "nom": "Niveau simulé (DÉMO)", "createur": "demo"},
+            "plateforme": False,
+            "mod": "v1.0.0",
+        }
+    ]
+    t = 0.0
+    plan = ["normal"] * 45 + ["practice"] * 12 + ["normal"] * 15
+    for n, mode in enumerate(plan, start=1):
+        x0 = 0.0 if mode == "normal" else rng.choice([0.0, 2000.0, 3500.0])
+        lignes.append({"type": "essai", "n": n, "mode": mode, "t": t, "x": x0})
+        mort_x = longueur
+        evenements = []
+        for xi, ecart in inputs:
+            if xi < x0:
+                continue
+            decalage = rng.gauss(rng.choice([-3, 0, 4]), ecart)
+            tp = t + (xi - x0) / vitesse + decalage
+            evenements.append(
+                {
+                    "type": "input",
+                    "t": round(tp, 2),
+                    "x": round(x0 + vitesse * (tp - t), 1),
+                    "appui": True,
+                    "j": 1,
+                }
+            )
+            if abs(decalage) > 28 and rng.random() < 0.6:
+                mort_x = xi + rng.uniform(10, 60)
+                break
+        duree = (mort_x - x0) / vitesse
+        for k in range(0, int(duree), 30):
+            evenements.append(
+                {"type": "pos", "t": round(t + k, 2), "x": round(x0 + vitesse * k, 1)}
+            )
+        lignes += sorted(evenements, key=lambda e: e["t"])
+        if mort_x < longueur:
+            lignes.append(
+                {
+                    "type": "mort",
+                    "t": round(t + duree, 2),
+                    "x": round(mort_x, 1),
+                    "pct": round(100 * mort_x / longueur, 2),
+                    "objet": 8,
+                }
+            )
+        else:
+            lignes.append({"type": "fin", "t": round(t + duree, 2), "pct": 100, "complete": True})
+        t += duree + 1500
+    lignes.append({"type": "fin_session", "t": t})
+    return [json.dumps(ligne, ensure_ascii=False) for ligne in lignes]
+
+
 def main(dossier: Path) -> None:
     dossier.mkdir(parents=True, exist_ok=True)
     (dossier / "postgame.toml").write_text(
@@ -239,6 +306,11 @@ def main(dossier: Path) -> None:
     enregistrer_analyse(base, pid, analyser_match(d))
     ecrire_cache(chemin_cache(cfg.dossier_donnees, pid), construire_replay(d))
     generer_debrief(base, cfg, pid, None)
+    # Séance Geometry Dash simulée, importée par le chemin normal (lecture + analyses).
+    journal = dossier / "gd" / "demo.gdsession"
+    journal.parent.mkdir(parents=True, exist_ok=True)
+    journal.write_text("\n".join(simuler_seance_gd(7)), encoding="utf-8")
+    importer(journal, base, cfg)
     print(f"Base de démonstration prête dans {dossier} ({base.compter_parties()} parties).")
 
 

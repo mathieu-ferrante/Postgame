@@ -23,6 +23,12 @@ dossiers_demos = [
     "C:/Program Files (x86)/Steam/steamapps/common/Counter-Strike Global Offensive/game/csgo",
 ]
 
+[gd]
+# Journaux écrits par le mod Geode « Postgame — journal » (mods/gd-journal).
+dossiers_journaux = [
+    "%LOCALAPPDATA%/GeometryDash/geode/mods/mathieu.postgame-journal/sessions",
+]
+
 [surveillance]
 intervalle_s = 5          # période de scrutation des dossiers
 delai_stabilite_s = 10    # un fichier doit garder la même taille ce temps-là avant import

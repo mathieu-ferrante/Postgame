@@ -115,7 +115,18 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 - [ ] Critère de fin : fonctionne pendant une vraie partie
 
 ## L8 — Geometry Dash (GD-*)
-- [ ] Mod Geode + analyses + replay
+- [~] Mod Geode « Postgame — journal » (GD-01) : C++ écrit d'après les bindings officiels de
+      GD 2.2081 / Geode 5.11.1 ; **jamais compilé ni lancé** (pas de chaîne Geode ici)
+- [x] Lecture des journaux de séance, module GD, surveillance du dossier du mod
+- [~] Régularité des clics, inputs attendus, décalages (GD-02) — séances synthétiques
+- [~] Passages instables et morts associées (GD-03) — idem
+- [~] Carte des morts, survie par tranche (GD-04) — idem
+- [~] Spam : cadence et irrégularité (GD-05) — idem
+- [~] Progression et effet de l'entraînement (GD-06) — idem
+- [x] Essais superposés (GD-07) : route et page, vérifiées sur une séance simulée
+- [x] Mesure de la résolution réelle de l'horodatage (risque du cahier des charges)
+- [ ] GD-08 (optionnel) : second écran GD non fait
+- [ ] Critère de fin : analyse d'une vraie session d'entraînement
 
 ## L9 — LoL et TFT (LOL-*, TFT-*)
 - [ ] API Riot, analyses, second écran LoL
@@ -169,3 +180,7 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 | 2026-10-13 | L7 | Conseil affiché seulement pendant le freeze | Constaté au test : un conseil « Éco » en plein round, après l'achat, n'a pas de sens |
 | 2026-10-13 | L7 | « Tout dépenser » seulement au dernier round d'une moitié ou sur balle de match adverse | Sur sa propre balle de match, perdre ne termine pas le match : l'argent compte encore |
 | 2026-10-13 | L7 | Jeton GSI aléatoire stocké dans data/ (ignoré par git) | Le point d'arrivée est sur le réseau local : un jeton évite les messages parasites |
+| 2026-10-13 | L8 | Mod : hooks `PlayLayer::init/resetLevel/destroyPlayer/levelComplete/onQuit`, `GJBaseGameLayer::handleButton/update`, appel d'origine en premier | Signatures relevées dans les bindings 2.2081 ; `queueButton` (horodatage natif) est inline sous Windows, donc non accrochable |
+| 2026-10-13 | L8 | Journal écrit en `.gdsession.part`, renommé à la sortie du niveau | Le service n'importe jamais une séance en cours |
+| 2026-10-13 | L8 | Une séance = un passage dans un niveau = une « partie » GD | Unité naturelle de l'entraînement ; la progression se suit séance après séance |
+| 2026-10-13 | L8 | Inputs attendus par regroupement des positions d'appui (12 u, ≥ 3 essais) | Pas besoin des données du niveau ; fonctionne aussi pour les essais d'entraînement partant d'un checkpoint |

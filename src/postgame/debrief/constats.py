@@ -31,6 +31,7 @@ CLES_TECHNIQUES = {"n", "total"}  # clés de contexte qui ne distinguent pas une
 def charger_definitions() -> None:
     """Importe les analyseurs pour que leurs définitions soient enregistrées."""
     import postgame.games.cs2.analyse  # noqa: F401
+    import postgame.games.gd.analyse  # noqa: F401
 
 
 @dataclass

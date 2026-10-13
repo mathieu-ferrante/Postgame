@@ -16,7 +16,8 @@ PC de jeu. Spécification complète : [CAHIER_DES_CHARGES.md](CAHIER_DES_CHARGES
 | L5 | Débrief : 3 priorités chiffrées, preuves, rédaction Gemini / locale contrôlée, coût | Codé et testé avec réponses simulées ; **aucun appel Gemini réel, coût réel non mesuré** |
 | L6 | Interface web et PWA : parties, débrief, progression, chaleur, replay radar 2D | Vérifiée dans le navigateur (PC et format téléphone) sur données de démonstration ; **pas encore installée sur le téléphone, radars officiels absents** |
 | L7 | Second écran CS2 (Game State Integration) : état en direct, conseil d'achat, rappel des priorités | Vérifié avec un flux GSI simulé ; **jamais branché sur une vraie partie** |
-| L8–L10 | Geometry Dash, LoL/TFT, 3D | À faire |
+| L8 | Geometry Dash : mod Geode de journalisation, régularité des clics, passages instables, carte des morts, essais superposés | Analyses testées sur séances synthétiques ; **mod jamais compilé ni lancé** |
+| L9–L10 | LoL/TFT, 3D | À faire |
 
 Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée de Mathieu :
 [A_VALIDER.md](A_VALIDER.md).
@@ -40,6 +41,9 @@ Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée
   cartes de chaleur, replay radar 2D.
 - Un second écran CS2 (`/direct`) alimenté par Game State Integration : score, argent,
   conseil d'achat pendant le freeze, rappel des priorités du dernier débrief.
+- Geometry Dash : un mod Geode journalise chaque essai et chaque clic sans rien modifier ;
+  le service mesure la régularité de chaque input, les passages instables, la survie par
+  tranche du niveau ([docs/MESURES_GD.md](docs/MESURES_GD.md)).
 - Une API locale JSON (parties, fiches, mesures, progression) sert l'interface à venir et
   Jarvis : [docs/API.md](docs/API.md).
 
@@ -122,10 +126,12 @@ src/postgame/
   surveillance.py  scrutation des dossiers surveillés
   api.py           API HTTP (FastAPI)
   games/           un module par jeu derrière une interface commune (base.py)
+    gd/            Geometry Dash : lecture des journaux du mod, analyses
     cs2/           lecture des démos (demoparser2), diagnostic, armes, géométrie,
                    analyses (mecanique.py, utilitaires.py, positionnement.py,
                    references.py, decisions.py, economie.py)
 web/               interface React + Vite + TypeScript (PWA)
+mods/gd-journal/   mod Geode (C++) qui journalise les séances Geometry Dash
 config/cs2/        config d'enregistrement des démos DM
 scripts/           installation, lancement, base de démonstration
 tests/             tests ; tests/donnees/ (ignoré par git) pour les vraies démos

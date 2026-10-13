@@ -44,3 +44,10 @@ export const JEUX: Record<string, string> = {
 export function nomCourt(nom: string): string {
   return nom.split(".").slice(1).join(" · ").replaceAll("_", " ");
 }
+
+/** Score affiché : « 13 – 9 » (CS2), « 87 % » (meilleur % en Geometry Dash), sinon le résultat. */
+export function score(p: { score_joueur: number | null; score_adverse: number | null; resultat: string }): string {
+  if (p.score_joueur === null) return RESULTATS[p.resultat] ?? p.resultat;
+  if (p.score_adverse === null) return `${p.score_joueur} %`;
+  return `${p.score_joueur} – ${p.score_adverse}`;
+}

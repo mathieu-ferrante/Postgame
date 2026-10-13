@@ -122,7 +122,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.commande == "parties":
         for p in base.lister_parties(jeu=args.jeu, limite=args.limite):
-            score = f"{p.score_joueur}-{p.score_adverse}" if p.score_joueur is not None else ""
+            score = ""
+            if p.score_joueur is not None:
+                score = (
+                    f"{p.score_joueur}-{p.score_adverse}"
+                    if p.score_adverse is not None
+                    else f"{p.score_joueur} %"
+                )
             print(
                 f"#{p.id:<5} {p.date_partie[:16]}  {p.jeu:<4} {p.mode:<11} {p.carte:<14} "
                 f"{p.resultat:<10} {score}"
