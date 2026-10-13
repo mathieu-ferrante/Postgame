@@ -44,6 +44,7 @@ from postgame.games.cs2.donnees import extraire_match
 from postgame.games.riot.client import ErreurRiot
 from postgame.games.riot.collecte import CollecteurRiot
 from postgame.importation import importer
+from postgame.live.gd import SuiviGD
 from postgame.live.gsi_cs2 import RecepteurGSI, jeton_gsi
 from postgame.live.lol import ScruteurLoL
 from postgame.mesures import DEFINITIONS
@@ -137,6 +138,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
             if cfg.riot_id and cfg.secret("riot", "cle", "RIOT_API_KEY"):
                 app.state.collecteur_riot.demarrer()
             app.state.scruteur_lol.demarrer()
+            app.state.suivi_gd.demarrer()
             if cfg.faceit_pseudo or cfg.steam_code_connu:
                 threading.Thread(
                     target=app.state.boucle_sources,
@@ -164,6 +166,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
                 ).start()
         yield
         app.state.scruteur_lol.arreter()
+        app.state.suivi_gd.arreter()
         app.state.arret.set()
         surveillant.arreter()
         app.state.collecteur_riot.arreter()
@@ -703,6 +706,26 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
 
     scruteur_lol = ScruteurLoL(base)
     app.state.scruteur_lol = scruteur_lol
+    suivi_gd = SuiviGD(base, cfg.dossiers_gd)
+    app.state.suivi_gd = suivi_gd
+
+    @app.get("/api/gd/live", tags=["gd"])
+    def live_gd() -> dict[str, Any]:
+        """Séance Geometry Dash en cours (GD-08), lue au fil du journal du mod."""
+        return suivi_gd.resume
+
+    @app.websocket("/api/gd/live/ws")
+    async def live_gd_ws(ws: WebSocket) -> None:
+        await ws.accept()
+        dernier = None
+        try:
+            while True:
+                if suivi_gd.resume != dernier:
+                    dernier = suivi_gd.resume
+                    await ws.send_json(dernier)
+                await asyncio.sleep(0.25)
+        except (WebSocketDisconnect, RuntimeError):
+            pass
 
     @app.get("/api/lol/live", tags=["lol"])
     def live_lol() -> dict[str, Any]:

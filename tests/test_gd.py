@@ -243,3 +243,44 @@ def seance_de_base_lignes():
         essai(2, 10000, {**appuis, 600: 0}, ("mort", 1250.0, 1250 / 30)),
         essai(3, 20000, {**appuis, 600: 10}, ("fin",)),
     )
+
+
+def test_second_ecran_gd(base, cfg, tmp_path):
+    from postgame.live.gd import SuiviGD
+
+    appuis = {300: 0, 900: 0, 1200: 0, 1500: 0}
+    lignes = seance(
+        essai(1, 0, {**appuis, 600: -10}, ("mort", 650.0, 650 / 30)),
+        essai(2, 10000, {**appuis, 600: 0}, ("mort", 1250.0, 1250 / 30)),
+        essai(3, 20000, {**appuis, 600: 10}, ("fin",)),
+    )
+    # Une séance passée du même niveau, déjà importée et analysée.
+    passe = tmp_path / "passe.gdsession"
+    passe.write_text("\n".join(lignes), encoding="utf-8")
+    importer(passe, base, cfg)
+    # Séance en cours : le journal grossit ligne par ligne, la dernière est incomplète.
+    dossier = tmp_path / "sessions"
+    dossier.mkdir()
+    journal = dossier / "en_cours.gdsession"
+    sans_fin = lignes[:-1]
+    coupe = len(sans_fin) // 2
+    journal.write_text("\n".join(sans_fin[:coupe]) + "\n" + sans_fin[coupe][:10], encoding="utf-8")
+    suivi = SuiviGD(base, [dossier])
+    suivi.passe()
+    assert suivi.resume["actif"] and suivi.resume["niveau"] == "Niveau test"
+    avant = suivi.resume["essais_normaux"]
+    with journal.open("a", encoding="utf-8") as f:
+        f.write(sans_fin[coupe][10:] + "\n" + "\n".join(sans_fin[coupe + 1 :]) + "\n")
+    suivi.passe()
+    r = suivi.resume
+    assert r["essais_normaux"] == 3 > avant and r["complete"] and r["meilleur"] == 100.0
+    assert r["zones_mort"][0]["de"] in (20, 40)
+    h = r["historique"]
+    assert h["morts_total"] == 2 and h["zones_mort"]
+    # Fin de séance : plus rien à afficher.
+    with journal.open("a", encoding="utf-8") as f:
+        f.write(lignes[-1] + "\n")
+    suivi.passe()
+    assert not suivi.resume["actif"]
+    with TestClient(creer_app(cfg, base=base, surveiller=False)) as c:
+        assert c.get("/api/gd/live").json() == {"actif": False}

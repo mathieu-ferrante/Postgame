@@ -125,7 +125,8 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 - [~] Progression et effet de l'entraînement (GD-06) — idem
 - [x] Essais superposés (GD-07) : route et page, vérifiées sur une séance simulée
 - [x] Mesure de la résolution réelle de l'horodatage (risque du cahier des charges)
-- [ ] GD-08 (optionnel) : second écran GD non fait
+- [~] GD-08 : second écran GD (séance en cours lue au fil du journal, rappels des séances
+      précédentes du niveau) — testé sur journal construit, jamais avec le vrai mod
 - [ ] Critère de fin : analyse d'une vraie session d'entraînement
 
 ## L9 — LoL et TFT (LOL-*, TFT-*)

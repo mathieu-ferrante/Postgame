@@ -233,6 +233,13 @@ Dépend du point L0-3 (une démo de DM enregistrée) et du SteamID (L0-2).
 - [ ] Juger les « inputs les plus irréguliers » : sont-ce bien les passages où Mathieu
       se sent le moins sûr ? (critère de fin de L8)
 
+### 20 bis. Second écran pendant la séance (PC de jeu + téléphone)
+- [ ] Pendant une séance, ouvrir « En direct » sur le téléphone.
+- **Attendu** : le panneau Geometry Dash affiche le niveau, l'essai, la position en %
+  (après la première mort, qui donne la longueur du niveau), le meilleur % et les zones de
+  mort ; à partir de la 2e séance sur le niveau, les passages irréguliers de la précédente.
+  Aucune baisse d'images par seconde dans le jeu.
+
 ## L9 — League of Legends et TFT
 
 Riot ID enregistré dans `postgame.toml` (local) : `iamheremyfriend#hiii`.

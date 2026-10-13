@@ -2,6 +2,7 @@
 // message Game State Integration, et rappel des priorités du dernier débrief.
 
 import { useEffect, useRef, useState } from "react";
+import DirectGD from "../composants/DirectGD";
 import DirectLoL from "../composants/DirectLoL";
 import { nombre } from "../lib/format";
 
@@ -89,6 +90,7 @@ export default function Direct() {
         <div className="carte" style={{ borderLeft: "6px solid var(--mal)", fontSize: "1.2rem" }}>{live.alerte}</div>
       )}
       <DirectLoL />
+      <DirectGD />
       {!live.actif && (
         <p className="discret">
           En attente de CS2. Le jeu doit avoir la config Game State Integration

@@ -35,5 +35,11 @@ position fixe).
 `GET /api/gd/replay/{partie}` et la page « essais superposés » : tous les essais sur le
 profil du niveau, appuis, morts, inputs attendus colorés selon leur écart-type.
 
-Le second écran Geometry Dash (GD-08, optionnel) n'est pas fait : le mod n'écrit le
-journal qu'en fin de niveau pour le service.
+## Second écran (GD-08)
+
+Le mod vide son journal à chaque ligne : le service lit seulement les lignes ajoutées
+(toutes les 0,5 s, quelques octets) et la page « En direct » affiche la séance en cours :
+position de l'essai en %, meilleur %, moyenne des 10 derniers essais normaux, zones de mort
+de la séance. Depuis les séances déjà analysées du même niveau : les passages les plus
+irréguliers (avec trop tôt / trop tard) et les zones où Mathieu meurt le plus. Aucun calcul
+lourd pendant le jeu : l'analyse complète reste faite après la séance.

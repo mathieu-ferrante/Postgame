@@ -87,6 +87,7 @@ Toute autre adresse hors `/api/` sert l'interface web (`web/dist`).
 
 | Méthode | Chemin | Rôle |
 |---|---|---|
+| GET | `/api/gd/live` (+ `/ws`) | Séance GD en cours : `actif, niveau, essai, mode, pct, meilleur, moyenne_10, zones_mort, historique {passages_irreguliers, zones_mort}` |
 | GET | `/api/gd/replay/{id}` | Essais superposés : `niveau, longueur, essais [{numero, mode, x_debut, x_fin, pct_fin, mort, complete, appuis[]}], inputs [{x, pct, ecart_type, decalage, n}]` |
 
 ## League of Legends et TFT
