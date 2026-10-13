@@ -159,7 +159,9 @@ Exigences nouvelles, au même rang que le cahier des charges :
   - [~] TFT : set et patch ; références de haut classement par patch — codé
   - [x] Débrief : comparaison à l'historique du même contexte ; cibles issues des
         références (table `references_mesures`), sinon « cible provisoire » signalée
-- [ ] **CPT-01 — Comptes liés** : Steam (SteamID, profil), Riot (Riot ID → PUUID, rang),
+- [~] **CPT-01 — Comptes liés** (page « Mes comptes », SteamID64 appris automatiquement par le
+      pseudo, classements CS Rating / rang compétitif / rang LoL dans le temps ; données réelles
+      en attente des clés) : Steam (SteamID, profil), Riot (Riot ID → PUUID, rang),
       FACEIT plus tard ; page « Mes comptes », collecte automatique par compte
 - [~] **STUFF-01 — Apprendre les stuffs CS2**, carte par carte (codé, testé, page vérifiée
       sur stuffs simulés ; catalogue réel dépendant des démos pros) :

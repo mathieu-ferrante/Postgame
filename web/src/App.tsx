@@ -1,6 +1,7 @@
 import { NavLink, Route, Routes } from "react-router-dom";
 import Accueil from "./pages/Accueil";
 import Chaleur from "./pages/Chaleur";
+import PageComptes from "./pages/Comptes";
 import Direct from "./pages/Direct";
 import CarteLoL from "./pages/CarteLoL";
 import EssaisGD from "./pages/EssaisGD";
@@ -22,6 +23,7 @@ export default function App() {
           <NavLink to="/stuffs">Stuffs</NavLink>
           <NavLink to="/tft">TFT</NavLink>
           <NavLink to="/direct">En direct</NavLink>
+          <NavLink to="/comptes">Comptes</NavLink>
         </nav>
       </header>
       <main>
@@ -36,6 +38,7 @@ export default function App() {
           <Route path="/lol/:id" element={<CarteLoL />} />
           <Route path="/tft" element={<StatsTFT />} />
           <Route path="/stuffs" element={<Stuffs />} />
+          <Route path="/comptes" element={<PageComptes />} />
           <Route path="*" element={<p>Page introuvable.</p>} />
         </Routes>
       </main>

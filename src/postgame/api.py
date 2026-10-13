@@ -135,6 +135,13 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
             "parties": base.compter_parties(),
         }
 
+    @app.get("/api/comptes", tags=["service"])
+    def comptes() -> dict[str, Any]:
+        """Comptes liés (Steam, Riot, FACEIT) et évolution des classements (CPT-01)."""
+        from postgame.comptes import resume
+
+        return resume(cfg, base)
+
     @app.get("/api/jeux", tags=["service"])
     def jeux() -> list[dict[str, Any]]:
         """Jeux pris en charge et dossiers surveillés."""

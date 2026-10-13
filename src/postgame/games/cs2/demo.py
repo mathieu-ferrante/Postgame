@@ -245,6 +245,7 @@ def construire_fiche(
     resultat, score_joueur, score_adverse = "inconnu", None, None
     if joueur is not None:
         details["joueur"] = str(joueur.get("name", ""))
+        details["steamid_joueur"] = str(joueur.get("steamid", "")).removesuffix(".0") or None
         for prop, cle in (
             ("rank", "classement"),
             ("comp_wins", "victoires_classees"),

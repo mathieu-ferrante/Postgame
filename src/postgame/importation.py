@@ -84,6 +84,10 @@ def importer(
         empreinte=empreinte,
     )
     partie_id = base.ajouter_partie(partie)
+    if module.nom == "cs2":
+        from postgame.comptes import apprendre_de_la_partie
+
+        apprendre_de_la_partie(cfg, fiche.details)
 
     # Les mesures ne doivent jamais faire perdre la fiche : une analyse en échec se rejoue
     # plus tard par la re-analyse.

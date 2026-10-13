@@ -146,6 +146,9 @@ def charger_config(chemin: Path | None = None) -> Config:
             setattr(cfg.debrief, nom, type_(deb[nom]))
 
     cfg.secrets = charger_secrets(chemin.parent / "secrets.toml")
+    from postgame.comptes import appliquer
+
+    appliquer(cfg)  # identifiants appris par Postgame (SteamID64 retrouvé par le pseudo…)
     return cfg
 
 
