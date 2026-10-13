@@ -134,6 +134,29 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 ## L10 — Replay 3D (CS-RPL-02)
 - [ ] three.js
 
+## Demandes ajoutées par Mathieu (2026-10-13, en cours de projet)
+
+Exigences nouvelles, au même rang que le cahier des charges :
+
+- [ ] **CTX-01 — Précision contextuelle** : chaque mesure jugée dans son contexte.
+  - [ ] CS2 : par arme et catégorie (AWP ≠ AK : headshots, contre-strafe lunette, style de
+        jeu associé) ; cibles par arme tirées des démos pros
+  - [x] LoL : champion, rôle, classe du champion, patch, adversaire dans chaque mesure ;
+        pas de jugement du farm pour un support
+  - [ ] LoL : références de haut classement par champion / rôle / patch (méta)
+  - [ ] TFT : set et patch ; références de haut classement par patch
+  - [x] Débrief : comparaison à l'historique du même contexte ; cibles issues des
+        références (table `references_mesures`), sinon « cible provisoire » signalée
+- [ ] **CPT-01 — Comptes liés** : Steam (SteamID, profil), Riot (Riot ID → PUUID, rang),
+      FACEIT plus tard ; page « Mes comptes », collecte automatique par compte
+- [ ] **STUFF-01 — Apprendre les stuffs CS2**, carte par carte :
+  - [ ] catalogue des lancers appris sur démos pros, avec position et angle de lancer, saut
+        ou non, et commandes `setpos` / `setang` pour s'entraîner hors ligne
+  - [ ] notes de Mathieu par carte et par stuff
+  - [ ] rappels à réviser (répétition espacée) et suivi des stuffs maîtrisés en match
+        (smoke de Mathieu rattachée au stuff)
+  - [ ] rappel des stuffs et notes de la carte sur le second écran au chargement de la partie
+
 ## Décisions
 
 | Date | Lot | Décision | Pourquoi |
@@ -184,3 +207,4 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 | 2026-10-13 | L8 | Journal écrit en `.gdsession.part`, renommé à la sortie du niveau | Le service n'importe jamais une séance en cours |
 | 2026-10-13 | L8 | Une séance = un passage dans un niveau = une « partie » GD | Unité naturelle de l'entraînement ; la progression se suit séance après séance |
 | 2026-10-13 | L8 | Inputs attendus par regroupement des positions d'appui (12 u, ≥ 3 essais) | Pas besoin des données du niveau ; fonctionne aussi pour les essais d'entraînement partant d'un checkpoint |
+| 2026-10-13 | CTX-01 | Contexte discriminant (arme, champion, rôle…) vs descriptif (patch, classe, adversaire) | L'historique se compare à contexte égal sans être émietté par patch ; la méta, elle, est par patch |

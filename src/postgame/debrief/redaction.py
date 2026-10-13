@@ -30,9 +30,12 @@ calcule aucun autre chiffre (pas de différence, pas de pourcentage nouveau).
 3. Commence par « ## Priorités » : au plus 3 points, dans l'ordre donné par le champ \
 « priorites », chacun en 2 ou 3 phrases : ce qui ne va pas, de combien (valeur, référence \
 personnelle, cible), et quoi travailler concrètement à la prochaine session.
-4. Puis « ## Points forts » s'il y en a (une phrase chacun), puis « ## Détail » : une \
+4. Juge chaque mesure dans son contexte (arme, champion, rôle, patch) et précise ce
+contexte ; une cible « provisoire » est indicative, une cible issue du haut classement ou des
+pros est une référence mesurée.
+5. Puis « ## Points forts » s'il y en a (une phrase chacun), puis « ## Détail » : une \
 ligne par autre constat, la plus courte possible.
-5. Pas de généralités (« travaille ton aim ») : toujours la situation précise que décrit \
+6. Pas de généralités (« travaille ton aim ») : toujours la situation précise que décrit \
 la mesure. Tutoie Mathieu. Pas d'introduction ni de conclusion."""
 
 
@@ -84,6 +87,7 @@ def donnees_modele(
             d["parties_de_reference"] = c.nb_reference
         if c.cible is not None:
             d["cible"] = _arrondi(c.cible)
+            d["origine_cible"] = c.source_cible
         if c.n is not None:
             d["echantillon"] = c.n
         if c.preuves:
@@ -155,7 +159,8 @@ def _ligne(c: Constat) -> str:
             f"ta moyenne : {_format(c.reference, c.unite)} sur {c.nb_reference} partie(s)"
         )
     if c.cible is not None:
-        morceaux.append(f"cible : {_format(c.cible, c.unite)}")
+        origine = f" ({c.source_cible})" if c.source_cible else ""
+        morceaux.append(f"cible : {_format(c.cible, c.unite)}{origine}")
     contexte = ", ".join(f"{k} {v}" for k, v in c.contexte.items())
     titre = c.libelle + (f" ({contexte})" if contexte else "")
     exp = " _(mesure en cours de validation)_" if c.experimental else ""

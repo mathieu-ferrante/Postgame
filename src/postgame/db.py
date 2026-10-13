@@ -146,6 +146,22 @@ MIGRATIONS: list[list[str]] = [
         )
         """,
     ],
+    # 5 — références par contexte : méta par patch (LoL, TFT), pros par arme (CS2)
+    [
+        """
+        CREATE TABLE references_mesures (
+            jeu       TEXT NOT NULL,
+            nom       TEXT NOT NULL,              -- nom de la mesure
+            contexte  TEXT NOT NULL,              -- JSON trié des clés discriminantes
+            patch     TEXT NOT NULL DEFAULT '',   -- '' si la mesure ne dépend pas du patch
+            valeur    REAL NOT NULL,
+            n         INTEGER NOT NULL,           -- taille de l'échantillon
+            source    TEXT NOT NULL,              -- ex. « haut classement EUW », « démos pros »
+            maj_le    TEXT NOT NULL,
+            PRIMARY KEY (jeu, nom, contexte, patch)
+        )
+        """,
+    ],
 ]
 
 
@@ -446,6 +462,42 @@ class Base:
                 "AS sortie, COALESCE(AVG(NULLIF(cout, 0)), 0) AS moyen FROM debriefs"
             ).fetchone()
         return dict(ligne)
+
+    # --- Références par contexte ----------------------------------------------------------
+
+    def enregistrer_references(self, lignes: list[dict[str, Any]]) -> None:
+        """Lignes {jeu, nom, contexte (dict), patch, valeur, n, source} ; remplace l'existant."""
+        horodatage = maintenant()
+        with self.transaction() as cx:
+            cx.executemany(
+                "INSERT INTO references_mesures (jeu, nom, contexte, patch, valeur, n, source, "
+                "maj_le) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (jeu, nom, contexte, patch) "
+                "DO UPDATE SET valeur = excluded.valeur, n = excluded.n, "
+                "source = excluded.source, maj_le = excluded.maj_le",
+                [
+                    (
+                        r["jeu"],
+                        r["nom"],
+                        json.dumps(r["contexte"], sort_keys=True, ensure_ascii=False),
+                        r.get("patch", ""),
+                        float(r["valeur"]),
+                        int(r["n"]),
+                        r["source"],
+                        horodatage,
+                    )
+                    for r in lignes
+                ],
+            )
+
+    def references(self, nom: str, contexte: dict[str, Any]) -> list[dict[str, Any]]:
+        """Références d'une mesure pour un contexte, du patch le plus récent au plus ancien."""
+        with self._verrou:
+            lignes = self._cx.execute(
+                "SELECT * FROM references_mesures WHERE nom = ? AND contexte = ? "
+                "ORDER BY patch DESC, maj_le DESC",
+                (nom, json.dumps(contexte, sort_keys=True, ensure_ascii=False)),
+            ).fetchall()
+        return [{**dict(lg), "contexte": json.loads(lg["contexte"])} for lg in lignes]
 
     def mesures_partie(self, partie_id: int) -> list[dict[str, Any]]:
         with self._verrou:

@@ -25,13 +25,17 @@ NB_PREUVES = 5
 ECHANTILLON_MIN = 5  # en dessous, la mesure d'une partie est trop bruitée
 ECHANTILLON_PLEIN = 20  # à partir de là, confiance totale
 SEUIL_IMPACT = 0.3
-CLES_TECHNIQUES = {"n", "total"}  # clés de contexte qui ne distinguent pas une mesure
+# Clés de contexte qui décrivent une mesure sans la distinguer : on compare une valeur avec
+# l'historique du même champion / de la même arme, quel que soit le patch ou l'adversaire.
+CLES_DESCRIPTIVES = {"n", "total", "patch", "classe", "adversaire", "avant", "apres"}
+REFERENCE_MIN = 20  # échantillon minimal d'une référence méta / pros pour servir de cible
 
 
 def charger_definitions() -> None:
     """Importe les analyseurs pour que leurs définitions soient enregistrées."""
     import postgame.games.cs2.analyse  # noqa: F401
     import postgame.games.gd.analyse  # noqa: F401
+    import postgame.games.lol.analyse  # noqa: F401
 
 
 @dataclass
@@ -47,6 +51,7 @@ class Constat:
     reference: float | None  # moyenne personnelle
     nb_reference: int
     cible: float | None
+    source_cible: str | None
     impact: float
     statut: str  # a_corriger, point_fort, neutre
     experimental: bool
@@ -60,22 +65,46 @@ def fiabilite_effective(base: Base, definition: DefinitionMesure) -> bool:
     return base.fiabilites().get((definition.nom, definition.version), definition.fiable)
 
 
-def _contexte_utile(contexte: dict[str, Any]) -> dict[str, Any]:
-    return {k: v for k, v in contexte.items() if k not in CLES_TECHNIQUES}
+def contexte_discriminant(contexte: dict[str, Any]) -> dict[str, Any]:
+    return {k: v for k, v in contexte.items() if k not in CLES_DESCRIPTIVES and v is not None}
+
+
+def _contexte_affiche(contexte: dict[str, Any]) -> dict[str, Any]:
+    return {k: v for k, v in contexte.items() if k not in ("n", "total") and v is not None}
+
+
+def cible_contextuelle(
+    base: Base, nom: str, contexte: dict[str, Any]
+) -> tuple[float | None, str | None]:
+    """Cible tirée des références (méta du patch, pros…) pour ce contexte précis."""
+    patch = contexte.get("patch")
+    lignes = [
+        r for r in base.references(nom, contexte_discriminant(contexte)) if r["n"] >= REFERENCE_MIN
+    ]
+    if not lignes:
+        return None, None
+    meme_patch = [r for r in lignes if r["patch"] == (patch or "")]
+    ref = meme_patch[0] if meme_patch else lignes[0]
+    source = f"{ref['source']}, {ref['n']} échantillons"
+    if ref["patch"]:
+        source += f", patch {ref['patch']}"
+        if patch and ref["patch"] != patch:
+            source += f" (pas encore de référence pour le patch {patch})"
+    return float(ref["valeur"]), source
 
 
 def reference_personnelle(
     base: Base, partie: Partie, nom: str, contexte: dict[str, Any], limite: int
 ) -> list[float]:
     """Valeurs de la mesure sur les `limite` parties précédentes du même jeu et mode."""
-    utile = _contexte_utile(contexte)
+    utile = contexte_discriminant(contexte)
     valeurs = []
     for point in reversed(base.serie_mesure(nom)):
         if point["partie_id"] == partie.id or point["date_partie"] >= partie.date_partie:
             continue
         if point["mode"] != partie.mode or point["valeur"] is None:
             continue
-        if _contexte_utile(point["contexte"]) != utile:
+        if contexte_discriminant(point["contexte"]) != utile:
             continue
         valeurs.append(float(point["valeur"]))
         if len(valeurs) >= limite:
@@ -134,8 +163,11 @@ def construire_constats(
         precedentes = reference_personnelle(base, partie, m["nom"], m["contexte"], historique)
         reference = statistics.fmean(precedentes) if precedentes else None
         obj = objectif(m["nom"], m["unite"], reference)
+        cible, source_cible = cible_contextuelle(base, m["nom"], m["contexte"])
+        if cible is None and obj.cible is not None:
+            cible, source_cible = obj.cible, "cible provisoire"
         impact, statut = estimer_impact(
-            float(m["valeur"]), definition.sens, reference, obj.cible, obj.echelle, obj.poids, n
+            float(m["valeur"]), definition.sens, reference, cible, obj.echelle, obj.poids, n
         )
         constats.append(
             Constat(
@@ -145,11 +177,12 @@ def construire_constats(
                 valeur=float(m["valeur"]),
                 unite=m["unite"],
                 sens=definition.sens,
-                contexte=_contexte_utile(m["contexte"]),
+                contexte=_contexte_affiche(m["contexte"]),
                 n=n,
                 reference=None if reference is None else round(reference, 2),
                 nb_reference=len(precedentes),
-                cible=obj.cible,
+                cible=cible,
+                source_cible=source_cible,
                 impact=impact,
                 statut=statut,
                 experimental=not fiable,
