@@ -14,6 +14,7 @@ from postgame.api import creer_app
 from postgame.db import Mesure, Partie
 from postgame.debrief import generer_debrief
 from postgame.debrief.constats import (
+    charger_definitions,
     construire_constats,
     estimer_impact,
     selectionner,
@@ -25,7 +26,7 @@ from postgame.debrief.redaction import (
     chiffres_inventes,
     donnees_modele,
 )
-from postgame.mesures import Preuve
+from postgame.mesures import DEFINITIONS, Preuve
 
 CS = "cs2.contre_strafe.part_premieres_balles_precises"
 VISEUR = "cs2.viseur.ecart_median"
@@ -85,7 +86,8 @@ def historique(base):
         ],
     )
     for nom in (CS, VISEUR):
-        base.noter_fiabilite(nom, 1, True, "vérifié à la main (test)")
+        charger_definitions()
+        base.noter_fiabilite(nom, DEFINITIONS[nom].version, True, "vérifié à la main (test)")
     return base.partie(p3)
 
 

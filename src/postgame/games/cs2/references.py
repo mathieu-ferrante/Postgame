@@ -15,6 +15,7 @@ Les noms de lieux viennent de la carte elle-même (propriété `last_place_name`
 
 from __future__ import annotations
 
+import json
 import logging
 from collections import Counter
 from dataclasses import dataclass, field
@@ -366,6 +367,34 @@ def construire_catalogue(
 # --- Stockage -----------------------------------------------------------------------------
 
 
+MIN_ECHANTILLON_PRO = 3  # mesure d'un joueur retenue si l'échantillon du match atteint 3
+
+
+def mesures_des_joueurs(chemin: Path) -> list[tuple[str, str, dict, float, int | None]]:
+    """Analyse la mécanique de **chaque joueur** d'une démo avec le code qui analyse Mathieu :
+    (joueur, mesure, contexte discriminant, valeur, échantillon)."""
+    from postgame.debrief.constats import contexte_discriminant
+    from postgame.games.cs2.donnees import extraire_match
+    from postgame.games.cs2.mecanique import analyser_mecanique
+
+    try:
+        from demoparser2 import DemoParser
+
+        infos = DemoParser(str(chemin)).parse_player_info()
+        premier = str(infos["steamid"].iloc[0])
+        d = extraire_match(chemin, premier)
+    except Exception as exc:
+        raise ErreurLecture(f"démo pro illisible : {exc}") from exc
+    sortie = []
+    for joueur in sorted(set(d.ticks["steamid"])):
+        for m in analyser_mecanique(d.pour(joueur)).mesures:
+            n = m.contexte.get("n")
+            if m.valeur is None or (n is not None and n < MIN_ECHANTILLON_PRO):
+                continue
+            sortie.append((joueur, m.nom, contexte_discriminant(m.contexte), m.valeur, n))
+    return sortie
+
+
 def ajouter_demo_pro(base: Base, chemin: Path) -> str:
     """Lit une démo pro et stocke ses observations (une seule fois par démo)."""
     from postgame.importation import empreinte_fichier
@@ -391,7 +420,45 @@ def ajouter_demo_pro(base: Base, chemin: Path) -> str:
                 ].itertuples(index=False)
             ],
         )
-    return f"ajoutee ({len(obs)} observations, {carte})"
+    try:
+        mesures = mesures_des_joueurs(chemin)
+    except ErreurLecture as exc:
+        journal.warning("mesures pros : %s", exc)
+        mesures = []
+    with base.transaction() as cx:
+        cx.executemany(
+            "INSERT INTO cs2_ref_mesures (empreinte, joueur, nom, contexte, valeur, n) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            [
+                (empreinte, j, nom, json.dumps(ctx, sort_keys=True, ensure_ascii=False), v, n)
+                for j, nom, ctx, v, n in mesures
+            ],
+        )
+    return f"ajoutee ({len(obs)} observations, {len(mesures)} mesures de joueurs, {carte})"
+
+
+def references_mecanique(base: Base, minimum: int = 5) -> int:
+    """Médiane des pros par mesure et par contexte (arme, catégorie…) → cibles du débrief."""
+    with base.transaction() as cx:
+        lignes = cx.execute("SELECT nom, contexte, valeur FROM cs2_ref_mesures").fetchall()
+    groupes: dict[tuple[str, str], list[float]] = {}
+    for nom, contexte, valeur in lignes:
+        groupes.setdefault((nom, contexte), []).append(float(valeur))
+    references = [
+        {
+            "jeu": "cs2",
+            "nom": nom,
+            "contexte": json.loads(contexte),
+            "patch": "",
+            "valeur": float(np.median(v)),
+            "n": len(v),
+            "source": "joueurs des démos pros",
+        }
+        for (nom, contexte), v in groupes.items()
+        if len(v) >= minimum
+    ]
+    base.enregistrer_references(references)
+    return len(references)
 
 
 def reconstruire_catalogue(base: Base) -> dict[str, int]:
@@ -420,7 +487,11 @@ def reconstruire_catalogue(base: Base) -> dict[str, int]:
                 "VALUES (?,?,?,?,?,?,?,?)",
                 (*[v.item() if hasattr(v, "item") else v for v in p.tolist()], horodatage),
             )
-    return {"lancers": len(lancers), "positions": len(positions)}
+    return {
+        "lancers": len(lancers),
+        "positions": len(positions),
+        "references_mecanique": references_mecanique(base),
+    }
 
 
 @dataclass

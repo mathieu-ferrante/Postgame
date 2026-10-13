@@ -16,6 +16,21 @@ from dataclasses import dataclass
 
 PART_VITESSE_PRECISE = 0.34
 
+# Style de jeu de chaque catégorie : ce qu'on attend d'un bon joueur avec ces armes. Il guide
+# le débrief (une AWP ne se juge pas sur les headshots, une SMG tolère le tir en mouvement).
+STYLES = {
+    "fusil": "duels à moyenne distance : contre-strafe, première balle à hauteur de tête, "
+    "contrôle du recul en rafale",
+    "sniper": "tenir un angle lunette ouverte, tirer immobile, une balle décisive par duel ; "
+    "le headshot n'est pas l'objectif (l'AWP tue au corps)",
+    "pistolet": "coup par coup : s'arrêter avant chaque balle, viser la tête",
+    "smg": "mobilité et rafales à courte distance ; la précision en mouvement pèse moins",
+    "pompe": "très courte distance, positions fermées",
+    "mitrailleuse": "rafales longues pour tenir une zone",
+}
+# Vitesses lunette ouverte : valeurs des fiches d'armes de CS:GO, reprises par CS2.
+# À vérifier contre items_game du jeu (vitesse « max_player_speed_alt »).
+
 
 @dataclass(frozen=True)
 class Arme:
@@ -24,10 +39,21 @@ class Arme:
     categorie: str  # pistolet, fusil, smg, sniper, pompe, mitrailleuse
     vitesse_max: float
     cadence: float
+    vitesse_max_lunette: float | None = None  # lunette ouverte (snipers, AUG, SG 553)
 
     @property
     def vitesse_precise(self) -> float:
         return self.vitesse_max * PART_VITESSE_PRECISE
+
+    def seuil_precis(self, lunette: bool) -> float:
+        """Vitesse sous laquelle le tir est à précision maximale, lunette ouverte ou non."""
+        if lunette and self.vitesse_max_lunette:
+            return self.vitesse_max_lunette * PART_VITESSE_PRECISE
+        return self.vitesse_precise
+
+    @property
+    def style(self) -> str:
+        return STYLES[self.categorie]
 
 
 _ARMES = [
@@ -37,13 +63,13 @@ _ARMES = [
     Arme("m4a1_silencer", "M4A1-S", "fusil", 225, 0.100),
     Arme("galilar", "Galil AR", "fusil", 215, 0.090),
     Arme("famas", "FAMAS", "fusil", 220, 0.090),
-    Arme("sg556", "SG 553", "fusil", 210, 0.090),
-    Arme("aug", "AUG", "fusil", 220, 0.090),
+    Arme("sg556", "SG 553", "fusil", 210, 0.090, 150),
+    Arme("aug", "AUG", "fusil", 220, 0.090, 150),
     # Fusils de précision
-    Arme("awp", "AWP", "sniper", 200, 1.463),
-    Arme("ssg08", "SSG 08", "sniper", 230, 1.250),
-    Arme("scar20", "SCAR-20", "sniper", 215, 0.250),
-    Arme("g3sg1", "G3SG1", "sniper", 215, 0.250),
+    Arme("awp", "AWP", "sniper", 200, 1.463, 100),
+    Arme("ssg08", "SSG 08", "sniper", 230, 1.250, 230),
+    Arme("scar20", "SCAR-20", "sniper", 215, 0.250, 120),
+    Arme("g3sg1", "G3SG1", "sniper", 215, 0.250, 120),
     # Pistolets
     Arme("deagle", "Desert Eagle", "pistolet", 230, 0.225),
     Arme("revolver", "R8", "pistolet", 220, 0.500),

@@ -150,8 +150,9 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 Exigences nouvelles, au même rang que le cahier des charges :
 
 - [ ] **CTX-01 — Précision contextuelle** : chaque mesure jugée dans son contexte.
-  - [ ] CS2 : par arme et catégorie (AWP ≠ AK : headshots, contre-strafe lunette, style de
-        jeu associé) ; cibles par arme tirées des démos pros
+  - [~] CS2 : par arme et catégorie (AWP ≠ AK : headshots, contre-strafe lunette, tir en
+        l'air, style de jeu associé) ; cibles par arme tirées des démos pros — codé et testé
+        sur scénarios synthétiques
   - [x] LoL : champion, rôle, classe du champion, patch, adversaire dans chaque mesure ;
         pas de jugement du farm pour un support
   - [~] LoL : références de haut classement par champion / rôle / patch (méta) — codé
@@ -167,6 +168,14 @@ Exigences nouvelles, au même rang que le cahier des charges :
   - [ ] rappels à réviser (répétition espacée) et suivi des stuffs maîtrisés en match
         (smoke de Mathieu rattachée au stuff)
   - [ ] rappel des stuffs et notes de la carte sur le second écran au chargement de la partie
+
+- [ ] **MODES-01 — Toutes les parties CS2 analysées** : compétitif, Premier, FACEIT,
+      Wingman (et deathmatch), sur toutes les cartes (pool actif, autres modes, Wingman)
+  - [ ] détection fiable du mode (Premier / compétitif / Wingman / FACEIT / DM) à caler sur
+        les diagnostics de vraies démos
+  - [ ] FACEIT : récupération des démos par l'API officielle FACEIT (CS-SRC-03, avancé)
+  - [ ] mesures et cibles distinguées par mode quand le mode change le jeu (Wingman : 2v2,
+        MR8, cartes réduites)
 
 ## Décisions
 

@@ -221,11 +221,31 @@ def test_sans_catalogue_seule_la_ligne_de_vue():
 def test_stockage_catalogue(base, tmp_path, monkeypatch):
     obs = _observations().drop(columns=["empreinte"])
     monkeypatch.setattr(ref, "extraire_observations", lambda chemin: obs)
+    # 6 pros mesurés sur l'AK : 70, 72, 75, 80, 81, 90 % de premières balles précises.
+    echantillons = [
+        (
+            f"pro{i}",
+            "cs2.contre_strafe.part_premieres_balles_precises",
+            {"arme": "ak47", "categorie": "fusil"},
+            v,
+            20,
+        )
+        for i, v in enumerate([70, 72, 75, 80, 81, 90])
+    ]
+    monkeypatch.setattr(ref, "mesures_des_joueurs", lambda chemin: echantillons)
     demo = tmp_path / "pro.dem"
     demo.write_bytes(b"demo pro factice")
     assert ref.ajouter_demo_pro(base, demo).startswith("ajoutee")
     assert ref.ajouter_demo_pro(base, demo) == "deja_connue"
-    assert ref.reconstruire_catalogue(base) == {"lancers": 1, "positions": 3}
+    assert ref.reconstruire_catalogue(base) == {
+        "lancers": 1,
+        "positions": 3,
+        "references_mecanique": 1,
+    }
+    cible = base.references(
+        "cs2.contre_strafe.part_premieres_balles_precises", {"arme": "ak47", "categorie": "fusil"}
+    )[0]
+    assert (cible["valeur"], cible["n"], cible["source"]) == (77.5, 6, "joueurs des démos pros")
     cat = ref.charger_catalogue(base, "de_test")
     assert cat.lancers.iloc[0]["lieu_arrivee"] == "Window"
     assert ref.charger_catalogue(base, "de_autre").vide

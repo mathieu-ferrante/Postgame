@@ -162,6 +162,21 @@ MIGRATIONS: list[list[str]] = [
         )
         """,
     ],
+    # 6 — mesures de mécanique des joueurs pros, par démo (cibles par arme, CTX-01)
+    [
+        """
+        CREATE TABLE cs2_ref_mesures (
+            id         INTEGER PRIMARY KEY,
+            empreinte  TEXT NOT NULL REFERENCES cs2_ref_demos (empreinte) ON DELETE CASCADE,
+            joueur     TEXT NOT NULL,
+            nom        TEXT NOT NULL,
+            contexte   TEXT NOT NULL,      -- JSON trié des clés discriminantes
+            valeur     REAL NOT NULL,
+            n          INTEGER
+        )
+        """,
+        "CREATE INDEX cs2_ref_mesures_nom ON cs2_ref_mesures (nom, contexte)",
+    ],
 ]
 
 

@@ -5,6 +5,24 @@ Chaque mesure est versionnée (nom, version, unité) ; la liste à jour est serv
 de 5 cas sur une vraie démo (`python -m postgame verifier <partie>`). **À ce jour, aucune
 mesure n'est fiable** : toutes sont testées sur scénarios synthétiques uniquement.
 
+## Par arme (CTX-01, versions 2)
+
+Depuis la version 2, aucune mesure de mécanique ne mélange les armes : chacune est émise
+par **catégorie** (fusil, sniper, pistolet, smg, pompe, mitrailleuse) et par **arme**.
+
+- Précision maximale : vitesse ≤ 34 % de la vitesse max de l'arme, **lunette comprise**
+  (AWP lunette 100 u/s → 34 u/s ; SSG 08 230 ; SCAR-20 / G3SG1 120 ; AUG / SG 553 150 —
+  valeurs de CS:GO reprises par CS2, à vérifier), et pieds au sol (`is_airborne`).
+- Snipers : pas de mesure de headshot (l'AWP tue au corps) ; à la place
+  `cs2.sniper.part_premiere_balle_mortelle`, `cs2.sniper.part_tirs_lunette`,
+  `cs2.sniper.delai_lunette_tir_median`.
+- Spray et TTK : par arme. Placement du viseur et réaction : toutes armes, et par
+  catégorie de l'arme en main à l'apparition.
+- Le débrief transmet le style attendu de la catégorie (`armes.STYLES`) et compare à
+  l'historique de la même arme ; cible = médiane des **joueurs des démos pros** pour la même
+  arme (repli : même catégorie), sinon cible provisoire.
+- Chaque joueur d'une démo pro est analysé avec le même code que Mathieu (`DonneesMatch.pour`).
+
 ## L1 — Mécanique (CS-AIM-01 à 06)
 
 Données : position, vitesse, angles de vue, aim punch, arme, indicateur « repéré » de

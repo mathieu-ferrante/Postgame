@@ -19,6 +19,7 @@ from typing import Any, Protocol
 import httpx
 
 from postgame.debrief.constats import Constat
+from postgame.games.cs2.armes import STYLES
 
 CONSIGNES = """Tu es le coach de Mathieu, joueur amateur qui veut progresser. Tu rédiges en \
 français le débrief d'une partie à partir de mesures déjà calculées.
@@ -82,6 +83,9 @@ def donnees_modele(
         }
         if c.contexte:
             d["precision"] = c.contexte
+            categorie = c.contexte.get("categorie")
+            if categorie in STYLES:
+                d["style_attendu"] = STYLES[categorie]
         if c.reference is not None:
             d["moyenne_personnelle"] = _arrondi(c.reference)
             d["parties_de_reference"] = c.nb_reference

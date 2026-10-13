@@ -130,7 +130,7 @@ def test_spray_decrochage_et_tranches():
     d = _scenario_spray().donnees()
     tirs = m.preparer_tirs(d)
     r = m.spray(d, tirs, m._Positions(d.ticks))
-    assert _valeur(r, "cs2.spray.balle_decrochage") == 6
+    assert _valeur(r, "cs2.spray.balle_decrochage", arme="ak47") == 6
     assert _valeur(r, "cs2.spray.touche_par_tranche", tranche="2-5") == 100.0
     assert _valeur(r, "cs2.spray.touche_par_tranche", tranche="6-10") == 0.0
     assert _valeur(r, "cs2.spray.erreur_mediane_par_tranche", tranche="1") == pytest.approx(
@@ -142,7 +142,7 @@ def test_spray_decrochage_et_tranches():
 def test_spray_pas_assez_de_rafales():
     d = _scenario_spray(nb_rafales=2).donnees()
     r = m.spray(d, m.preparer_tirs(d), m._Positions(d.ticks))
-    assert _valeur(r, "cs2.spray.balle_decrochage") is None
+    assert _valeur(r, "cs2.spray.balle_decrochage", arme="ak47") is None
 
 
 # --- CS-AIM-04/05 : apparitions, viseur, réaction, TTK -------------------------------------
@@ -185,7 +185,7 @@ def test_viseur_et_reaction_mesures():
     assert _valeur(r, "cs2.viseur.ecart_median") == pytest.approx(11.17, abs=0.01)
     assert _valeur(r, "cs2.viseur.part_ecart_sous_5deg") == 0.0
     assert _valeur(r, "cs2.reaction.delai_median") == 250.0
-    assert _valeur(r, "cs2.ttk.median") == 375.0
+    assert _valeur(r, "cs2.ttk.median", arme="ak47") == 375.0
     texte = next(p.texte for p in r.preuves if p.mesure == "cs2.viseur.ecart_median")
     assert "Adversaire" in texte and "à droite" in texte and "trop bas" in texte
 
@@ -243,8 +243,10 @@ def test_par_arme():
     assert _valeur(r, "cs2.armes.degats", arme="ak47") == 100
     assert _valeur(r, "cs2.armes.precision", arme="deagle") == 100.0
     assert _valeur(r, "cs2.armes.kills", arme="deagle") == 0
-    assert _valeur(r, "cs2.armes.precision") == 40.0  # 2 touches sur 5 tirs
-    assert _valeur(r, "cs2.armes.headshot") == 50.0
+    # Par catégorie (jamais mélangées) : fusils 1 touche sur 4 tirs, pistolets 1 sur 1.
+    assert _valeur(r, "cs2.armes.precision", categorie="fusil") == 25.0
+    assert _valeur(r, "cs2.armes.precision", categorie="pistolet") == 100.0
+    assert _valeur(r, "cs2.armes.headshot", categorie="fusil") == 50.0
 
 
 def test_analyse_complete_sans_tir():
@@ -264,3 +266,88 @@ def test_analyse_complete_scenario_riche():
         "cs2.spray.balle_decrochage",
         "cs2.armes.kills",
     } <= noms
+
+
+# --- Par arme (CTX-01) ----------------------------------------------------------------------
+
+
+def test_awp_lunette_et_tir_en_l_air():
+    """AWP : lunette ouverte, précis sous 100 × 34 % = 34 u/s ; sans lunette, sous 200 × 34 %
+    = 68 u/s. Tirs : 30 u/s lunette (précis), 50 u/s lunette (imprécis), 50 u/s sans lunette
+    (précis à la vitesse, mais tir sans lunette), 0 u/s en l'air (imprécis)."""
+    s = Scenario(nb_ticks=700)
+    s.joueur(MOI, equipe=2, arme="awp")
+    s.joueur(ADV, equipe=3, x=1000)
+    for tick, vitesse, lunette, air in [
+        (100, 30, True, False),
+        (200, 50, True, False),
+        (300, 50, False, False),
+        (400, 0, True, True),
+    ]:
+        s.regler(MOI, tick - 20, tick, vx=vitesse, lunette=lunette, en_l_air=air)
+        s.tir(MOI, tick, "awp")
+    s.touche(MOI, ADV, 100, "awp", zone="torse", degats=115)
+    s.mort(MOI, ADV, 100, "awp")
+    s.regler(MOI, 80, 100, lunette=True)
+    s.regler(MOI, 60, 79, lunette=False)  # lunette ouverte au tick 80 : 20 ticks avant le tir
+    d = s.donnees()
+    tirs = m.preparer_tirs(d)
+    assert tirs["precis"].tolist() == [True, False, True, False]
+    r = m.analyser_mecanique(d)
+    assert _valeur(r, "cs2.contre_strafe.part_tirs_precis", arme="awp") == 50.0
+    assert _valeur(r, "cs2.contre_strafe.part_tirs_en_l_air", categorie="sniper") == 25.0
+    assert _valeur(r, "cs2.sniper.part_tirs_lunette", arme="awp") == 75.0
+    assert _valeur(r, "cs2.sniper.delai_lunette_tir_median", arme="awp") == pytest.approx(
+        20 * 1000 / 64
+    )
+    assert _valeur(r, "cs2.sniper.part_premiere_balle_mortelle", arme="awp") == 25.0
+    # Pas de headshot jugé pour un sniper.
+    assert not any(
+        x.nom in ("cs2.premiere_balle.headshot", "cs2.armes.headshot") for x in r.mesures
+    )
+    assert any("lunette ouverte" in p.texte for p in r.preuves)
+
+
+def test_jamais_de_mesure_qui_melange_les_armes():
+    s = _scenario_tirs()
+    s.tir(MOI, 500, "awp")
+    r = m.analyser_mecanique(s.donnees())
+    for x in r.mesures:
+        if x.nom.startswith(
+            (
+                "cs2.contre_strafe",
+                "cs2.premiere_balle",
+                "cs2.armes",
+                "cs2.spray",
+                "cs2.sniper",
+                "cs2.ttk",
+            )
+        ):
+            assert "categorie" in x.contexte, x
+
+
+def test_viseur_par_categorie_de_l_arme_en_main():
+    s = _scenario_apparition()
+    s.regler(MOI, 0, 1399, arme="awp")
+    r = m.viseur_et_reaction(*_args(s.donnees()))
+    assert _valeur(r, "cs2.viseur.ecart_median", categorie="sniper") == pytest.approx(
+        11.17, abs=0.01
+    )
+    assert _valeur(r, "cs2.reaction.delai_median", categorie="sniper") == 250.0
+    assert "arme en main : AWP" in next(
+        p.texte for p in r.preuves if p.mesure == "cs2.viseur.ecart_median"
+    )
+
+
+def _args(d):
+    return d, m.preparer_tirs(d), m._Positions(d.ticks)
+
+
+def test_changer_de_joueur_suivi():
+    """Même démo vue par un autre joueur : l'indicateur « repéré » est recalculé."""
+    s = _scenario_apparition()
+    d = s.donnees()
+    d.ticks["repere_par"] = [(MOI,) if v else () for v in d.ticks["vu_par_moi"]]
+    vue_adv = d.pour(ADV)
+    assert vue_adv.moi == ADV and not vue_adv.ticks["vu_par_moi"].any()
+    assert d.pour(MOI).ticks["vu_par_moi"].sum() == d.ticks["vu_par_moi"].sum()
