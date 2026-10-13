@@ -36,8 +36,21 @@ def patch_tft(version: str | None) -> str:
 
 
 def nom_court(identifiant: str) -> str:
-    """« TFT15_Ahri » → « Ahri » ; « TFT15_Bastion » → « Bastion »."""
-    return re.sub(r"^(TFT\d*_|Set\d+_)", "", str(identifiant)).replace("_", " ")
+    """Nom de secours, sans les données officielles : « TFT15_Ahri » → « Ahri »,
+    « TFT_Item_InfinityEdge » → « Infinity Edge » ; format du set 18 (Unreal Engine) :
+    « DA_CrimsonRaptor18 » → « Crimson Raptor », « DA_18_ZyraUniqueTrait » → « Zyra »."""
+    texte = str(identifiant)
+    texte = re.sub(r"^(TFT\d*_|Set\d+_|DA_)", "", texte)
+    texte = re.sub(r"^(\d+_|Item_|Augment_|Augments_)", "", texte)
+    texte = re.sub(r"(UniqueTrait|Trait)$", "", texte)
+    texte = re.sub(r"(?<=[A-Za-z])\d+$", "", texte)  # numéro de set collé au nom
+    texte = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", texte)
+    return texte.replace("_", " ").strip() or str(identifiant)
+
+
+def libelle(identifiant: str, noms: dict[str, str] | None = None) -> str:
+    """Nom affiché : nom officiel français (Data Dragon TFT) s'il est connu."""
+    return (noms or {}).get(str(identifiant)) or nom_court(identifiant)
 
 
 def lire_fichier(chemin: Path) -> dict[str, Any]:
@@ -68,6 +81,7 @@ def composition(joueur: dict[str, Any]) -> dict[str, Any]:
     return {
         "traits": [
             {
+                "id": t["name"],
                 "nom": nom_court(t["name"]),
                 "unites": t.get("num_units"),
                 "palier": t.get("tier_current"),
@@ -77,12 +91,15 @@ def composition(joueur: dict[str, Any]) -> dict[str, Any]:
         ],
         "unites": [
             {
+                "id": u["character_id"],
                 "nom": nom_court(u["character_id"]),
                 "etoiles": u.get("tier"),
+                "objets_id": list(u.get("itemNames", [])),
                 "objets": [nom_court(o) for o in u.get("itemNames", [])],
             }
             for u in joueur.get("units", [])
         ],
+        "augments_id": list(joueur.get("augments", [])),
         "augments": [nom_court(a) for a in joueur.get("augments", [])],
     }
 

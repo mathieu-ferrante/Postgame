@@ -32,11 +32,13 @@ def observations(match: dict[str, Any], puuids: set[str] | None = None) -> list[
                 "set": info.get("tft_set_number"),
                 "patch": patch_tft(info.get("game_version")),
                 "placement": int(j["placement"]),
+                # Identifiants bruts de Riot : stables d'un affichage à l'autre ; traduits
+                # en noms français seulement pour l'affichage (traduire).
                 "elements": (
-                    [("trait", f"{t['nom']} {t['unites']}") for t in compo["traits"]]
-                    + [("unite", u["nom"]) for u in compo["unites"]]
-                    + [("objet", o) for u in compo["unites"] for o in u["objets"]]
-                    + [("augment", a) for a in compo["augments"]]
+                    [("trait", f"{t['id']} {t['unites']}") for t in compo["traits"]]
+                    + [("unite", u["id"]) for u in compo["unites"]]
+                    + [("objet", o) for u in compo["unites"] for o in u["objets_id"]]
+                    + [("augment", a) for a in compo["augments_id"]]
                 ),
             }
         )
@@ -77,6 +79,24 @@ def statistiques(obs: list[dict[str, Any]], minimum: int = MIN_PARTIES) -> dict[
             "elements": elements,
         }
     return resultat
+
+
+def libelle_element(type_: str, nom: str, noms: dict[str, str] | None) -> str:
+    from postgame.games.tft import libelle
+
+    if type_ == "trait" and " " in nom:
+        identifiant, unites = nom.rsplit(" ", 1)
+        return f"{libelle(identifiant, noms)} ({unites})"
+    return libelle(nom, noms)
+
+
+def traduire(stats: dict[str, Any], noms: dict[str, str] | None) -> dict[str, Any]:
+    """Ajoute le nom affiché (« libelle ») à chaque élément, sans toucher aux clés."""
+    for bloc in stats.values():
+        for liste in (bloc.get("elements", []), bloc.get("a_essayer", [])):
+            for e in liste:
+                e["libelle"] = libelle_element(e["type"], e["nom"], noms)
+    return stats
 
 
 def comparer(miennes: dict[str, Any], reference: dict[str, Any]) -> dict[str, Any]:

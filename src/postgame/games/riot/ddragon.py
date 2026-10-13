@@ -58,6 +58,23 @@ class DataDragon:
             for cle, c in donnees.get("data", {}).items()
         }
 
+    def noms_tft(self, patch: str | None = None) -> dict[str, str]:
+        """Identifiant TFT (unité, trait, objet, augment) → nom officiel français, pour le
+        patch donné (ou le plus récent). Couvre l'ancien format (« TFT15_Ahri ») comme celui
+        du set 18 sous Unreal Engine (« DA_CrimsonRaptor18 »)."""
+        versions = self._json("/api/versions.json", "versions.json")
+        version = (self.version_pour(patch) if patch else None) or versions[0]
+        noms: dict[str, str] = {}
+        for type_ in ("tft-champion", "tft-trait", "tft-item", "tft-augments"):
+            donnees = self._json(
+                f"/cdn/{version}/data/fr_FR/{type_}.json", f"{type_}_{version}.json"
+            )
+            for cle, v in donnees.get("data", {}).items():
+                identifiant = v.get("id") or cle
+                if v.get("name"):
+                    noms.setdefault(str(identifiant), str(v["name"]))
+        return noms
+
     def classes(self, patch: str) -> dict[str, list[str]]:
         try:
             return {cle: c["classes"] for cle, c in self.champions(patch).items()}

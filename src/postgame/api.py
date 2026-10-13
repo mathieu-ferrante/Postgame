@@ -692,7 +692,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         classement du même patch (TFT-02, TFT-03)."""
         from postgame.games.riot.meta import lire_reference_tft
         from postgame.games.tft import lire_fichier as lire_tft
-        from postgame.games.tft.stats import comparer, observations, statistiques
+        from postgame.games.tft.stats import comparer, observations, statistiques, traduire
 
         obs = []
         decalage = 0
@@ -702,7 +702,18 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
                 if Path(p.fichier).exists():
                     d = lire_tft(Path(p.fichier))
                     obs += observations(d["match"], {d["puuid"]})
-        return comparer(statistiques(obs), lire_reference_tft(cfg.dossier_donnees / "riot"))
+        stats = comparer(statistiques(obs), lire_reference_tft(cfg.dossier_donnees / "riot"))
+        noms: dict[str, str] = {}
+        if not cfg.hors_ligne:
+            from postgame.games.riot.ddragon import DataDragon
+
+            dd = DataDragon(cfg.dossier_donnees / "ddragon")
+            for bloc in stats.values():
+                try:
+                    noms.update(dd.noms_tft(bloc.get("patch")))
+                except (OSError, ValueError, Exception):  # hors ligne : noms de secours
+                    break
+        return traduire(stats, noms)
 
     scruteur_lol = ScruteurLoL(base)
     app.state.scruteur_lol = scruteur_lol

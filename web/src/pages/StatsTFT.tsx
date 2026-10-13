@@ -6,7 +6,7 @@ import { Etat, useDonnee } from "../composants/Chargement";
 import { nombre } from "../lib/format";
 
 interface Element {
-  type: string; nom: string; parties: number; place_moyenne: number; ecart: number; top4: number;
+  type: string; nom: string; libelle?: string; parties: number; place_moyenne: number; ecart: number; top4: number;
   ref_place_moyenne?: number | null; ref_parties?: number;
 }
 interface Bloc {
@@ -53,7 +53,7 @@ export default function StatsTFT() {
               <tbody>
                 {b.elements.map((e) => (
                   <tr key={e.type + e.nom}>
-                    <td><span className="discret">{TYPES[e.type] ?? e.type}</span> {e.nom}</td>
+                    <td><span className="discret">{TYPES[e.type] ?? e.type}</span> {e.libelle ?? e.nom}</td>
                     <td className="nombre">{e.parties}</td>
                     <td className="nombre">{nombre(e.place_moyenne)}</td>
                     <td className="nombre" style={{ color: e.ecart < 0 ? "var(--bien)" : "var(--mal)" }}>
@@ -70,7 +70,7 @@ export default function StatsTFT() {
             <div className="carte">
               <h3>Forts en haut classement, rarement joués par toi</h3>
               {b.a_essayer.map((e) => (
-                <div key={e.type + e.nom}>{TYPES[e.type]} {e.nom} — place moyenne {nombre(e.place_moyenne)} ({e.parties} parties)</div>
+                <div key={e.type + e.nom}>{TYPES[e.type]} {e.libelle ?? e.nom} — place moyenne {nombre(e.place_moyenne)} ({e.parties} parties)</div>
               ))}
             </div>
           )}

@@ -22,7 +22,7 @@ from postgame.games.riot.client import ClientRiot, ErreurRiot, Limiteur
 from postgame.games.riot.collecte import CollecteurRiot
 from postgame.games.tft import analyser_tft, nom_court, patch_tft
 from postgame.games.tft import construire_fiche as fiche_tft
-from postgame.games.tft.stats import comparer, observations, statistiques
+from postgame.games.tft.stats import comparer, observations, statistiques, traduire
 
 
 def _valeur(resultat, nom, **contexte):
@@ -39,6 +39,10 @@ def test_patch():
     assert patch_de("15.20.712.3456") == "15.20"
     assert patch_tft("Version 15.20.712.3456 (Oct 10 2025/12:00) [PUBLIC]") == "15.20"
     assert nom_court("TFT15_Ahri") == "Ahri"
+    # Format du set 18 (Unreal Engine), vu dans le Data Dragon officiel 16.20.1.
+    assert nom_court("DA_CrimsonRaptor18") == "Crimson Raptor"
+    assert nom_court("DA_18_ZyraUniqueTrait") == "Zyra"
+    assert nom_court("TFT_Item_InfinityEdge") == "Infinity Edge"
 
 
 def test_analyse_lol():
@@ -192,7 +196,8 @@ def test_tft_stats_par_patch():
     assert set(stats) == {"15|15.20", "15|15.19"} and stats["15|15.19"]["elements"] == []
     s = stats["15|15.20"]
     assert s["place_moyenne"] == 2.0
-    ahri = next(e for e in s["elements"] if e["nom"] == "Ahri")
+    # Clés = identifiants bruts de Riot (stables) ; le nom affiché vient de traduire().
+    ahri = next(e for e in s["elements"] if e["nom"] == "TFT15_Ahri")
     assert (ahri["parties"], ahri["place_moyenne"], ahri["ecart"]) == (3, 2.0, 0.0)
     reference = {
         "15|15.20": {
@@ -200,14 +205,14 @@ def test_tft_stats_par_patch():
             "elements": [
                 {
                     "type": "unite",
-                    "nom": "Ahri",
+                    "nom": "TFT15_Ahri",
                     "parties": 30,
                     "place_moyenne": 3.9,
                     "ecart": -0.6,
                 },
                 {
                     "type": "unite",
-                    "nom": "Jinx",
+                    "nom": "TFT15_Jinx",
                     "parties": 20,
                     "place_moyenne": 3.2,
                     "ecart": -1.3,
@@ -216,8 +221,11 @@ def test_tft_stats_par_patch():
         }
     }
     comp = comparer(stats, reference)["15|15.20"]
-    assert next(e for e in comp["elements"] if e["nom"] == "Ahri")["ref_place_moyenne"] == 3.9
-    assert [e["nom"] for e in comp["a_essayer"]] == ["Jinx"]
+    assert next(e for e in comp["elements"] if e["nom"] == "TFT15_Ahri")["ref_place_moyenne"] == 3.9
+    assert [e["nom"] for e in comp["a_essayer"]] == ["TFT15_Jinx"]
+    traduit = traduire({"15|15.20": comp}, {"TFT15_Jinx": "Jinx (officiel)"})["15|15.20"]
+    assert traduit["a_essayer"][0]["libelle"] == "Jinx (officiel)"
+    assert next(e for e in traduit["elements"] if e["nom"] == "TFT15_Ahri")["libelle"] == "Ahri"
 
 
 # --- Client Riot ----------------------------------------------------------------------------
@@ -313,3 +321,43 @@ def test_collecte(base, cfg):
         stats = c.get("/api/tft/stats").json()
         # Une seule partie TFT : place moyenne connue, détail par élément pas encore.
         assert stats["15|15.20"]["parties"] == 1 and stats["15|15.20"]["elements"] == []
+
+
+def test_noms_tft_officiels(tmp_path):
+    import httpx
+
+    from postgame.games.riot.ddragon import DataDragon
+
+    # Forme réelle des fichiers Data Dragon TFT (relevée sur la version 16.20.1).
+    fichiers = {
+        "/api/versions.json": ["16.20.1", "16.19.1"],
+        "/cdn/16.20.1/data/fr_FR/tft-champion.json": {
+            "type": "tft-champion",
+            "data": {
+                "Maps/Shipping/Map22/Sets/TFTSet18/Shop/DA_CrimsonRaptor18": {
+                    "id": "DA_CrimsonRaptor18",
+                    "name": "Maman Raptor",
+                    "cost": 3,
+                }
+            },
+        },
+        "/cdn/16.20.1/data/fr_FR/tft-trait.json": {
+            "data": {
+                "DA_18_ZyraUniqueTrait": {"id": "DA_18_ZyraUniqueTrait", "name": "Dame des ronces"}
+            }
+        },
+        "/cdn/16.20.1/data/fr_FR/tft-item.json": {"data": {}},
+        "/cdn/16.20.1/data/fr_FR/tft-augments.json": {
+            "augment-container": {},
+            "data": {"DA_DoubleTrouble": {"id": "DA_DoubleTrouble", "name": "Doublure"}},
+        },
+    }
+    client = httpx.Client(
+        transport=httpx.MockTransport(lambda r: httpx.Response(200, json=fichiers[r.url.path]))
+    )
+    noms = DataDragon(tmp_path, client).noms_tft("16.20")
+    assert noms == {
+        "DA_CrimsonRaptor18": "Maman Raptor",
+        "DA_18_ZyraUniqueTrait": "Dame des ronces",
+        "DA_DoubleTrouble": "Doublure",
+    }

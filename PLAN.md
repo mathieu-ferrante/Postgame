@@ -138,6 +138,9 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 - [x] Carte minute par minute (LOL-06), page vérifiée à la compilation seulement
 - [~] Second écran LoL par l'API locale du client (LOL-07) — réponse simulée
 - [~] TFT : fiche, mesures, ce qui fait gagner des places par set et patch (TFT-01, TFT-02)
+- [x] TFT : noms officiels français (Data Dragon TFT de Riot, vérifié en réel sur 16.20.1,
+      2 632 noms) ; statistiques calculées sur les identifiants bruts, traduits à l'affichage ;
+      nouveau format d'identifiants du set 18 sous Unreal Engine (« DA_… ») pris en charge
 - [~] Références de haut classement par patch, LoL et TFT (TFT-03, CTX-01) — jamais lancées
 - [x] TFT-04 : l'API ne donne que l'état final (documenté)
 - [ ] **Clé API Riot de Mathieu** nécessaire pour toute donnée réelle
