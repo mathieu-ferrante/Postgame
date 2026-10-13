@@ -9,10 +9,13 @@ Une preuve rattache un constat à un moment précis (partie, round, tick) pour C
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
 from postgame.db import Mesure
+
+DECIMALE = re.compile(r"(?<![\w.])(\d+)\.(\d+)(?![\w.])")
 
 
 @dataclass(frozen=True)
@@ -34,6 +37,10 @@ class Preuve:
     texte: str
     round: int | None = None
     donnees: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        # Textes en français : virgule décimale (« 172,4° » et non « 172.4° »).
+        self.texte = DECIMALE.sub(r"\1,\2", self.texte)
 
 
 @dataclass

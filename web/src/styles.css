@@ -1,0 +1,105 @@
+:root {
+  --fond: #14161a;
+  --surface: #1d2026;
+  --surface-2: #262a32;
+  --bord: #333844;
+  --texte: #e8eaed;
+  --texte-2: #a3a9b5;
+  --accent: #f0b429;
+  --t: #e0a030;
+  --ct: #4a90e2;
+  --bien: #3fb27f;
+  --mal: #e5534b;
+  --rayon: 10px;
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--fond);
+  color: var(--texte);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: var(--fond); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1 { font-size: 1.4rem; margin: 0 0 0.75rem; }
+h2 { font-size: 1.1rem; margin: 1.5rem 0 0.6rem; }
+h3 { font-size: 1rem; margin: 0 0 0.4rem; }
+select { max-width: 100%; }
+button, select, input {
+  font: inherit; color: var(--texte); background: var(--surface-2);
+  border: 1px solid var(--bord); border-radius: 8px; padding: 0.45rem 0.8rem;
+}
+button { cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.actif { background: var(--accent); color: #111; border-color: var(--accent); }
+
+.entete {
+  position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 1rem;
+  padding: 0.6rem 1rem; background: rgba(20, 22, 26, 0.95); border-bottom: 1px solid var(--bord);
+  padding-top: calc(0.6rem + env(safe-area-inset-top));
+}
+.entete .logo { font-weight: 700; color: var(--accent); }
+.entete nav { display: flex; gap: 0.9rem; overflow-x: auto; }
+.entete nav a { color: var(--texte-2); white-space: nowrap; }
+.entete nav a.active { color: var(--texte); }
+
+main { max-width: 1100px; margin: 0 auto; padding: 1rem; }
+.carte {
+  background: var(--surface); border: 1px solid var(--bord); border-radius: var(--rayon);
+  padding: 0.9rem 1rem; margin-bottom: 0.75rem;
+}
+.grille { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.ligne { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+.discret { color: var(--texte-2); font-size: 0.9rem; }
+.erreur { color: var(--mal); }
+.badge {
+  display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.8rem;
+  background: var(--surface-2); border: 1px solid var(--bord);
+}
+.victoire { color: var(--bien); }
+.defaite { color: var(--mal); }
+
+.depot {
+  display: block; cursor: pointer;
+  border: 2px dashed var(--bord); border-radius: var(--rayon); padding: 1.2rem; text-align: center;
+  color: var(--texte-2); margin-bottom: 1rem;
+}
+.depot.survol { border-color: var(--accent); color: var(--texte); }
+
+.partie { display: block; color: var(--texte); }
+.partie:hover { text-decoration: none; border-color: var(--accent); }
+.partie .score { font-size: 1.3rem; font-weight: 700; }
+
+.constat { border-left: 4px solid var(--bord); }
+.constat.a_corriger { border-left-color: var(--mal); }
+.constat.point_fort { border-left-color: var(--bien); }
+.constat .chiffres { display: flex; gap: 1.2rem; flex-wrap: wrap; margin: 0.4rem 0; }
+.constat .chiffres strong { font-size: 1.2rem; }
+.preuves { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+.preuves li { margin: 0.2rem 0; }
+.source { font-size: 0.8rem; vertical-align: super; }
+.redige p, .redige li { line-height: 1.5; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+td, th { padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--bord); text-align: left; }
+td.nombre { text-align: right; font-variant-numeric: tabular-nums; }
+
+.graphique { width: 100%; height: auto; }
+.graphique .axe { stroke: var(--bord); }
+.graphique .courbe { fill: none; stroke: var(--accent); stroke-width: 2; }
+.graphique .point { fill: var(--accent); }
+.graphique text { fill: var(--texte-2); font-size: 11px; }
+
+.replay { display: grid; gap: 0.75rem; grid-template-columns: minmax(0, 1fr) 260px; }
+.replay canvas { width: 100%; aspect-ratio: 1; background: #0e1013; border-radius: var(--rayon); touch-action: none; }
+.commandes { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-top: 0.5rem; }
+.commandes input[type="range"] { flex: 1; min-width: 160px; padding: 0; }
+.fil { font-size: 0.85rem; list-style: none; padding: 0; margin: 0; }
+.fil li { padding: 0.2rem 0; border-bottom: 1px solid var(--bord); }
+.t { color: var(--t); }
+.ct { color: var(--ct); }
+
+@media (max-width: 760px) {
+  .replay { grid-template-columns: 1fr; }
+  main { padding: 0.75rem; }
+}

@@ -29,3 +29,6 @@ tests/donnees/*
 # Certificats HTTPS locaux
 certs/
 *.pem
+
+# Base de démonstration (données simulées)
+data_demo/

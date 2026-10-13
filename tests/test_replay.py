@@ -122,4 +122,5 @@ def test_interface_servie(client):
     assert client.get("/partie/3").text == "<html>Postgame</html>"  # route de l'appli
     assert client.get("/assets/app.js").text == "console.log(1)"
     assert client.get("/api/inexistant").status_code == 404
+    assert client.get("/assets/ancienne-version.js").status_code == 404
     assert client.get("/../pyproject.toml").text == "<html>Postgame</html>"

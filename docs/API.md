@@ -65,6 +65,12 @@ l'historique, COM-08), une unité et un contexte JSON (arme, camp, taille d'éch
 | GET | `/api/cs2/references` | Résumé du catalogue appris sur démos pros : `cartes: [{carte, demos, lancers, positions}]` |
 | GET | `/api/cs2/references?carte=de_mirage` | Lancers de référence (`type, x, y, z, lx, ly, lz, lieu_arrivee, lieu_lancer, nb, nb_demos`) et positions de référence (`camp, lieu, x, y, nb, part`) |
 
+| GET | `/api/cs2/replay/{id}` | Replay 2D : `carte, tickrate, joueurs [{id, steamid, nom, moi}], rounds [{numero, debut, fin, gagnant}], fond` (silhouette) et `radar {parametres, image}` |
+| GET | `/api/cs2/replay/{id}/round/{n}` | Round à 16 images/s : `ticks, joueurs {id: {equipe, x[], y[], yaw[], vivant[], arme[]}}, tirs, morts, grenades, bombe` |
+| GET | `/api/cs2/radar/{carte}.png` | Image du radar officiel si Mathieu l'a exportée dans `data/radars/` |
+
+Toute autre adresse hors `/api/` sert l'interface web (`web/dist`).
+
 ## Pour Jarvis
 
 Questions typiques et appels correspondants :

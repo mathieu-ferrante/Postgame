@@ -10,6 +10,16 @@ if (-not (Test-Path .venv)) {
 .\.venv\Scripts\python -m pip install --upgrade pip
 .\.venv\Scripts\python -m pip install -e ".[dev]"
 
+# Interface web : construite avec Node.js (https://nodejs.org, version LTS).
+if (Get-Command npm -ErrorAction SilentlyContinue) {
+    Push-Location web
+    npm ci
+    npm run build
+    Pop-Location
+} else {
+    Write-Host "Node.js absent : l'API fonctionne, mais l'interface web ne sera pas construite."
+}
+
 if (-not (Test-Path postgame.toml)) {
     Copy-Item postgame.exemple.toml postgame.toml
     Write-Host "postgame.toml créé : y renseigner le SteamID64 et vérifier les dossiers CS2."

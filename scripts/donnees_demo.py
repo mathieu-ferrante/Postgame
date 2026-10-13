@@ -1,0 +1,246 @@
+"""Remplit une base de DÉMONSTRATION pour essayer l'interface sans vraie démo.
+
+DONNÉES DE SUBSTITUTION : parties et matchs entièrement simulés. Rien ici ne décrit le jeu
+de Mathieu. Toutes les parties portent la source « DEMONSTRATION ».
+
+Usage : .venv\\Scripts\\python scripts\\donnees_demo.py data_demo
+puis   : .venv\\Scripts\\python -m postgame --config data_demo\\postgame.toml serve
+"""
+
+from __future__ import annotations
+
+import math
+import random
+import sys
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
+import pandas as pd
+
+from postgame.config import Config
+from postgame.db import Base, Mesure, Partie
+from postgame.debrief import generer_debrief
+from postgame.games.cs2.analyse import analyser_match
+from postgame.games.cs2.donnees import COLONNES_TICKS, DonneesMatch, construire_rounds
+from postgame.games.cs2.replay import chemin_cache, construire_replay, ecrire_cache
+from postgame.importation import enregistrer_analyse
+
+SOURCE = "DEMONSTRATION"
+MOI = "76561190000000000"
+NOMS = [
+    "Mathieu",
+    "Alpha",
+    "Bravo",
+    "Charlie",
+    "Delta",
+    "Echo",
+    "Foxtrot",
+    "Golf",
+    "Hotel",
+    "India",
+]
+
+
+def simuler_match(graine: int, nb_rounds: int = 6) -> DonneesMatch:
+    """Match 5v5 grossièrement plausible sur l'emprise de de_mirage."""
+    rng = random.Random(graine)
+    joueurs = [MOI] + [f"7656119000000{i:04d}" for i in range(1, 10)]
+    duree, pause = 64 * 45, 64 * 8
+    lignes, tirs, degats, morts, debuts, fins, gagnants = [], [], [], [], [], [], {}
+    t0 = 0
+    for _ in range(nb_rounds):
+        debut, fin = t0 + pause, t0 + pause + duree
+        debuts.append(debut)
+        fins.append(fin)
+        etats = {}
+        for i, sid in enumerate(joueurs):
+            equipe = 2 if i < 5 else 3
+            depart = (1200.0, 0.0) if equipe == 2 else (-1800.0, -1800.0)
+            etats[sid] = {
+                "x": depart[0] + rng.uniform(-150, 150),
+                "y": depart[1] + rng.uniform(-150, 150),
+                "cap": rng.uniform(0, 360),
+                "vivant": True,
+                "equipe": equipe,
+            }
+        cible = {2: (-1200.0, -1300.0), 3: (-300.0, -600.0)}
+        for t in range(t0, fin + 1):
+            for i, sid in enumerate(joueurs):
+                e = etats[sid]
+                if e["vivant"] and t >= debut:
+                    cx, cy = cible[e["equipe"]]
+                    angle = math.atan2(cy - e["y"], cx - e["x"]) + rng.uniform(-0.6, 0.6)
+                    vitesse = rng.choice([0, 120, 230]) / 64
+                    e["x"] += math.cos(angle) * vitesse
+                    e["y"] += math.sin(angle) * vitesse
+                    e["cap"] = math.degrees(angle) + rng.uniform(-20, 20)
+                if t % 2 == 0 or sid == MOI:
+                    lignes.append(
+                        {
+                            "tick": t,
+                            "steamid": sid,
+                            "nom": NOMS[i],
+                            "equipe": e["equipe"],
+                            "x": e["x"],
+                            "y": e["y"],
+                            "z": 0.0,
+                            "vx": rng.uniform(-60, 60)
+                            if rng.random() < 0.6
+                            else rng.uniform(-230, 230),
+                            "vy": rng.uniform(-60, 60),
+                            "pitch": rng.uniform(-3, 8),
+                            "yaw": e["cap"],
+                            "vivant": e["vivant"],
+                            "accroupi": False,
+                            "arme": "ak47" if e["equipe"] == 2 else "m4a1",
+                            "vu_par_moi": e["equipe"] == 3 and e["vivant"] and rng.random() < 0.15,
+                            "punch_pitch": 0.0,
+                            "punch_yaw": 0.0,
+                        }
+                    )
+            if t > debut + 64 * 10 and rng.random() < 0.004:
+                vivants = [s for s in joueurs if etats[s]["vivant"]]
+                tireur = rng.choice(vivants)
+                adverses = [s for s in vivants if etats[s]["equipe"] != etats[tireur]["equipe"]]
+                if adverses:
+                    victime = rng.choice(adverses)
+                    arme = "ak47" if etats[tireur]["equipe"] == 2 else "m4a1"
+                    for k in range(rng.randint(1, 6)):
+                        tirs.append({"tick": t + 6 * k, "steamid": tireur, "arme": arme})
+                    degats.append(
+                        {
+                            "tick": t,
+                            "attaquant": tireur,
+                            "victime": victime,
+                            "arme": arme,
+                            "degats": 100.0,
+                            "zone": "tete" if rng.random() < 0.4 else "torse",
+                        }
+                    )
+                    morts.append(
+                        {
+                            "tick": t,
+                            "attaquant": tireur,
+                            "victime": victime,
+                            "arme": arme,
+                            "headshot": rng.random() < 0.4,
+                        }
+                    )
+                    etats[victime]["vivant"] = False
+        gagnants[fin] = rng.choice([2, 3])
+        t0 = fin + 1
+    ticks = pd.DataFrame(lignes)
+    # Les joueurs autres que Mathieu ne sont échantillonnés qu'un tick sur deux : on complète.
+    ticks = (
+        ticks.set_index(["steamid", "tick"])
+        .groupby(level=0, group_keys=False)
+        .apply(
+            lambda g: (
+                g.reset_index(level=0, drop=True)
+                .reindex(
+                    range(g.index.get_level_values(1).min(), g.index.get_level_values(1).max() + 1)
+                )
+                .ffill()
+                .assign(steamid=g.index.get_level_values(0)[0])
+            )
+        )
+        .reset_index()
+        .rename(columns={"index": "tick"})
+    )
+    ticks = ticks[COLONNES_TICKS].sort_values(["tick", "steamid"]).reset_index(drop=True)
+    ticks["vivant"] = ticks["vivant"].astype(bool)
+    ticks["vu_par_moi"] = ticks["vu_par_moi"].astype(bool)
+    ticks["accroupi"] = ticks["accroupi"].astype(bool)
+    return DonneesMatch(
+        moi=MOI,
+        ticks=ticks,
+        tirs=pd.DataFrame(tirs, columns=["tick", "steamid", "arme"]),
+        degats=pd.DataFrame(
+            degats, columns=["tick", "attaquant", "victime", "arme", "degats", "zone"]
+        ),
+        morts=pd.DataFrame(morts, columns=["tick", "attaquant", "victime", "arme", "headshot"]),
+        rounds=construire_rounds(debuts, fins, gagnants),
+        carte="de_mirage",
+    )
+
+
+def main(dossier: Path) -> None:
+    dossier.mkdir(parents=True, exist_ok=True)
+    (dossier / "postgame.toml").write_text(
+        '# Base de DÉMONSTRATION (données simulées)\n[service]\nhote = "127.0.0.1"\n'
+        'port = 8765\ndossier_donnees = "."\n[cs2]\ndossiers_demos = []\n'
+        '[debrief]\nfournisseur = "aucun"\nmesures_experimentales = true\n',
+        encoding="utf-8",
+    )
+    cfg = Config(dossier_donnees=dossier, dossiers_cs2=[])
+    cfg.debrief.fournisseur = "aucun"
+    cfg.debrief.mesures_experimentales = True
+    base = Base(cfg.chemin_base)
+    maintenant = datetime.now(UTC)
+    rng = random.Random(1)
+    # Historique : 7 parties avec quelques mesures qui progressent doucement.
+    for i in range(7):
+        date = (maintenant - timedelta(days=20 - 3 * i)).isoformat(timespec="seconds")
+        pid = base.ajouter_partie(
+            Partie(
+                jeu="cs2",
+                date_partie=date,
+                mode="competitif",
+                carte=rng.choice(["de_mirage", "de_inferno", "de_ancient"]),
+                resultat=rng.choice(["victoire", "defaite"]),
+                score_joueur=13,
+                score_adverse=rng.randint(5, 12),
+                duree_s=2300,
+                source=SOURCE,
+                fichier=SOURCE,
+                empreinte=f"demo{i:060d}",
+            )
+        )
+        base.remplacer_mesures(
+            pid,
+            [
+                Mesure(
+                    "cs2.contre_strafe.part_premieres_balles_precises",
+                    1,
+                    55 + 2.5 * i + rng.uniform(-4, 4),
+                    "%",
+                    {"n": 60},
+                ),
+                Mesure(
+                    "cs2.viseur.ecart_median", 1, 11 - 0.6 * i + rng.uniform(-1, 1), "°", {"n": 80}
+                ),
+                Mesure(
+                    "cs2.trades.part_tradables_non_tradees",
+                    1,
+                    50 - 2 * i + rng.uniform(-8, 8),
+                    "%",
+                    {"n": 10},
+                ),
+            ],
+        )
+    # Partie récente : match simulé passé dans le vrai pipeline d'analyse et de replay.
+    d = simuler_match(42)
+    pid = base.ajouter_partie(
+        Partie(
+            jeu="cs2",
+            date_partie=maintenant.isoformat(timespec="seconds"),
+            mode="competitif",
+            carte="de_mirage",
+            resultat="defaite",
+            score_joueur=3,
+            score_adverse=3,
+            duree_s=330,
+            source=SOURCE,
+            fichier=SOURCE,
+            empreinte="demo" + "f" * 60,
+            details={"avertissement": "match simulé (données de démonstration)"},
+        )
+    )
+    enregistrer_analyse(base, pid, analyser_match(d))
+    ecrire_cache(chemin_cache(cfg.dossier_donnees, pid), construire_replay(d))
+    generer_debrief(base, cfg, pid, None)
+    print(f"Base de démonstration prête dans {dossier} ({base.compter_parties()} parties).")
+
+
+if __name__ == "__main__":
+    main(Path(sys.argv[1] if len(sys.argv) > 1 else "data_demo"))

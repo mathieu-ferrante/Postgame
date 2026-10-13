@@ -141,3 +141,38 @@ Dépend du point L0-3 (une démo de DM enregistrée) et du SteamID (L0-2).
 - [ ] Pour chaque mesure dont les 5 cas sont confirmés (points 5, 7, 9, 10) :
       `.venv\Scripts\python -m postgame fiabilite <nom de la mesure> --note "5 cas vérifiés"`
 - **Attendu** : elle apparaît dans le débrief même avec `mesures_experimentales = false`.
+
+## L6 — Interface, replay 2D, téléphone
+
+### 14. Installer Node.js et construire l'interface (PC de jeu)
+- [ ] Installer Node.js LTS (nodejs.org), puis relancer `scripts\installer.ps1` (il
+      construit l'interface dans `web\dist`).
+- **Attendu** : `http://localhost:8765/` affiche la liste des parties.
+
+### 15. Exporter les radars officiels (PC de jeu)
+- [ ] Avec Source 2 Viewer (outil libre « ValveResourceFormat », à télécharger par Mathieu
+      s'il le souhaite), ouvrir `game\csgo\pak01_dir.vpk` et exporter, pour chaque carte :
+  - `panorama\images\overheadmaps\<carte>_radar_psd.vtex_c` → PNG 1024×1024, enregistré
+    sous `data\radars\<carte>.png` ;
+  - `resource\overviews\<carte>.txt` → copié tel quel dans `data\radars\<carte>.txt`.
+- **Attendu** : le replay 2D affiche le radar du jeu et les joueurs tombent pile dans les
+  couloirs (sinon, le .txt corrige le calage). Sans ces fichiers, le replay dessine la
+  silhouette de la carte à partir des déplacements.
+
+### 16. Ouvrir l'interface sur le téléphone et l'installer (PC de jeu + téléphone)
+- [ ] Sur le même Wi-Fi : `http://<IP du PC>:8765/` dans le navigateur du téléphone
+      (pare-feu Windows : autoriser Python sur les réseaux privés).
+- [ ] Pour l'**installer comme une appli** (PWA), il faut du HTTPS :
+  1. installer mkcert sur le PC (`winget install FiloSottile.mkcert`) ;
+  2. `mkcert -install` puis, dans le dossier du dépôt :
+     `mkdir certs; mkcert -cert-file certs\postgame.pem -key-file certs\postgame-key.pem <IP du PC> localhost`
+  3. dans `postgame.toml`, section `[service]` : `certificat = "certs/postgame.pem"` et
+     `cle_privee = "certs/postgame-key.pem"`, puis relancer le service ;
+  4. copier le certificat racine de mkcert (`mkcert -CAROOT` donne le dossier,
+     fichier `rootCA.pem`) sur le téléphone et l'installer (Android : Paramètres →
+     Sécurité → Chiffrement → Installer un certificat → Certificat CA) ;
+  5. ouvrir `https://<IP du PC>:8765/` → menu du navigateur → « Installer l'application ».
+  - Alternative plus simple si Tailscale est utilisé : `tailscale serve` fournit le HTTPS.
+- **Attendu** : l'icône Postgame sur l'écran d'accueil ; l'appli s'ouvre en plein écran,
+  les débriefs et le replay sont lisibles au doigt.
+- Me dire ce qui gêne au quotidien (lisibilité, boutons trop petits, pages lentes).

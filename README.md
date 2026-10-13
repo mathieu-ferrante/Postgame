@@ -14,7 +14,8 @@ PC de jeu. Spécification complète : [CAHIER_DES_CHARGES.md](CAHIER_DES_CHARGES
 | L3 | Références pros : catalogue de lancers et positions appris sur démos pros, rattachement des smokes | Codé et testé sur données synthétiques ; **aucune démo pro lue, catalogue vide** |
 | L4 | Décisions et économie CS2 : ouvertures, rotations, saves, après pose, clutchs, achats, stratégie | Codé et testé sur scénarios synthétiques ; **jamais exécuté sur une vraie démo** |
 | L5 | Débrief : 3 priorités chiffrées, preuves, rédaction Gemini / locale contrôlée, coût | Codé et testé avec réponses simulées ; **aucun appel Gemini réel, coût réel non mesuré** |
-| L6–L10 | Interface, second écran, GD, LoL/TFT, 3D | À faire |
+| L6 | Interface web et PWA : parties, débrief, progression, chaleur, replay radar 2D | Vérifiée dans le navigateur (PC et format téléphone) sur données de démonstration ; **pas encore installée sur le téléphone, radars officiels absents** |
+| L7–L10 | Second écran, GD, LoL/TFT, 3D | À faire |
 
 Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée de Mathieu :
 [A_VALIDER.md](A_VALIDER.md).
@@ -33,6 +34,9 @@ Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée
 - Chaque partie reçoit un débrief : 3 priorités classées par impact, chiffres et moments
   du replay à l'appui, rédigé par Gemini (ou un modèle local) sans qu'il puisse inventer de
   chiffre : [docs/DEBRIEF.md](docs/DEBRIEF.md).
+- Une interface web (`http://<PC>:8765/`, installable sur le téléphone en HTTPS) :
+  parties, import par glisser-déposer, débrief avec moments cliquables, progression,
+  cartes de chaleur, replay radar 2D.
 - Une API locale JSON (parties, fiches, mesures, progression) sert l'interface à venir et
   Jarvis : [docs/API.md](docs/API.md).
 
@@ -75,6 +79,22 @@ Documentation interactive de l'API : `http://localhost:8765/docs`.
 
 ## Développement
 
+Interface (Node.js 24) :
+
+```powershell
+cd web
+npm ci
+npm run dev      # http://localhost:5173, l'API est relayée vers le service (port 8765)
+npm test         # tests des utilitaires (vitest)
+npm run build    # construit web\dist, servi ensuite par le service
+```
+
+Essayer l'interface sans vraie démo : `.venv\Scripts\python scripts\donnees_demo.py data_demo`
+puis `.venv\Scripts\python -m postgame --config data_demo\postgame.toml serve
+--sans-surveillance` (**données simulées**, à ne pas confondre avec de vraies parties).
+
+Service :
+
 ```powershell
 py -3.13 -m venv .venv
 .venv\Scripts\python -m pip install -e ".[dev]"
@@ -100,8 +120,9 @@ src/postgame/
     cs2/           lecture des démos (demoparser2), diagnostic, armes, géométrie,
                    analyses (mecanique.py, utilitaires.py, positionnement.py,
                    references.py, decisions.py, economie.py)
+web/               interface React + Vite + TypeScript (PWA)
 config/cs2/        config d'enregistrement des démos DM
-scripts/           installation et lancement sur le PC de jeu
+scripts/           installation, lancement, base de démonstration
 tests/             tests ; tests/donnees/ (ignoré par git) pour les vraies démos
 ```
 

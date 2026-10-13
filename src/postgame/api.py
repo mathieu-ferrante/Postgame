@@ -304,7 +304,10 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         fichier = (dossier_web / chemin).resolve()
         if chemin and fichier.is_file() and fichier.is_relative_to(dossier_web.resolve()):
             return FileResponse(fichier)
-        return FileResponse(dossier_web / "index.html")
+        if chemin.startswith("assets/"):
+            # Fichier d'une ancienne version de l'appli : un 404 franc, pas la page HTML.
+            raise HTTPException(404, "fichier introuvable")
+        return FileResponse(dossier_web / "index.html", headers={"Cache-Control": "no-cache"})
 
     return app
 

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "postgame-demo",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "postgame", "--config", "data_demo/postgame.toml", "serve", "--sans-surveillance"],
+      "port": 8765
+    }
+  ]
+}

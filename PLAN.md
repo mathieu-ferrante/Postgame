@@ -88,7 +88,17 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 - [ ] Critère de fin : le débrief d'un vrai match apprend quelque chose à Mathieu
 
 ## L6 — Interface et replay 2D (COM-03, CS-RPL-01, NF-02)
-- [ ] Tableau de bord, débrief, progression, replay radar, PWA
+- [x] Service : données de replay par round (16 images/s, cache), radars, interface servie
+      par le service (une seule adresse), option HTTPS
+- [x] Interface React + Vite + TypeScript : parties et import par glisser-déposer, fiche et
+      débrief avec preuves cliquables, progression 7 j / 30 j / tout (COM-03), cartes de
+      chaleur, replay radar 2D avec timeline, vitesse et saut au tick (CS-RPL-01)
+- [x] PWA : manifeste + service worker (coquille hors ligne, données réseau d'abord) (NF-02)
+- [x] Vérifié dans un navigateur, format PC et téléphone, sur la base de **démonstration**
+      (`scripts/donnees_demo.py`, match simulé passé dans le vrai pipeline)
+- [ ] Radars officiels : images à exporter du jeu par Mathieu ; paramètres par défaut à vérifier
+- [ ] Installation sur le téléphone (HTTPS local) et usage au quotidien — à faire par Mathieu
+- [ ] Critère de fin : utilisable au quotidien sur PC et téléphone
 
 ## L7 — Second écran CS2 (CS-LIVE-01)
 - [ ] GSI en direct
@@ -139,3 +149,8 @@ vérifié sur données réelles / PC de jeu** · `[ ]` à faire.
 | 2026-10-13 | L5 | Les textes des preuves ne partent pas vers le modèle | Ils contiennent des pseudos (NF-05) ; les preuves sont rattachées par l'appli, pas par le modèle |
 | 2026-10-13 | L5 | Fiabilité stockée en base par (mesure, version), modifiable sans toucher au code | Mathieu valide ses mesures au fil des vérifications |
 | 2026-10-13 | L5 | `httpx` passe en dépendance principale | Client HTTP testable (MockTransport) pour Gemini, Ollama, puis l'API Riot |
+| 2026-10-13 | L6 | L'interface est servie par le service Python (même port 8765) | Une seule adresse à retenir sur le téléphone ; pas de second serveur |
+| 2026-10-13 | L6 | Sans radar officiel, silhouette de la carte tirée des positions parcourues | Les images de radar sont des fichiers de Valve : Postgame ne les distribue pas |
+| 2026-10-13 | L6 | Service worker écrit à la main (navigation réseau d'abord, fichiers versionnés en cache) | Pas de plugin supplémentaire ; une première version « cache d'abord » servait une page périmée après mise à jour (défaut trouvé au test et corrigé) |
+| 2026-10-13 | L6 | HTTPS local par certificat mkcert (ou Tailscale) | Un service worker n'est accepté qu'en HTTPS hors localhost : sans HTTPS, pas d'installation sur le téléphone |
+| 2026-10-13 | L6 | Graphiques en SVG maison, pas de bibliothèque de graphiques | Une courbe et une moyenne glissante suffisent ; 90 Ko compressés pour toute l'appli |
