@@ -8,17 +8,17 @@ PC de jeu. Spécification complète : [CAHIER_DES_CHARGES.md](CAHIER_DES_CHARGES
 
 | Lot | Contenu | État |
 |---|---|---|
-| L0 | Socle : service, stockage, import des démos, API, config d'enregistrement DM | Codé et testé sur données de substitution ; **à valider sur vraies démos et sur le PC de jeu** |
-| L1 | Mécanique CS2 : contre-strafe, première balle, spray, réaction, placement du viseur, armes | Codé et testé sur scénarios synthétiques ; **jamais exécuté sur une vraie démo, aucune mesure vérifiée à la main** |
-| L2 | Utilitaires et positionnement CS2 : flashs, HE, molotovs, gaspillage, chaleur, morts isolées, trades | Codé et testé sur scénarios synthétiques ; **jamais exécuté sur une vraie démo** |
-| L3 | Références pros : catalogue de lancers et positions appris sur démos pros, rattachement des smokes | Codé et testé sur données synthétiques ; **aucune démo pro lue, catalogue vide** |
-| L4 | Décisions et économie CS2 : ouvertures, rotations, saves, après pose, clutchs, achats, stratégie | Codé et testé sur scénarios synthétiques ; **jamais exécuté sur une vraie démo** |
-| L5 | Débrief : 3 priorités chiffrées, preuves, rédaction Gemini / locale contrôlée, coût | Codé et testé avec réponses simulées ; **aucun appel Gemini réel, coût réel non mesuré** |
-| L6 | Interface web et PWA : parties, débrief, progression, chaleur, replay radar 2D | Vérifiée dans le navigateur (PC et format téléphone) sur données de démonstration ; **pas encore installée sur le téléphone, radars officiels absents** |
-| L7 | Second écran CS2 (Game State Integration) : état en direct, conseil d'achat, rappel des priorités | Vérifié avec un flux GSI simulé ; **jamais branché sur une vraie partie** |
-| L8 | Geometry Dash : mod Geode de journalisation, régularité des clics, passages instables, carte des morts, essais superposés | Analyses testées sur séances synthétiques ; **mod jamais compilé ni lancé** |
-| L9 | LoL et TFT : collecte API Riot, analyses par champion / rôle / patch, références de haut classement, carte, second écran LoL | Testé sur parties synthétiques ; **clé API Riot pas encore fournie, aucune vraie partie** |
-| L10 | Revoir les vrais moments dans CS2 (mes parties et démos pros, caméra sur le bon joueur), pros au même endroit, stuffs lancés par les pros | Vérifié sur données simulées ; **jamais lancé dans CS2** |
+| L0 | Socle : service, stockage, import des démos, API, config d'enregistrement DM | Fiche testée sur **2 vraies démos pros** (compétitif 13-8 correct) ; **à valider sur tes démos (Premier, DM, FACEIT) et sur le PC de jeu** |
+| L1 | Mécanique CS2 : contre-strafe, première balle, spray, réaction, placement du viseur, armes | Exécuté sur 2 vraies parties (bugs corrigés, valeurs plausibles) ; **aucune mesure encore vérifiée à la main sur 5 cas** |
+| L2 | Utilitaires et positionnement CS2 : flashs, HE, molotovs, gaspillage, chaleur, morts isolées, trades | Exécuté sur 2 vraies parties (flashs et armes corrigés, trades vérifiés) ; **vérification à la main à faire** |
+| L3 | Références pros : vrais lineups (timing, raison, technique, trajectoire), positions, cibles par arme | **67 lineups et 124 cibles tirés de 2 vraies démos** (Mirage, Anubis) ; autres cartes en attente de démos |
+| L4 | Décisions et économie CS2 : ouvertures, rotations, saves, après pose, clutchs, achats, stratégie | Exécuté sur 2 vraies parties ; **vérification à la main à faire** |
+| L5 | Débrief : 3 priorités chiffrées, preuves, cibles des pros, rédaction Gemini / locale contrôlée | Débrief structuré produit sur vraies parties ; **aucun appel Gemini réel (clé à fournir)** |
+| L6 | Interface web et PWA : parties, débrief, progression, chaleur, replay radar 2D, stuffs | Vérifiée dans le navigateur sur vraies données ; **radars officiels à exporter du jeu, pas encore installée sur le téléphone** |
+| L7 | Second écran : CS2 (GSI), LoL (API locale du client), Geometry Dash (journal du mod) | Testé sur flux simulés ; **jamais branché sur une vraie partie** |
+| L8 | Geometry Dash : mod Geode de journalisation, régularité, passages instables, morts, essais superposés, second écran | Analyses testées sur séances synthétiques ; **mod jamais compilé (outils présents, Geode SDK à télécharger) ni lancé** |
+| L9 | LoL et TFT : API Riot, analyses par champion / rôle / patch, set TFT, noms officiels, haut classement | Noms TFT vérifiés sur le Data Dragon réel (set 18 compris) ; **clé API Riot pas encore fournie, aucune vraie partie** |
+| L10 | Revoir les vrais moments dans CS2 (mes parties et démos pros, n'importe quel joueur), capture de la vue d'un lineup | Fichiers préparés et testés ; **jamais lancé dans CS2** |
 
 Détail et décisions : [PLAN.md](PLAN.md). Ce qui attend un test ou une donnée de Mathieu :
 [A_VALIDER.md](A_VALIDER.md).
