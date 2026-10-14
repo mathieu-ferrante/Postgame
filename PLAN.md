@@ -178,6 +178,10 @@ donk à la place de Mathieu. Corrigé :
 - [x] noms d'armes de player_hurt (« m4a1 », « hkp2000 ») différents de weapon_fire → arme du
       tir reprise
 - [x] Mathieu compté parmi ses propres coéquipiers aveuglés
+- [x] sans `round_end`, clutchs, après-pose, retakes, victoires par site et par moitié
+      n'étaient jamais calculés, et un round « finissait » après la réapparition → fin
+      prise avant la réapparition (player_spawn), vainqueur tiré du score des équipes
+      (vérifié : 9-3 puis 13-9 comme dans la démo)
 - [x] Vérifiés et justes : précision (57 touches en 21 rounds, ≈ 30 PV par balle), trades
       (3 morts sur 15 réellement vengées en 5 s)
 - [ ] À refaire sur les démos de Mathieu (Premier, DM, FACEIT) : modes, classement, GSI

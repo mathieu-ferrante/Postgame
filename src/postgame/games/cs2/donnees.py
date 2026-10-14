@@ -287,6 +287,7 @@ EVENEMENTS = [
     "bomb_planted",
     "bomb_defused",
     "bomb_exploded",
+    "player_spawn",
 ]
 
 # Noms d'inventaire (propriété « inventory ») et d'évènements → code de grenade.
@@ -422,6 +423,10 @@ def extraire_match(
         if "winner" in fins_df
         else {}
     )
+    if not fins and len(debuts) > 1:
+        # Démos GOTV de tournoi : pas de round_end. Fin = juste avant la réapparition des
+        # joueurs pour le round suivant ; vainqueur = équipe dont le score augmente.
+        fins, gagnants = fins_sans_round_end(parser, evts, debuts)
     rounds = construire_rounds(debuts, fins, gagnants)
     bombe = extraire_bombe(evts)
 
@@ -770,6 +775,32 @@ def armes_des_degats(degats: pd.DataFrame, tirs: pd.DataFrame) -> pd.DataFrame:
     trouvees = lien.dropna(subset=["arme_tir"])
     sortie.loc[trouvees["index"].to_numpy(), "arme"] = trouvees["arme_tir"].to_numpy()
     return sortie
+
+
+def fins_sans_round_end(
+    parser: Any, evts: dict[str, pd.DataFrame], debuts: list[int]
+) -> tuple[list[int], dict[int, int]]:
+    """Fins de round et vainqueurs pour une démo sans round_end.
+
+    Fin du round i : tick qui précède la première réapparition (player_spawn) entre son
+    début et le début du suivant ; sinon le début suivant. Dernier round : dernier tick vu.
+    Vainqueurs : lineups.gagnants_rounds (score de l'équipe de chaque joueur)."""
+    from postgame.games.cs2.lineups import gagnants_rounds
+
+    apparitions = evts.get("player_spawn")
+    ticks_app = sorted(apparitions["tick"].astype(int).tolist()) if apparitions is not None else []
+    dernier = max([int(df["tick"].max()) for df in evts.values() if len(df) and "tick" in df])
+    fins = []
+    for i, debut in enumerate(debuts):
+        suivant = debuts[i + 1] if i + 1 < len(debuts) else None
+        if suivant is None:
+            fins.append(dernier)
+            continue
+        app = next((s for s in ticks_app if debut < s < suivant), None)
+        fins.append(app - 1 if app is not None else suivant)
+    par_round = gagnants_rounds(parser, debuts, dernier + 1)
+    gagnants = {fins[n - 1]: equipe for n, equipe in par_round.items() if 0 < n <= len(fins)}
+    return fins, gagnants
 
 
 def construire_rounds(

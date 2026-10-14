@@ -183,3 +183,32 @@ def test_mesures_wingman_jugees_a_part():
     # Trades en 2v2 : à part ; mécanique de tir : commune à tous les modes.
     assert w[0].contexte == {"n": 5, "mode": "wingman"} and w[1].contexte == {"arme": "ak47"}
     assert contexte_du_mode("cs2", "premier", resultat()).mesures[0].contexte == {"n": 5}
+
+
+def test_fins_et_vainqueurs_sans_round_end():
+    from postgame.games.cs2.donnees import fins_sans_round_end
+
+    class Parser:
+        """2 joueurs (équipe A : « a », équipe B : « b »). Round 1 gagné par A (camp T),
+        échange des camps à la mi-temps, round 2 gagné par A (désormais CT)."""
+
+        def parse_ticks(self, props, ticks):
+            lignes = []
+            for t in ticks:
+                score_a = 0 if t < 2000 else 1 if t < 4000 else 2
+                camp_a = 2 if t < 2000 else 3
+                lignes += [
+                    {"tick": t, "steamid": "a", "team_rounds_total": score_a, "team_num": camp_a},
+                    {"tick": t, "steamid": "b", "team_rounds_total": 0, "team_num": 5 - camp_a},
+                ]
+            return pd.DataFrame(lignes)
+
+    evts = {
+        "round_freeze_end": pd.DataFrame({"tick": [1000, 3000]}),
+        "player_spawn": pd.DataFrame({"tick": [500, 2500, 2501]}),
+        "player_death": pd.DataFrame({"tick": [4500]}),
+    }
+    fins, gagnants = fins_sans_round_end(Parser(), evts, [1000, 3000])
+    # Fin du round 1 juste avant la réapparition ; dernier round : dernier tick vu.
+    assert fins == [2499, 4500]
+    assert gagnants == {2499: 2, 4500: 3}
