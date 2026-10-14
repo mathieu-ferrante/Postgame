@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Etat, useDonnee } from "../composants/Chargement";
+import { carteParDefaut } from "../lib/format";
 import { MomentsPros } from "../composants/RevoirCS2";
 import { api } from "../api";
 import { nombre } from "../lib/format";
@@ -132,7 +133,7 @@ function OuViser({ s, recharger }: { s: Stuff; recharger: () => void }) {
   );
 }
 
-interface Cartes { cartes: { code: string; nom: string; pool: boolean; categorie?: string }[] }
+interface Cartes { cartes: { code: string; nom: string; pool: boolean; categorie?: string; parties?: number }[] }
 
 function regard(s: Stuff): string | null {
   if (s.lpitch === null) return null;
@@ -167,7 +168,7 @@ function ProsDuStuff({ cle }: { cle: string }) {
 export default function Stuffs() {
   const cartes = useDonnee(() => json<Cartes>("/api/cs2/cartes"), []);
   const [choix, setChoix] = useState<string | null>(null);
-  const carte = choix ?? cartes.donnee?.cartes[0]?.code ?? "de_mirage";
+  const carte = choix ?? carteParDefaut(cartes.donnee?.cartes) ?? "de_mirage";
   const vue = useDonnee(() => json<VueStuffs>(`/api/cs2/stuffs?carte=${carte}`), [carte]);
   const [type, setType] = useState("smoke");
   const [selection, setSelection] = useState<string | null>(null);

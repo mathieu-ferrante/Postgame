@@ -257,3 +257,16 @@ def test_patch_le_plus_recent_d_abord(base):
         )
     refs = base.references("lol.farm.cs_par_minute", {"role": "MIDDLE"})
     assert [r["patch"] for r in refs] == ["15.20", "15.9", ""]
+
+
+def test_debrief_refait_apres_reanalyse(base, cfg, historique):
+    with TestClient(creer_app(cfg, base=base, surveiller=False)) as client:
+        d = client.get(f"/api/parties/{historique.id}/debrief").json()
+        assert client.get(f"/api/parties/{historique.id}/debrief").json()["id"] == d["id"]
+        # La partie est réanalysée (correction d'une mesure) après ce débrief.
+        with base.transaction() as cx:
+            cx.execute(
+                "UPDATE mesures SET calcule_le = '2999-01-01T00:00:00+00:00' WHERE partie_id = ?",
+                (historique.id,),
+            )
+        assert client.get(f"/api/parties/{historique.id}/debrief").json()["id"] != d["id"]

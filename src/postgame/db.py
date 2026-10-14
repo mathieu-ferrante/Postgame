@@ -550,6 +550,14 @@ class Base:
             )
             return cur.lastrowid
 
+    def analyse_du(self, partie_id: int) -> str | None:
+        """Date de la dernière analyse (mesures) de la partie."""
+        with self._verrou:
+            ligne = self._cx.execute(
+                "SELECT MAX(calcule_le) FROM mesures WHERE partie_id = ?", (partie_id,)
+            ).fetchone()
+        return ligne[0] if ligne else None
+
     def dernier_debrief(self, partie_id: int) -> dict[str, Any] | None:
         with self._verrou:
             ligne = self._cx.execute(

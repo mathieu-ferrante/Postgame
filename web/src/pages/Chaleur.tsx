@@ -5,11 +5,12 @@ import { useNavigate } from "react-router-dom";
 import type { PointChaleur } from "../api";
 import { api } from "../api";
 import { Etat, useDonnee } from "../composants/Chargement";
+import { carteParDefaut } from "../lib/format";
 
 interface Cartes {
   date: string;
   source: string;
-  cartes: { code: string; nom: string; pool: boolean; categorie?: string }[];
+  cartes: { code: string; nom: string; pool: boolean; categorie?: string; parties?: number }[];
 }
 
 async function chargerCartes(): Promise<Cartes> {
@@ -30,7 +31,7 @@ function cadrer(points: PointChaleur[], cote: number) {
 export default function Chaleur() {
   const cartes = useDonnee(chargerCartes, []);
   const [choix, setCarte] = useState<string | null>(null);
-  const carte = choix ?? cartes.donnee?.cartes[0]?.code ?? "de_mirage";
+  const carte = choix ?? carteParDefaut(cartes.donnee?.cartes) ?? "de_mirage";
   const [type, setType] = useState("mort");
   const [camp, setCamp] = useState("");
   const [periode, setPeriode] = useState("tout");

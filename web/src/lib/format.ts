@@ -51,3 +51,10 @@ export function score(p: { score_joueur: number | null; score_adverse: number | 
   if (p.score_adverse === null) return `${p.score_joueur} %`;
   return `${p.score_joueur} – ${p.score_adverse}`;
 }
+
+/** Carte ouverte par défaut : la plus jouée, sinon la première du pool. */
+export function carteParDefaut(cartes?: { code: string; parties?: number }[]): string | undefined {
+  if (!cartes?.length) return undefined;
+  const jouee = [...cartes].sort((a, b) => (b.parties ?? 0) - (a.parties ?? 0))[0];
+  return (jouee.parties ?? 0) > 0 ? jouee.code : cartes[0].code;
+}

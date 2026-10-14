@@ -321,6 +321,10 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         if base.partie(partie_id) is None:
             raise HTTPException(404, "partie inconnue")
         existant = None if regenerer else base.dernier_debrief(partie_id)
+        # Partie réanalysée depuis (correction, nouvelle version) : le débrief est périmé.
+        analyse = base.analyse_du(partie_id)
+        if existant and analyse and existant["cree_le"] < analyse:
+            existant = None
         return existant or generer_debrief(base, cfg, partie_id)
 
     @app.get("/api/debriefs/couts", tags=["debrief"])
@@ -366,13 +370,13 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
             else cartes.etat_cartes(cfg.dossier_donnees)
         )
         with base.transaction() as cx:
-            jouees = [
-                r[0]
-                for r in cx.execute(
+            nb_parties = dict(
+                cx.execute(
                     "SELECT carte, COUNT(*) FROM parties WHERE jeu = 'cs2' GROUP BY carte "
                     "ORDER BY COUNT(*) DESC"
                 ).fetchall()
-            ]
+            )
+            jouees = list(nb_parties)
             pros = [r[0] for r in cx.execute("SELECT DISTINCT carte FROM cs2_ref_demos")]
         # Toutes les cartes : pool actif, puis les autres cartes officielles (compétitif
         # occasionnel, Wingman), puis celles vues dans mes démos ou les démos pros.
@@ -398,6 +402,8 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
                             "categorie": categorie,
                         }
                     )
+        for x in liste:
+            x["parties"] = nb_parties.get(x["code"], 0)
         return {**etat, "cartes": liste}
 
     @app.get("/api/cs2/stuffs", tags=["stuffs"])
