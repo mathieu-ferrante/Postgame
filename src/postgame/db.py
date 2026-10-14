@@ -263,6 +263,14 @@ MIGRATIONS: list[list[str]] = [
 ]
 
 
+def cle_patch(patch: str | None) -> tuple[int, ...]:
+    """« 15.20 » → (15, 20) ; vide ou inconnu → () (le plus ancien)."""
+    try:
+        return tuple(int(x) for x in str(patch or "").split("."))
+    except ValueError:
+        return ()
+
+
 def maintenant() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
@@ -595,7 +603,10 @@ class Base:
                 "ORDER BY patch DESC, maj_le DESC",
                 (nom, json.dumps(contexte, sort_keys=True, ensure_ascii=False)),
             ).fetchall()
-        return [{**dict(lg), "contexte": json.loads(lg["contexte"])} for lg in lignes]
+        refs = [{**dict(lg), "contexte": json.loads(lg["contexte"])} for lg in lignes]
+        # Tri numérique des patchs (« 15.20 » est plus récent que « 15.9 ») ; stable, donc
+        # à patch égal la plus récente (maj_le DESC) reste devant.
+        return sorted(refs, key=lambda r: cle_patch(r["patch"]), reverse=True)
 
     def mesures_partie(self, partie_id: int) -> list[dict[str, Any]]:
         with self._verrou:

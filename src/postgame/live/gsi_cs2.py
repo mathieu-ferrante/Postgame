@@ -66,7 +66,8 @@ def texte_config(uri: str, jeton: str) -> str:
     return CONFIG_GSI.format(uri=uri, jeton=jeton)
 
 
-MODES_ECONOMIE = (None, "competitive", "premier", "scrimcomp2v2", "casual")
+# Occasionnel (casual) : autre économie, pas de conseil.
+MODES_ECONOMIE = (None, "competitive", "premier", "scrimcomp2v2")
 
 
 def _int(valeur: Any, defaut: int = 0) -> int:
@@ -141,7 +142,13 @@ def resumer(etat: dict[str, Any]) -> dict[str, Any]:
         if camp in ("CT", "T") and carte.get("mode") in MODES_ECONOMIE:
             defaites = _int(equipes[camp].get("consecutive_round_losses"))
             reco = recommander(
-                _int(state.get("money")), camp, numero, defaites, score_nous, score_eux
+                _int(state.get("money")),
+                camp,
+                numero,
+                defaites,
+                score_nous,
+                score_eux,
+                carte.get("mode"),
             )
             resume["joueur"]["argent_si_defaite"] = reco.argent_round_suivant_si_defaite
             # Le conseil d'achat ne vaut que pendant la phase d'achat du round à venir.

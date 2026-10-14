@@ -361,3 +361,51 @@ def test_noms_tft_officiels(tmp_path):
         "DA_18_ZyraUniqueTrait": "Dame des ronces",
         "DA_DoubleTrouble": "Doublure",
     }
+
+
+def test_collecte_resiste_aux_fichiers_abimes(base, cfg):
+    cfg.riot_id = "iamheremyfriend#hiii"
+    dossier = cfg.dossier_donnees / "riot"
+    dossier.mkdir(parents=True)
+    (dossier / "vus.json").write_text('{"lol": ["EUW1_1', encoding="utf-8")  # coupure
+    client = FauxClient()
+    client.lol = ["EUW1_CASSE", "EUW1_123"]
+    partie_lol_normale = client.partie_lol
+
+    def partie_lol(match_id):
+        if match_id == "EUW1_CASSE":
+            raise KeyError("champ manquant")  # réponse inattendue de Riot
+        return partie_lol_normale(match_id)
+
+    client.partie_lol = partie_lol
+    collecteur = CollecteurRiot(base, cfg, client)
+    bilan = collecteur.synchroniser()
+    # Fichier abîmé ignoré, partie à problème notée, les suivantes importées quand même.
+    assert bilan["lol"] == 1 and bilan["tft"] == 1
+    assert any("EUW1_CASSE" in e for e in bilan["erreurs"])
+    # Une synchronisation déjà en cours n'en lance pas une seconde en parallèle.
+    collecteur._verrou.acquire()
+    assert collecteur.synchroniser()["erreurs"] == ["synchronisation déjà en cours"]
+    collecteur._verrou.release()
+
+
+def test_aram_sans_poste_ni_adversaire_direct():
+    from postgame.games.lol.analyse import Contexte
+
+    d = partie_lol()
+    for p in d["match"]["info"]["participants"]:
+        p["teamPosition"], p["individualPosition"] = "", "Invalid"
+    c = Contexte(d["match"], d["timeline"], MOI)
+    # Pas de rôle inventé, pas d'adversaire direct pris au hasard.
+    assert c.poste == "" and c.adversaire is None
+
+
+def test_pas_de_frame_20_min_dans_une_partie_finie_a_19_40():
+    from postgame.games.lol.analyse import Contexte
+
+    d = partie_lol()
+    frames = d["timeline"]["info"]["frames"][:21]
+    frames[20]["timestamp"] = 19 * 60000 + 40000  # dernière frame = fin de partie
+    d["timeline"]["info"]["frames"] = frames
+    c = Contexte(d["match"], d["timeline"], MOI)
+    assert c.frame(19) is not None and c.frame(20) is None

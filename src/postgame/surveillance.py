@@ -82,7 +82,13 @@ class Surveillant:
                     continue
                 self.reportes.discard(cle)
                 del self._attente[cle]
-                resultat = importer(chemin, self.base, self.cfg)
+                try:
+                    resultat = importer(chemin, self.base, self.cfg)
+                except Exception as exc:
+                    # Noté en erreur : le fichier n'est pas réimporté en boucle (il le sera
+                    # s'il change, ou par « reanalyser » une fois le défaut corrigé).
+                    journal.exception("import de %s en échec", chemin)
+                    resultat = ResultatImport("erreur", f"import en échec : {exc}", None)
                 self.base.noter_fichier(
                     cle,
                     st.st_size,

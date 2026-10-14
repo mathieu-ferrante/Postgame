@@ -268,6 +268,7 @@ Exigences nouvelles, au même rang que le cahier des charges :
 
 | Date | Lot | Décision | Pourquoi |
 |---|---|---|---|
+| 2026-10-14 | Relecture | Deux relectures indépendantes du code (20 défauts corrigés, tous avec un test) | Garantir des résultats justes avant les vraies données de Mathieu : débriefs LoL rejetés à tort, collecte Riot bloquable, imports en boucle, conseils d'achat faux en Wingman et en prolongation, etc. |
 | 2026-10-14 | Sécurité | Plus de CORS ouvert : requêtes intersites refusées (Origin, Sec-Fetch-Site), noms d'hôte limités à localhost / IP / nom de la machine / .local, paramètres de chemin validés, caractères de contrôle retirés des fichiers de commandes CS2 | Relecture : une page web ouverte dans le navigateur pouvait écrire dans le dossier de CS2 ou déclencher des débriefs payants ; pas d'authentification sur le réseau local, choix assumé pour un service personnel |
 | 2026-10-13 | L0 | Disposition `src/postgame/` + `tests/` à la racine, un sous-paquet par jeu dans `postgame/games/` | Un jeu = un module derrière `ModuleJeu`, sans toucher au reste |
 | 2026-10-13 | L0 | Surveillance par **scrutation** (5 s) plutôt que `watchdog` | Gère simplement les démos en cours d'écriture (taille stable N s) et les dossiers réseau ; coût négligeable |

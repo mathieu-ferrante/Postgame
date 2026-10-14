@@ -96,7 +96,10 @@ class ClientRiot:
         url = f"https://{hote}.api.riotgames.com{chemin}"
         fichier = self._fichier_cache(url, params) if cache else None
         if fichier is not None and fichier.exists():
-            return json.loads(fichier.read_text(encoding="utf-8"))
+            try:
+                return json.loads(fichier.read_text(encoding="utf-8"))
+            except (ValueError, OSError):
+                fichier.unlink(missing_ok=True)  # cache abîmé : on retélécharge
         for _essai in range(5):
             self.limiteur.attendre()
             self.requetes += 1
@@ -118,10 +121,14 @@ class ClientRiot:
                 raise ErreurRiot("introuvable", 404)
             if r.status_code != 200:
                 raise ErreurRiot(f"réponse {r.status_code}", r.status_code)
-            donnees = r.json()
+            try:
+                donnees = r.json()
+            except ValueError as exc:
+                raise ErreurRiot(f"réponse illisible : {exc}") from exc
             if fichier is not None:
-                fichier.parent.mkdir(parents=True, exist_ok=True)
-                fichier.write_text(json.dumps(donnees), encoding="utf-8")
+                from postgame.games.riot.collecte import ecrire_atomique
+
+                ecrire_atomique(fichier, json.dumps(donnees))
             return donnees
         raise ErreurRiot("API Riot indisponible après plusieurs essais")
 

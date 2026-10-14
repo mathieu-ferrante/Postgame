@@ -104,3 +104,54 @@ def test_trouver_le_joueur_actif_quel_que_soit_le_format_du_nom():
     ):
         assert trouver_moi(actif, joueurs)["championName"] == "Jinx"
     assert trouver_moi({}, joueurs) is None
+
+
+def test_reference_haut_classement_par_champion_et_role(base):
+    from postgame.live.lol import reperes
+
+    base.enregistrer_references(
+        [
+            {
+                "jeu": "lol",
+                "nom": "lol.farm.cs_par_minute",
+                "contexte": {"champion": "Ahri", "role": "MIDDLE"},
+                "patch": "16.20",
+                "valeur": 8.4,
+                "n": 40,
+                "source": "Challenger",
+            },
+            {
+                "jeu": "lol",
+                "nom": "lol.farm.cs_par_minute",
+                "contexte": {"role": "MIDDLE"},
+                "patch": "16.20",
+                "valeur": 7.9,
+                "n": 300,
+                "source": "Challenger",
+            },
+        ]
+    )
+    assert reperes(base, "Ahri", "MIDDLE")["cs_par_minute_meta"] == 8.4
+    assert reperes(base, "Syndra", "MIDDLE")["cs_par_minute_meta"] == 7.9  # repli : le rôle
+    assert reperes(base, "Ahri", None)["cs_par_minute_meta"] is None
+
+
+def test_second_ecran_lol_ne_meurt_pas(base):
+    import httpx
+
+    from postgame.live.lol import ScruteurLoL
+
+    # Réponse inattendue du client LoL (une liste au lieu d'un objet).
+    client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json=[1, 2])))
+    s = ScruteurLoL(base, client=client)
+    tours = []
+
+    def attendre(_duree):
+        tours.append(1)
+        if len(tours) == 2:
+            s._arret.set()
+        return s._arret.is_set()
+
+    s._arret.wait = attendre
+    s._boucle()  # deux passes en erreur : la boucle continue, sans lever
+    assert len(tours) == 2 and s.resume == {"actif": False}

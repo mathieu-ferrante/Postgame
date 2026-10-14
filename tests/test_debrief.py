@@ -228,3 +228,32 @@ def test_api_debrief(base, cfg, historique):
         assert client.get("/api/debriefs/couts").json()["nb"] == 2
         defs = {x["nom"]: x for x in client.get("/api/mesures/definitions").json()}
         assert defs[FLASH]["fiable"] is True
+
+
+def test_chiffres_negatifs_et_milliers_acceptes():
+    from postgame.debrief.redaction import chiffres_inventes
+
+    donnees = {"ecart_cs": -12, "or": 1250}
+    # « 12 sbires de retard » pour un écart de −12, et les milliers à la française.
+    assert chiffres_inventes("Tu as 12 sbires de retard (-12) et 1 250 or.", donnees) == []
+    assert chiffres_inventes("Tu as 1 250 or.", donnees) == []
+    assert chiffres_inventes("Tu as 13 sbires de retard.", donnees) == ["13"]
+
+
+def test_patch_le_plus_recent_d_abord(base):
+    for patch, valeur in (("15.9", 1.0), ("15.20", 2.0), ("", 3.0)):
+        base.enregistrer_references(
+            [
+                {
+                    "jeu": "lol",
+                    "nom": "lol.farm.cs_par_minute",
+                    "contexte": {"role": "MIDDLE"},
+                    "patch": patch,
+                    "valeur": valeur,
+                    "n": 50,
+                    "source": "test",
+                }
+            ]
+        )
+    refs = base.references("lol.farm.cs_par_minute", {"role": "MIDDLE"})
+    assert [r["patch"] for r in refs] == ["15.20", "15.9", ""]

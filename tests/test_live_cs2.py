@@ -201,3 +201,27 @@ def test_alerte_deathmatch_non_enregistre(client):
     m["map"]["mode"] = "deathmatch"
     client.post("/api/cs2/gsi", json=m)
     assert "F8" in client.get("/api/cs2/live").json()["alerte"]
+
+
+def test_structure_du_match_par_mode():
+    from postgame.live.economie_cs2 import moment, structure
+
+    mr12, wingman = structure("premier"), structure("scrimcomp2v2")
+    # Wingman : moitiés de 8, pistolet au round 9, balle de match à 8.
+    assert moment(9, 3, wingman) == (True, False, False)
+    assert moment(8, 2, wingman) == (False, True, False)
+    assert moment(12, 8, wingman)[2] is True
+    # Premier : pas de balle de match à 12-12 en prolongation (rounds 25 à 30, 4 sur 6).
+    assert moment(25, 12, mr12) == (False, False, False)
+    assert moment(27, 13, mr12) == (False, True, False)
+    assert moment(29, 15, mr12)[2] is True
+    assert moment(31, 15, mr12) == (False, False, False)  # 2e prolongation : 15-15
+    assert moment(13, 4, mr12) == (True, False, False)
+    assert moment(20, 12, mr12)[2] is True
+
+
+def test_conseil_tout_depenser_pas_systematique_en_prolongation():
+    from postgame.live.economie_cs2 import recommander
+
+    reco = recommander(12500, "CT", 26, 0, 12, 12, "premier")
+    assert reco.type == "complet"

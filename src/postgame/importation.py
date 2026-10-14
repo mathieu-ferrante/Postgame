@@ -144,35 +144,38 @@ def enregistrer_analyse(base: Base, partie_id: int, resultat: ResultatAnalyse) -
 def reanalyser(base: Base, cfg: Config, jeu: str | None = None) -> dict[str, int]:
     """Recalcule fiches et mesures de tout l'historique à partir des archives (COM-08)."""
     bilan = {"ok": 0, "erreur": 0, "manquant": 0}
+    # Liste figée d'abord : la réanalyse réécrit les dates, qui servent à trier la liste ;
+    # paginer pendant ce temps sauterait ou doublerait des parties.
+    identifiants: list[int] = []
     decalage = 0
-    while True:
-        lot = base.lister_parties(jeu=jeu, limite=200, decalage=decalage)
-        if not lot:
-            break
+    while lot := base.lister_parties(jeu=jeu, limite=500, decalage=decalage):
         decalage += len(lot)
-        for partie in lot:
-            archive = Path(partie.fichier)
-            module = module_pour(archive)
-            if module is None or not archive.exists():
-                bilan["manquant"] += 1
-                continue
-            try:
-                fiche = module.lire_fiche(archive, cfg)
-                for cle in (
-                    "date_partie",
-                    "mode",
-                    "carte",
-                    "resultat",
-                    "score_joueur",
-                    "score_adverse",
-                    "duree_s",
-                    "details",
-                ):
-                    setattr(partie, cle, getattr(fiche, cle))
-                base.mettre_a_jour_fiche(partie)
-                enregistrer_analyse(base, partie.id, module.analyser(archive, cfg))
-                bilan["ok"] += 1
-            except Exception:
-                journal.exception("re-analyse en échec pour %s", archive)
-                bilan["erreur"] += 1
+        identifiants += [p.id for p in lot if p.id is not None]
+    for partie in (base.partie(i) for i in identifiants):
+        if partie is None:
+            continue
+        archive = Path(partie.fichier)
+        module = module_pour(archive)
+        if module is None or not archive.exists():
+            bilan["manquant"] += 1
+            continue
+        try:
+            fiche = module.lire_fiche(archive, cfg)
+            for cle in (
+                "date_partie",
+                "mode",
+                "carte",
+                "resultat",
+                "score_joueur",
+                "score_adverse",
+                "duree_s",
+                "details",
+            ):
+                setattr(partie, cle, getattr(fiche, cle))
+            base.mettre_a_jour_fiche(partie)
+            enregistrer_analyse(base, partie.id, module.analyser(archive, cfg))
+            bilan["ok"] += 1
+        except Exception:
+            journal.exception("re-analyse en échec pour %s", archive)
+            bilan["erreur"] += 1
     return bilan

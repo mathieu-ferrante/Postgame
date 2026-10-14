@@ -306,3 +306,11 @@ def test_second_ecran_gd_robuste(base, tmp_path):
     suivi.passe()
     # Nom accentué intact ; lignes inattendues ignorées sans arrêter le suivi.
     assert suivi.resume["niveau"] == "Électrodynamix" and suivi.resume["essai"] == 1
+
+
+def test_lignes_inattendues_ignorees():
+    lignes = seance(essai(1, 0, {300: 0}, ("mort", 400.0, 13.3)))
+    lignes.insert(2, "[1, 2]")
+    lignes.insert(3, json.dumps({"type": "mort", "t": 5, "x": None, "pct": None}))
+    s = analyser_lignes(lignes)
+    assert len(s.essais) == 1 and any("inattendue" in a for a in s.avertissements)

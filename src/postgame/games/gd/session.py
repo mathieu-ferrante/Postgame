@@ -89,44 +89,51 @@ def analyser_lignes(lignes: list[str]) -> Session:
         except json.JSONDecodeError:
             avertissements.append(f"ligne {numero} illisible")
             continue
-        type_ = ev.get("type")
-        dernier_t = float(ev.get("t", dernier_t))
-        if type_ == "session":
-            entete = ev
-        elif type_ == "essai":
-            if courant is not None and courant.t_fin is None:
-                courant.t_fin = dernier_t  # recommencé sans mourir (pause → recommencer)
-            courant = Essai(
-                numero=int(ev.get("n", len(essais) + 1)),
-                mode=str(ev.get("mode", "normal")),
-                t_debut=float(ev["t"]),
-                x_debut=float(ev.get("x", 0.0)),
-            )
-            essais.append(courant)
-        elif courant is None:
-            continue
-        elif type_ == "input":
-            courant.clics.append(
-                Clic(
-                    t=float(ev["t"]),
-                    x=float(ev["x"]),
-                    appui=bool(ev["appui"]),
-                    joueur=int(ev.get("j", 1)),
-                    tn=ev.get("tn"),
-                    frame=ev.get("f"),
+        try:
+            type_ = ev.get("type")
+            dernier_t = float(ev.get("t", dernier_t))
+            if type_ == "session":
+                entete = ev
+            elif type_ == "essai":
+                if courant is not None and courant.t_fin is None:
+                    courant.t_fin = dernier_t  # recommencé sans mourir (pause → recommencer)
+                courant = Essai(
+                    numero=int(ev.get("n", len(essais) + 1)),
+                    mode=str(ev.get("mode", "normal")),
+                    t_debut=float(ev["t"]),
+                    x_debut=float(ev.get("x", 0.0)),
                 )
-            )
-        elif type_ == "pos":
-            courant.positions.append((float(ev["t"]), float(ev["x"])))
-        elif type_ == "mort":
-            courant.mort, courant.t_fin = True, float(ev["t"])
-            courant.x_fin, courant.pct_fin = float(ev["x"]), float(ev.get("pct", 0.0))
-            courant.objet = ev.get("objet")
-        elif type_ == "fin":
-            courant.complete, courant.t_fin, courant.pct_fin = True, float(ev["t"]), 100.0
-            courant.x_fin = max(
-                [x for _, x in courant.positions] + [c.x for c in courant.clics] + [courant.x_debut]
-            )
+                essais.append(courant)
+            elif courant is None:
+                continue
+            elif type_ == "input":
+                courant.clics.append(
+                    Clic(
+                        t=float(ev["t"]),
+                        x=float(ev["x"]),
+                        appui=bool(ev["appui"]),
+                        joueur=int(ev.get("j", 1)),
+                        tn=ev.get("tn"),
+                        frame=ev.get("f"),
+                    )
+                )
+            elif type_ == "pos":
+                courant.positions.append((float(ev["t"]), float(ev["x"])))
+            elif type_ == "mort":
+                courant.mort, courant.t_fin = True, float(ev["t"])
+                courant.x_fin, courant.pct_fin = float(ev["x"]), float(ev.get("pct", 0.0))
+                courant.objet = ev.get("objet")
+            elif type_ == "fin":
+                courant.complete, courant.t_fin, courant.pct_fin = True, float(ev["t"]), 100.0
+                courant.x_fin = max(
+                    [x for _, x in courant.positions]
+                    + [c.x for c in courant.clics]
+                    + [courant.x_debut]
+                )
+        except (KeyError, TypeError, ValueError, AttributeError):
+            avertissements.append(f"ligne {numero} inattendue, ignorée")
+            continue
+
     if entete is None:
         raise ErreurLecture("journal GD sans en-tête de séance")
     niveau = entete.get("niveau", {})

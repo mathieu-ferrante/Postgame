@@ -117,6 +117,11 @@ def _normaliser(texte: str) -> str:
     return f"{float(texte.replace(',', '.')):g}"
 
 
+def _sans_separateurs(texte: str) -> str:
+    """« 1 250 or » → « 1250 or » (espace ou espace insécable entre groupes de 3 chiffres)."""
+    return re.sub(r"(?<=\d)[   ](?=\d{3}(?!\d))", "", texte)
+
+
 def chiffres_autorises(donnees: dict[str, Any]) -> set[str]:
     autorises = {str(i) for i in range(0, 11)}
 
@@ -124,10 +129,12 @@ def chiffres_autorises(donnees: dict[str, Any]) -> set[str]:
         if isinstance(objet, bool):
             return
         if isinstance(objet, int | float):
+            # Valeur absolue aussi : « 12 sbires de retard » pour un écart de −12.
             for v in (objet, round(objet), round(objet, 1), round(objet, 2)):
                 autorises.add(f"{float(v):g}")
+                autorises.add(f"{abs(float(v)):g}")
         elif isinstance(objet, str):
-            for n in NOMBRE.findall(objet):
+            for n in NOMBRE.findall(_sans_separateurs(objet)):
                 autorises.add(_normaliser(n))
         elif isinstance(objet, dict):
             for v in objet.values():
@@ -142,6 +149,7 @@ def chiffres_autorises(donnees: dict[str, Any]) -> set[str]:
 
 def chiffres_inventes(texte: str, donnees: dict[str, Any]) -> list[str]:
     autorises = chiffres_autorises(donnees)
+    texte = _sans_separateurs(texte)
     return sorted({n for n in NOMBRE.findall(texte) if _normaliser(n) not in autorises})
 
 

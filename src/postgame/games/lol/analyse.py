@@ -117,6 +117,14 @@ def patch_de(version: str | None) -> str:
     return ".".join(morceaux[:2]) if len(morceaux) >= 2 else "inconnu"
 
 
+POSTES_VALIDES = {"TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"}
+
+
+def poste_valide(poste: Any) -> str:
+    """« MIDDLE » → « MIDDLE » ; vide, « Invalid », « NONE » (ARAM, bots…) → « »."""
+    return str(poste) if str(poste or "").upper() in POSTES_VALIDES else ""
+
+
 @dataclass
 class Contexte:
     match: dict[str, Any]
@@ -130,14 +138,16 @@ class Contexte:
         self.moi = next(p for p in self.participants if p["puuid"] == self.puuid)
         self.pid = int(self.moi["participantId"])
         self.equipe = int(self.moi["teamId"])
-        self.poste = self.moi.get("teamPosition") or self.moi.get("individualPosition") or ""
+        # Poste : seulement teamPosition (calculé par Riot pour la partie). En ARAM ou en
+        # mode sans postes, il est vide ; individualPosition vaut alors « Invalid ».
+        self.poste = poste_valide(self.moi.get("teamPosition"))
         self.adversaire = next(
             (
                 p
                 for p in self.participants
                 if p["teamId"] != self.equipe
                 and self.poste
-                and (p.get("teamPosition") or p.get("individualPosition")) == self.poste
+                and poste_valide(p.get("teamPosition")) == self.poste
             ),
             None,
         )
@@ -159,7 +169,19 @@ class Contexte:
         }
 
     def frame(self, minute: int) -> dict[str, Any] | None:
-        return self.frames[minute] if 0 <= minute < len(self.frames) else None
+        """Frame de la minute donnée. La timeline ajoute une dernière frame à l'heure de fin :
+        pour une partie finie à 19:40, il n'y a pas de frame « 20 min »."""
+        if not 0 <= minute < len(self.frames):
+            return None
+        f = self.frames[minute]
+        horodatage = f.get("timestamp")
+        # Les frames régulières tombent quelques millisecondes après la minute pile ; une
+        # frame nettement avant (fin de partie) ou bien après n'est pas « la minute N ».
+        if horodatage is not None and not (
+            minute * MINUTE_MS - 5_000 <= horodatage <= minute * MINUTE_MS + MINUTE_MS / 2
+        ):
+            return None
+        return f
 
     def etat(self, pid: int, minute: int) -> dict[str, Any] | None:
         f = self.frame(minute)

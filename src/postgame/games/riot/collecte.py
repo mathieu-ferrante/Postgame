@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,15 @@ from postgame.games.riot.client import ClientRiot, ErreurRiot
 from postgame.importation import importer
 
 journal = logging.getLogger(__name__)
+
+
+def ecrire_atomique(chemin: Path, texte: str) -> None:
+    """Écrit dans un fichier temporaire puis le renomme : jamais de fichier à moitié écrit
+    (coupure de courant pendant l'écriture)."""
+    chemin.parent.mkdir(parents=True, exist_ok=True)
+    temporaire = chemin.with_name(chemin.name + ".tmp")
+    temporaire.write_text(texte, encoding="utf-8")
+    os.replace(temporaire, chemin)
 
 
 def client_configure(cfg: Config) -> ClientRiot:
@@ -40,6 +50,7 @@ class CollecteurRiot:
         self.etat: dict[str, Any] = {"derniere_synchro": None, "erreur": None, "importees": 0}
         self._arret = threading.Event()
         self._fil: threading.Thread | None = None
+        self._verrou = threading.Lock()
 
     @property
     def client(self) -> ClientRiot:
@@ -51,11 +62,16 @@ class CollecteurRiot:
 
     def _lire(self, nom: str, defaut: Any) -> Any:
         fichier = self.dossier / nom
-        return json.loads(fichier.read_text(encoding="utf-8")) if fichier.exists() else defaut
+        if not fichier.exists():
+            return defaut
+        try:
+            return json.loads(fichier.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            journal.warning("fichier Riot abîmé, ignoré : %s", fichier)
+            return defaut
 
     def _ecrire(self, nom: str, valeur: Any) -> None:
-        self.dossier.mkdir(parents=True, exist_ok=True)
-        (self.dossier / nom).write_text(json.dumps(valeur, ensure_ascii=False), encoding="utf-8")
+        ecrire_atomique(self.dossier / nom, json.dumps(valeur, ensure_ascii=False))
 
     def compte(self) -> dict[str, Any]:
         """Compte Riot (puuid) du Riot ID configuré, mis en cache."""
@@ -68,6 +84,15 @@ class CollecteurRiot:
     # --- Synchronisation ------------------------------------------------------------------
 
     def synchroniser(self, nombre: int = 20) -> dict[str, Any]:
+        """Une seule synchronisation à la fois (fil de fond et bouton de l'interface)."""
+        if not self._verrou.acquire(blocking=False):
+            return {"lol": 0, "tft": 0, "erreurs": ["synchronisation déjà en cours"]}
+        try:
+            return self._synchroniser(nombre)
+        finally:
+            self._verrou.release()
+
+    def _synchroniser(self, nombre: int) -> dict[str, Any]:
         if not self.cfg.riot_id:
             raise ErreurRiot("Riot ID absent : [riot] riot_id dans postgame.toml")
         puuid = self.compte()["puuid"]
@@ -103,6 +128,9 @@ class CollecteurRiot:
                     self._ecrire("vus.json", vus)
                 except ErreurRiot as exc:
                     bilan["erreurs"].append(f"{match_id} : {exc}")
+                except Exception as exc:  # une partie à problème ne bloque pas les suivantes
+                    journal.exception("partie Riot %s", match_id)
+                    bilan["erreurs"].append(f"{match_id} : {exc}")
         self.etat.update(
             derniere_synchro=_maintenant(),
             erreur=None,
@@ -122,8 +150,7 @@ class CollecteurRiot:
         else:
             contenu = {"format": 1, "puuid": puuid, "match": self.client.partie_tft(match_id)}
         chemin = self.dossier / "entrants" / f"{match_id}.{jeu}"
-        chemin.parent.mkdir(parents=True, exist_ok=True)
-        chemin.write_text(json.dumps(contenu), encoding="utf-8")
+        ecrire_atomique(chemin, json.dumps(contenu))
         return chemin
 
     # --- Tâche de fond ---------------------------------------------------------------------

@@ -73,3 +73,25 @@ def test_erreur_notee_et_non_reessayee(tmp_path, base, cfg, factice):
     faits = s.passe()
     assert faits[0][1].statut == "erreur"
     assert s.passe() == [] and s.passe() == []
+
+
+def test_plantage_d_import_note_une_seule_fois(tmp_path, base, cfg, factice, monkeypatch):
+    import postgame.surveillance as surveillance
+
+    dossier = tmp_path / "d"
+    dossier.mkdir()
+    factice.dossiers = [dossier]
+    appels = []
+
+    def importer_qui_plante(chemin, base, cfg):
+        appels.append(chemin)
+        raise KeyError("champ inattendu")
+
+    monkeypatch.setattr(surveillance, "importer", importer_qui_plante)
+    s = Surveillant(base, cfg)
+    (dossier / "bizarre.factice").write_text("carte=a")
+    s.passe()
+    faits = s.passe()
+    # Noté « erreur » et plus jamais réessayé tant que le fichier ne change pas.
+    assert faits[0][1].statut == "erreur" and "champ inattendu" in faits[0][1].message
+    assert s.passe() == [] and s.passe() == [] and len(appels) == 1
