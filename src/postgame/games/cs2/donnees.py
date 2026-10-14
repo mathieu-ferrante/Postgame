@@ -681,30 +681,51 @@ def fin_apres(fins: pd.DataFrame, entite, debut: int, defaut: int, duree_max: in
     return int(candidats.min()) if len(candidats) else int(defaut)
 
 
+def nouveaux_aveuglements(parser: Any, ticks_flash: list[int]) -> pd.DataFrame:
+    """Joueurs aveuglés par une flash éclatée au tick t : flash_duration relevée à t − 1 et
+    t + 2. La prop garde sa valeur après la fin de l'aveuglement (vérifié sur une vraie
+    démo) : seuls comptent les joueurs dont la valeur CHANGE au moment de l'éclatement.
+    Colonnes : tick (de la flash), steamid, duree (s), equipe."""
+    colonnes = ["tick", "steamid", "duree", "equipe"]
+    ticks = sorted({int(t) for t in ticks_flash})
+    if not ticks:
+        return pd.DataFrame(columns=colonnes)
+    lus = sorted({t - 1 for t in ticks if t > 0} | {t + 2 for t in ticks})
+    try:
+        brut = parser.parse_ticks(["flash_duration", "team_num"], ticks=lus)
+    except Exception:
+        return pd.DataFrame(columns=colonnes)
+    brut = brut.assign(steamid=_steamid(brut["steamid"]), d=brut["flash_duration"].fillna(0.0))
+    valeur = brut.set_index(["tick", "steamid"])["d"]
+    equipe = brut.set_index(["tick", "steamid"])["team_num"]
+    lignes = []
+    for t in ticks:
+        apres = brut[brut["tick"] == t + 2]
+        for sid, d in zip(apres["steamid"], apres["d"], strict=True):
+            avant = valeur.get((t - 1, sid), 0.0)
+            if d > 0 and abs(float(d) - float(avant)) > 0.01:
+                lignes.append((t, sid, float(d), equipe.get((t + 2, sid))))
+    return pd.DataFrame(lignes, columns=colonnes)
+
+
 def aveuglements_par_props(parser: Any, flashs: pd.DataFrame | None) -> pd.DataFrame:
-    """Aveuglements (attaquant = lanceur) d'après la prop flash_duration 2 ticks après
-    chaque flash, pour les démos sans évènement player_blind."""
+    """Aveuglements (attaquant = lanceur), pour les démos sans évènement player_blind.
+    Deux flashs éclatées au même tick : chaque victime est attribuée aux deux lanceurs."""
     colonnes = ["tick", "attaquant", "victime", "duree"]
     if flashs is None or not len(flashs):
         return pd.DataFrame(columns=colonnes)
-    ticks = sorted({int(t) + 2 for t in flashs["tick"]})
-    try:
-        brut = parser.parse_ticks(["flash_duration"], ticks=ticks)
-    except Exception:
-        return pd.DataFrame(columns=colonnes)
-    brut = brut[brut["flash_duration"].fillna(0) > 0]
-    lanceurs = dict(
-        zip(flashs["tick"].astype(int) + 2, _steamid(flashs["user_steamid"]), strict=False)
+    lanceurs = pd.DataFrame(
+        {"tick": flashs["tick"].astype("int64"), "attaquant": _steamid(flashs["user_steamid"])}
     )
-    return pd.DataFrame(
-        {
-            "tick": brut["tick"].astype("int64") - 2,
-            "attaquant": brut["tick"].astype(int).map(lanceurs),
-            "victime": _steamid(brut["steamid"]),
-            "duree": brut["flash_duration"].astype(float),
-        },
-        columns=colonnes,
-    ).reset_index(drop=True)
+    victimes = nouveaux_aveuglements(parser, lanceurs["tick"].tolist())
+    if not len(victimes):
+        return pd.DataFrame(columns=colonnes)
+    lien = lanceurs.merge(victimes.astype({"tick": "int64"}), on="tick")
+    return (
+        lien.rename(columns={"steamid": "victime"})[colonnes]
+        .sort_values(["tick", "victime"])
+        .reset_index(drop=True)
+    )
 
 
 def armes_des_degats(degats: pd.DataFrame, tirs: pd.DataFrame) -> pd.DataFrame:

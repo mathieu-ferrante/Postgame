@@ -226,7 +226,7 @@ def test_stockage_catalogue(base, tmp_path, monkeypatch):
     from postgame.games.cs2.extrait_pro import _tableau
 
     obs = _observations().drop(columns=["empreinte"])
-    obs = obs.assign(tick=range(len(obs)))
+    obs = obs.assign(tick=range(len(obs)), round=1)
     # 6 pros mesurés sur l'AK : 70, 72, 75, 80, 81, 90 % de premières balles précises.
     mesures = [
         {

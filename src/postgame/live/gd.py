@@ -147,7 +147,7 @@ class SuiviGD:
         self.resume: dict[str, Any] = {"actif": False}
         self._fichier: Path | None = None
         self._position = 0
-        self._reste = ""
+        self._reste = b""
         self._seance = SeanceEnDirect()
         self._historique: dict[str, Any] = {}
         self._arret = threading.Event()
@@ -173,7 +173,7 @@ class SuiviGD:
             self.resume = {"actif": False}
             return
         if f != self._fichier:
-            self._fichier, self._position, self._reste = f, 0, ""
+            self._fichier, self._position, self._reste = f, 0, b""
             self._seance, self._historique = SeanceEnDirect(), {}
         try:
             with f.open("rb") as flux:
@@ -182,12 +182,16 @@ class SuiviGD:
         except OSError:
             return
         self._position += len(nouveau)
-        texte = self._reste + nouveau.decode("utf-8", errors="replace")
-        *lignes, self._reste = texte.split("\n")  # la dernière ligne peut être incomplète
+        # Découpage en octets : une lecture peut s'arrêter au milieu d'un caractère accentué ;
+        # la dernière ligne peut être incomplète.
+        *lignes, self._reste = (self._reste + nouveau).split(b"\n")
         niveau_avant = self._seance.niveau
         for ligne in lignes:
             if ligne.strip():
-                self._seance.lire(ligne)
+                try:
+                    self._seance.lire(ligne.decode("utf-8", errors="replace"))
+                except (TypeError, ValueError, AttributeError, KeyError):
+                    continue  # ligne inattendue : ignorée, le suivi continue
         if self._seance.niveau != niveau_avant:
             self._historique = historique(self.base, self._seance.niveau)
         self.resume = {**self._seance.resume(), "historique": self._historique}

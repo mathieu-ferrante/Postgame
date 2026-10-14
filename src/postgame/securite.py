@@ -35,6 +35,21 @@ def hote_seul(valeur: str) -> str:
     return valeur.rsplit(":", 1)[0] if valeur.count(":") == 1 else valeur
 
 
+def hote_et_port(valeur: str, schema: str) -> tuple[str, int]:
+    """(hôte, port) avec le port par défaut du schéma si absent."""
+    defaut = 443 if schema in ("https", "wss") else 80
+    valeur = valeur.strip().lower()
+    hote = hote_seul(valeur)
+    reste = valeur[valeur.rfind("]") + 1 :] if valeur.startswith("[") else valeur
+    port = defaut
+    if reste.count(":") == 1:
+        try:
+            port = int(reste.rsplit(":", 1)[1])
+        except ValueError:
+            port = defaut
+    return hote, port
+
+
 def hote_autorise(hote: str, noms_machine: set[str]) -> bool:
     if not hote or hote in {"localhost", "testserver"} or hote in noms_machine:
         return True
@@ -71,8 +86,11 @@ class GardeOrigine:
         elif entetes.get("sec-fetch-site", "") == "cross-site":
             motif = "requête venant d'un autre site"
         elif "origin" in entetes and entetes["origin"] != "null":
-            origine = hote_seul(urlsplit(entetes["origin"]).netloc)
-            if origine != hote:
+            # Hôte ET port : une autre application locale (localhost:3000) n'est pas
+            # l'interface de Postgame.
+            if hote_et_port(
+                urlsplit(entetes["origin"]).netloc, urlsplit(entetes["origin"]).scheme
+            ) != hote_et_port(entetes.get("host", ""), scope.get("scheme", "http")):
                 motif = "requête venant d'un autre site"
         elif entetes.get("origin") == "null":
             motif = "origine opaque"

@@ -814,18 +814,21 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         from postgame.games.cs2 import pros_auto
 
         while not arret.is_set():
-            if not garde.doit_attendre("leger"):
-                bilan = pros_auto.synchroniser(
-                    base,
-                    cfg.dossiers_pros,
-                    pros_vus,
-                    peut_lire_demo=lambda: not garde.doit_attendre("lourd"),
-                    dossier_extraits=cfg.dossier_donnees / "extraits_pros",
-                )
-                if bilan:
-                    journal.info("pros : %s", bilan)
-                    etat_pros["bilan"] = bilan
-                etat_pros["derniere_synchro"] = maintenant()
+            try:
+                if not garde.doit_attendre("leger"):
+                    bilan = pros_auto.synchroniser(
+                        base,
+                        cfg.dossiers_pros,
+                        pros_vus,
+                        peut_lire_demo=lambda: not garde.doit_attendre("lourd"),
+                        dossier_extraits=cfg.dossier_donnees / "extraits_pros",
+                    )
+                    if bilan:
+                        journal.info("pros : %s", bilan)
+                        etat_pros["bilan"] = bilan
+                    etat_pros["derniere_synchro"] = maintenant()
+            except Exception:  # le fil ne doit jamais mourir
+                journal.exception("import automatique des pros")
             arret.wait(15 * 60)
 
     @app.get("/api/cs2/pros/synchro", tags=["revoir"])

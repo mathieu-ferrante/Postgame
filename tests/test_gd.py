@@ -284,3 +284,25 @@ def test_second_ecran_gd(base, cfg, tmp_path):
     assert not suivi.resume["actif"]
     with TestClient(creer_app(cfg, base=base, surveiller=False)) as c:
         assert c.get("/api/gd/live").json() == {"actif": False}
+
+
+def test_second_ecran_gd_robuste(base, tmp_path):
+    from postgame.live.gd import SuiviGD
+
+    dossier = tmp_path / "sessions"
+    dossier.mkdir()
+    journal = dossier / "s.gdsession"
+    entete = json.dumps(
+        {"type": "session", "niveau": {"id": 1, "nom": "Électrodynamix"}}, ensure_ascii=False
+    ).encode("utf-8")
+    coupe = entete.index("É".encode()) + 1  # au milieu du É (2 octets en UTF-8)
+    journal.write_bytes(entete[:coupe])
+    suivi = SuiviGD(base, [dossier])
+    suivi.passe()
+    with journal.open("ab") as f:
+        f.write(
+            entete[coupe:] + b"\n" + b'[1, 2]\n{"type": "mort", "x": null}\n{"type": "essai"}\n'
+        )
+    suivi.passe()
+    # Nom accentué intact ; lignes inattendues ignorées sans arrêter le suivi.
+    assert suivi.resume["niveau"] == "Électrodynamix" and suivi.resume["essai"] == 1

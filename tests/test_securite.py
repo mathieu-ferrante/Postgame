@@ -4,12 +4,14 @@ from fastapi.testclient import TestClient
 
 from postgame.api import creer_app
 from postgame.games.cs2 import revoir
-from postgame.securite import hote_autorise, hote_seul
+from postgame.securite import hote_autorise, hote_et_port, hote_seul
 
 
 def test_hotes():
     assert hote_seul("192.168.1.20:8765") == "192.168.1.20"
     assert hote_seul("[::1]:8765") == "::1"
+    assert hote_et_port("localhost", "http") == ("localhost", 80)
+    assert hote_et_port("[::1]:8765", "http") == ("::1", 8765)
     noms = {"pc-de-jeu"}
     for ok in ("localhost", "127.0.0.1", "192.168.1.20", "::1", "pc-de-jeu", "pc-de-jeu.local"):
         assert hote_autorise(ok, noms), ok
@@ -33,6 +35,9 @@ def test_requetes_intersites_refusees(base, cfg):
         assert r.status_code == 403
         assert c.get("/api/sante", headers={"Sec-Fetch-Site": "cross-site"}).status_code == 403
         assert c.get("/api/sante", headers={"Origin": "null"}).status_code == 403
+        # Une autre application locale (autre port) n'est pas l'interface de Postgame.
+        autre = {"Origin": "http://localhost:3000", "Host": "localhost:8765"}
+        assert c.post("/api/notes", headers=autre, json={}).status_code == 403
         # DNS rebinding : un domaine qui pointe vers 127.0.0.1.
         assert c.get("/api/sante", headers={"Host": "attaque.example:8765"}).status_code == 403
 

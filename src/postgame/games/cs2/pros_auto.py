@@ -10,15 +10,22 @@ des lineups et les cibles par arme sont reconstruits ensuite.
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Callable
 from pathlib import Path
 
 from postgame.db import Base
-from postgame.games.base import ErreurLecture
 
 journal = logging.getLogger(__name__)
 
 EXTENSIONS = (".pgpro", ".dem")
+STABLE_S = 60.0  # un fichier modifié il y a moins d'une minute est sans doute en copie
+
+
+def cle_fichier(f: Path) -> str:
+    """Chemin + taille + date : un fichier qui a échoué est retenté s'il change ensuite."""
+    st = f.stat()
+    return f"{f.resolve()}|{st.st_size}|{int(st.st_mtime)}"
 
 
 def a_importer(dossiers: list[Path], deja_vus: set[str]) -> list[Path]:
@@ -27,7 +34,17 @@ def a_importer(dossiers: list[Path], deja_vus: set[str]) -> list[Path]:
     for d in dossiers:
         if d.is_dir():
             fichiers += [f for f in d.rglob("*") if f.suffix.lower() in EXTENSIONS and f.is_file()]
-    nouveaux = [f for f in fichiers if str(f.resolve()) not in deja_vus]
+    maintenant = time.time()
+    nouveaux = []
+    for f in fichiers:
+        try:
+            if cle_fichier(f) in deja_vus:
+                continue
+            if maintenant - f.stat().st_mtime < STABLE_S:
+                continue  # encore en cours de synchronisation (Google Drive…) : plus tard
+        except OSError:
+            continue
+        nouveaux.append(f)
     return sorted(nouveaux, key=lambda f: (f.suffix.lower() != ".pgpro", f.name))
 
 
@@ -49,10 +66,13 @@ def synchroniser(
             continue
         try:
             bilan[f.name] = references.ajouter_demo_pro(base, f, dossier_extraits)
-        except (ErreurLecture, OSError, ValueError) as exc:
+        except Exception as exc:  # un fichier abîmé ne doit pas arrêter les autres
             bilan[f.name] = f"erreur : {exc}"
             journal.warning("pro %s : %s", f, exc)
-        deja_vus.add(str(f.resolve()))
+        try:
+            deja_vus.add(cle_fichier(f))
+        except OSError:
+            pass
     if any(v.startswith("ajoutee") for v in bilan.values()):
         bilan["catalogue"] = str(references.reconstruire_catalogue(base))
     return bilan

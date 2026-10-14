@@ -11,6 +11,9 @@ Pour chacun, tout vient des démos, rien n'est supposé :
   dégâts du molotov ou de la HE, durée réelle de la smoke ;
 - la trajectoire réelle de la grenade en vol.
 
+Limite connue : deux molotovs (ou HE) du même joueur qui agissent en même temps se voient
+chacun attribuer les dégâts des deux (player_hurt ne dit pas quelle grenade a touché).
+
 La « raison du timing » est une phrase construite uniquement à partir de ces faits
 (ex. « bombe posée sur A 9 s plus tard dans 6 rounds sur 7 ; la smoke dure 18 s »).
 """
@@ -60,29 +63,41 @@ def site_de(lieu: Any) -> str | None:
 
 
 def gagnants_rounds(parser: Any, debuts: list[int], dernier_tick: int) -> dict[int, int]:
-    """Équipe gagnante de chaque round : celle dont le score (team_rounds_total) augmente
-    entre le début de ce round et le suivant (les démos GOTV n'ont pas round_end)."""
+    """Camp gagnant de chaque round (les démos GOTV n'ont pas round_end).
+
+    On suit le score de l'équipe de chaque JOUEUR (team_rounds_total) entre le début du
+    round et le début du suivant : il suit l'équipe, pas le camp, donc reste juste quand
+    les camps s'échangent à la mi-temps. Le camp gagnant est celui qu'avaient pendant le
+    round les joueurs dont le score a augmenté."""
     if not debuts:
         return {}
+    debuts = sorted(debuts)
     bornes = [max(0, d - 1) for d in debuts] + [dernier_tick]
+    pendant = [d + 1 for d in debuts]
     try:
-        brut = parser.parse_ticks(["team_rounds_total", "team_num"], ticks=sorted(set(bornes)))
+        brut = parser.parse_ticks(
+            ["team_rounds_total", "team_num"], ticks=sorted(set(bornes) | set(pendant))
+        )
     except Exception:
         return {}
-    scores = (
-        brut.dropna(subset=["team_rounds_total"])
-        .groupby(["tick", "team_num"])["team_rounds_total"]
-        .max()
-    )
+    brut = brut.assign(steamid=brut["steamid"].astype(str))
+    score = brut.dropna(subset=["team_rounds_total"]).set_index(["tick", "steamid"])[
+        "team_rounds_total"
+    ]
+    camp = brut.dropna(subset=["team_num"]).set_index(["tick", "steamid"])["team_num"]
     gagnants = {}
     for i in range(len(debuts)):
-        avant, apres = bornes[i], bornes[i + 1]
-        for equipe in (2, 3):
+        votes: list[int] = []
+        for sid in brut["steamid"].unique():
             try:
-                if scores[(apres, equipe)] > scores[(avant, equipe)]:
-                    gagnants[i + 1] = equipe
-            except KeyError:
+                avant, apres = score[(bornes[i], sid)], score[(bornes[i + 1], sid)]
+                cote = int(camp[(pendant[i], sid)])
+            except (KeyError, TypeError, ValueError):
                 continue
+            if cote in (2, 3) and apres > avant:
+                votes.append(cote)
+        if votes:
+            gagnants[i + 1] = max(set(votes), key=votes.count)
     return gagnants
 
 
@@ -105,31 +120,47 @@ def effets_grenades(
     if not len(g):
         return sortie
     flashs = g[g["type"] == "flash"]
-    aveuglement = pd.DataFrame()
+    from postgame.games.cs2.donnees import nouveaux_aveuglements
+
+    # Joueurs réellement aveuglés par chaque flash (la prop garde sa valeur ensuite).
+    aveuglement = nouveaux_aveuglements(parser, flashs["tick"].astype(int).tolist())
+    equipes = pd.DataFrame()
     if len(flashs):
         try:
-            aveuglement = parser.parse_ticks(
-                ["flash_duration", "team_num"], ticks=sorted({int(t) + 2 for t in flashs["tick"]})
+            equipes = parser.parse_ticks(
+                ["team_num"], ticks=sorted({int(t) + 2 for t in flashs["tick"]})
             )
-            aveuglement["steamid"] = aveuglement["steamid"].astype(str)
+            equipes["steamid"] = equipes["steamid"].astype(str)
         except Exception:
-            aveuglement = pd.DataFrame()
+            equipes = pd.DataFrame()
     blesses = evts.get("player_hurt")
     for _, r in g.iterrows():
         cle = (str(r["lanceur"]), int(r["tick_lancer"]))
         effet: dict[str, float | None] = {"effet": None, "allies": None, "duree": None}
         if r["type"] == "smoke" and pd.notna(r.get("fin")) and int(r["fin"]) > int(r["tick"]):
             effet["duree"] = round((int(r["fin"]) - int(r["tick"])) / TICKS, 1)
-        elif r["type"] == "flash" and len(aveuglement):
-            a = aveuglement[aveuglement["tick"] == int(r["tick"]) + 2]
-            equipe = a.loc[a["steamid"] == str(r["lanceur"]), "team_num"]
-            if len(equipe):
-                touches = a[
-                    (a["flash_duration"].fillna(0) >= AVEUGLE_S)
-                    & (a["steamid"] != str(r["lanceur"]))
-                ]
-                effet["effet"] = float((touches["team_num"] != equipe.iloc[0]).sum())
-                effet["allies"] = float((touches["team_num"] == equipe.iloc[0]).sum())
+        elif r["type"] == "flash" and len(equipes):
+            mon_equipe = equipes.loc[
+                (equipes["tick"] == int(r["tick"]) + 2) & (equipes["steamid"] == str(r["lanceur"])),
+                "team_num",
+            ]
+            if len(mon_equipe):
+                a = (
+                    aveuglement[aveuglement["tick"] == int(r["tick"])]
+                    if len(aveuglement)
+                    else aveuglement
+                )
+                touches = (
+                    a[(a["duree"] >= AVEUGLE_S) & (a["steamid"] != str(r["lanceur"]))]
+                    if len(a)
+                    else a
+                )
+                effet["effet"] = (
+                    float((touches["equipe"] != mon_equipe.iloc[0]).sum()) if len(a) else 0.0
+                )
+                effet["allies"] = (
+                    float((touches["equipe"] == mon_equipe.iloc[0]).sum()) if len(a) else 0.0
+                )
         elif r["type"] in ("molotov", "he") and blesses is not None and len(blesses):
             arme = "inferno" if r["type"] == "molotov" else "hegrenade"
             fin = int(r["fin"]) if pd.notna(r.get("fin")) else int(r["tick"]) + 7 * TICKS
@@ -210,6 +241,8 @@ def contexte_lancer(
     }
     if numero_round is not None and equipe in (2, 3) and numero_round in ctx.gagnants:
         sortie["gagne"] = int(ctx.gagnants[numero_round] == equipe)
+    if debut_round is not None and not len(ctx.poses):
+        sortie["apres_pose"] = 0  # aucune pose dans toute la démo
     if debut_round is not None and len(ctx.poses):
         borne = fin_round if fin_round is not None else debut_round + 200 * TICKS
         dans_round = ctx.poses[(ctx.poses["tick"] >= debut_round) & (ctx.poses["tick"] <= borne)]
@@ -240,6 +273,9 @@ def lineups(lots: pd.DataFrame) -> list[pd.DataFrame]:
     from postgame.games.cs2.references import regrouper
 
     lots = lots.dropna(subset=["lx", "ly"])
+    if "round" in lots:
+        # Hors round (échauffement) : grenades d'entraînement, pas des lineups de match.
+        lots = lots[lots["round"].notna()]
     if len(lots) < 2:
         return []
     groupes = []
@@ -266,6 +302,10 @@ def lineups(lots: pd.DataFrame) -> list[pd.DataFrame]:
     return groupes
 
 
+def _connu(v: Any) -> Any:
+    return None if v is None or (isinstance(v, float) and np.isnan(v)) else v
+
+
 def phase(
     camp: str | None,
     temps: float | None,
@@ -273,6 +313,10 @@ def phase(
     apres_pose: int | None,
     site_pose: str | None,
 ) -> str:
+    # Valeurs relues en base : NULL devient NaN, qui serait « vrai » dans un if.
+    apres_pose = _connu(apres_pose)
+    avant_pose = _connu(avant_pose)
+    temps = _connu(temps)
     if apres_pose:
         return "retake" if camp == "CT" else "après la pose"
     if camp == "T" and avant_pose is not None and avant_pose <= DELAI_EXECUTION_S:
@@ -379,10 +423,17 @@ def expliquer(groupe: pd.DataFrame, type_: str) -> dict[str, Any]:
 
 def exemple(groupe: pd.DataFrame) -> pd.Series:
     """Le lancer le plus représentatif (le plus proche des médianes) : celui à revoir."""
-    if "lyaw" not in groupe or groupe["lyaw"].isna().all():
+    from postgame.games.cs2.references import yaw_moyen
+
+    avec_visee = groupe.dropna(subset=["lyaw"]) if "lyaw" in groupe else groupe.iloc[0:0]
+    if not len(avec_visee):
         return groupe.iloc[0]
+    # Moyenne circulaire : une visée autour de ±180° ne doit pas donner 0°.
     d = (
-        np.hypot(groupe["lx"] - groupe["lx"].median(), groupe["ly"] - groupe["ly"].median())
-        + _ecart_angle(groupe["lyaw"].to_numpy(float), float(groupe["lyaw"].median())) * 10
+        np.hypot(
+            avec_visee["lx"] - avec_visee["lx"].median(),
+            avec_visee["ly"] - avec_visee["ly"].median(),
+        )
+        + _ecart_angle(avec_visee["lyaw"].to_numpy(float), yaw_moyen(avec_visee["lyaw"])) * 10
     )
-    return groupe.iloc[int(np.argmin(d.to_numpy()))]
+    return avec_visee.iloc[int(np.argmin(d.to_numpy()))]

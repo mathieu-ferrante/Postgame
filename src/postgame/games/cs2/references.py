@@ -93,6 +93,17 @@ D_POSITIONS_PRO = definir(
 # --- Extraction des observations d'une démo pro -------------------------------------------
 
 
+# Délai maximal entre le lancer et l'éclatement : flash et HE explosent à 1,6 s ; un
+# molotov s'allume à l'impact (quelques secondes de vol) ; une smoke roule jusqu'à l'arrêt.
+DELAI_MAX_ECLATEMENT = {
+    "flash": 3 * TICKS_PAR_SECONDE,
+    "he": 3 * TICKS_PAR_SECONDE,
+    "molotov": 5 * TICKS_PAR_SECONDE,
+    "smoke": 15 * TICKS_PAR_SECONDE,
+    "decoy": 5 * TICKS_PAR_SECONDE,
+}
+
+
 def associer_lancers(lancers: pd.DataFrame, grenades: pd.DataFrame) -> pd.DataFrame:
     """Associe à chaque grenade éclatée le lancer correspondant (même joueur, même type, le
     plus ancien non encore utilisé : premier lancé, premier éclaté). Ajoute la colonne
@@ -106,6 +117,11 @@ def associer_lancers(lancers: pd.DataFrame, grenades: pd.DataFrame) -> pd.DataFr
         disponibles.setdefault((str(jet["steamid"]), str(jet["type"])), []).append(int(jet["tick"]))
     for i, row in g.sort_values("tick").iterrows():
         file = disponibles.get((str(row["lanceur"]), str(row["type"])), [])
+        # Un lancer resté sans éclatement (molotov éteint par une smoke, fin de round
+        # pendant le vol) est trop ancien : on l'oublie, sinon il décalerait toutes les
+        # grenades suivantes du joueur (vu sur une vraie démo : 18 molotovs sur 103).
+        limite = row["tick"] - DELAI_MAX_ECLATEMENT.get(str(row["type"]), 15 * TICKS_PAR_SECONDE)
+        file[:] = [t for t in file if t >= limite]
         candidats = [t for t in file if t <= row["tick"]]
         if candidats:
             t = candidats[0]  # premier lancé, premier éclaté

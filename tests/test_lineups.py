@@ -141,6 +141,13 @@ def test_import_automatique_des_pros(base, tmp_path, monkeypatch):
     (dossier / "a.pgpro").write_bytes(b"x")
     (dossier / "sous" / "b.dem").write_bytes(b"x")
     (dossier / "notes.txt").write_text("rien")
+    import os
+    import time
+
+    vieux = time.time() - 3600  # fichiers copiés il y a une heure : synchronisation finie
+    for f in dossier.rglob("*.*"):
+        os.utime(f, (vieux, vieux))
+    (dossier / "en_copie.pgpro").write_bytes(b"x")  # encore en cours de copie : attendu
     vus: set[str] = set()
     appels = []
     monkeypatch.setattr(
@@ -154,6 +161,7 @@ def test_import_automatique_des_pros(base, tmp_path, monkeypatch):
     bilan = pros_auto.synchroniser(base, [dossier], vus)
     assert appels == ["a.pgpro", "b.dem"]
     assert pros_auto.synchroniser(base, [dossier], vus) == {}
+    assert "en_copie.pgpro" not in appels
 
 
 def test_noms_d_armes_des_degats_repris_du_tir():
@@ -185,12 +193,14 @@ def test_aveuglements_sans_player_blind():
 
     class Parser:
         def parse_ticks(self, props, ticks):
-            assert ticks == [502]
+            assert ticks == [499, 502]
+            # Joueur 4 : déjà flashé plus tôt, sa valeur reste figée à 3,6 (cas réel).
             return pd.DataFrame(
                 {
-                    "tick": [502, 502, 502],
-                    "steamid": ["1", "2", "3"],
-                    "flash_duration": [2.5, 0.0, 1.2],
+                    "tick": [499, 499, 499, 499, 502, 502, 502, 502],
+                    "steamid": ["1", "2", "3", "4", "1", "2", "3", "4"],
+                    "flash_duration": [0.0, 0.0, 0.0, 3.6, 2.5, 0.0, 1.2, 3.6],
+                    "team_num": [2, 2, 3, 3, 2, 2, 3, 3],
                 }
             )
 
@@ -202,3 +212,14 @@ def test_aveuglements_sans_player_blind():
         "victime": ["1", "3"],
         "duree": [2.5, 1.2],
     }
+
+
+def test_valeurs_manquantes_et_echauffement():
+    nan = float("nan")
+    # Relue en base, une valeur NULL devient NaN : ce n'est pas « après la pose ».
+    assert lu.phase("T", 10.0, nan, nan, None) == "début de round"
+    # Grenades d'échauffement (hors round) : jamais un lineup.
+    assert lu.lineups(_lancers(4, round=[None] * 4)) == []
+    # Exemple : on ignore les lancers sans visée ; visée autour de ±180° bien gérée.
+    g = _lancers(3, yaw=179.5).assign(lyaw=[179.0, -179.5, nan], lx=[1000.0, 1001.0, 1000.5])
+    assert lu.exemple(g)["lyaw"] in (179.0, -179.5)
