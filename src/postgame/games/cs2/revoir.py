@@ -83,8 +83,11 @@ def _copier(demo: Path, dossier: Path, nom: str) -> Path:
 
 
 def _texte_console(valeur: str) -> str:
-    """Les guillemets ne s'échappent pas dans la console : on les retire."""
-    return valeur.replace('"', "").replace(";", "").strip()
+    """Texte sûr dans un fichier de commandes CS2 : les guillemets ne s'échappent pas, « ; »
+    et les retours à la ligne commenceraient une nouvelle commande. On les retire, ainsi
+    que tous les caractères de contrôle."""
+    propre = "".join(c for c in valeur if c.isprintable())
+    return propre.replace('"', "").replace(";", "").strip()
 
 
 def preparer(

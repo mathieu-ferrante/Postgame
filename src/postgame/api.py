@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import (
     FastAPI,
@@ -27,7 +27,7 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Path as PathParam
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
@@ -49,9 +49,14 @@ from postgame.live.gsi_cs2 import RecepteurGSI, jeton_gsi
 from postgame.live.lol import ScruteurLoL
 from postgame.mesures import DEFINITIONS
 from postgame.performance import Garde, abaisser_priorite
+from postgame.securite import GardeOrigine
 from postgame.surveillance import Surveillant
 
 journal = logging.getLogger(__name__)
+
+# Paramètres qui finissent dans un nom de fichier : validés strictement.
+Carte = Annotated[str, Query(pattern=r"^[a-z0-9_]{1,64}$")]
+CleStuff = Annotated[str, PathParam(pattern=r"^[A-Za-z0-9]{1,64}$")]
 
 PERIODES = {"7j": timedelta(days=7), "30j": timedelta(days=30), "tout": None}
 
@@ -177,10 +182,9 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         description="API locale de Postgame : parties, fiches, mesures, progression.",
         lifespan=cycle_de_vie,
     )
-    # Réseau local uniquement : l'interface (Vite en développement) et le téléphone.
-    app.add_middleware(
-        CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
-    )
+    # L'interface est servie par le service lui-même (même origine) : pas de CORS. Les
+    # requêtes venant d'autres sites et les noms d'hôte inconnus sont refusés.
+    app.add_middleware(GardeOrigine)
     app.state.base = base
     app.state.surveillant = surveillant
     app.state.extraire_match = extraire_match  # remplaçable dans les tests
@@ -326,7 +330,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
 
     @app.get("/api/cs2/chaleur", tags=["cs2"])
     def chaleur(
-        carte: str,
+        carte: Carte,
         type: str = Query("mort", pattern="^(mort|kill)$"),
         camp: str | None = Query(None, pattern="^(T|CT)$"),
         periode: str = Query("tout", pattern="^(7j|30j|tout)$"),
@@ -397,7 +401,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         return {**etat, "cartes": liste}
 
     @app.get("/api/cs2/stuffs", tags=["stuffs"])
-    def stuffs_carte(carte: str) -> dict[str, Any]:
+    def stuffs_carte(carte: Carte) -> dict[str, Any]:
         """Stuffs d'une carte (STUFF-01) : catalogue appris sur démos pros, commandes
         d'entraînement, maîtrise en match, révisions, notes ; notes générales de la carte."""
         from postgame.games.cs2 import stuffs
@@ -411,7 +415,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         }
 
     @app.get("/api/cs2/stuffs/annotations", tags=["stuffs"])
-    def stuffs_annotations(carte: str) -> Response:
+    def stuffs_annotations(carte: Carte) -> Response:
         """Fichier d'annotations CS2 de la carte (à charger en entraînement)."""
         from postgame.games.cs2 import annotations_jeu as annotations
         from postgame.games.cs2 import stuffs
@@ -424,7 +428,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         )
 
     @app.post("/api/cs2/stuffs/annotations", tags=["stuffs"])
-    def stuffs_annotations_installer(carte: str) -> dict[str, Any]:
+    def stuffs_annotations_installer(carte: Carte) -> dict[str, Any]:
         """Écrit le fichier dans game/csgo/annotations/local du PC de jeu."""
         from postgame.games.cs2 import annotations_jeu as annotations
         from postgame.games.cs2 import stuffs
@@ -436,7 +440,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         return {"fichier": str(chemin), "commande": f"annotation_load postgame_{carte}"}
 
     @app.post("/api/cs2/stuffs/{cle}/image", tags=["stuffs"])
-    async def stuff_image(cle: str, fichier: UploadFile) -> dict[str, Any]:
+    async def stuff_image(cle: CleStuff, fichier: UploadFile) -> dict[str, Any]:
         """Capture d'écran jointe à un stuff (position, visée…)."""
         from postgame.games.cs2 import stuffs
 
@@ -449,7 +453,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         return {"image": f"/api/cs2/stuffs/{cle}/image"}
 
     @app.get("/api/cs2/stuffs/{cle}/image", tags=["stuffs"])
-    def stuff_image_lire(cle: str) -> FileResponse:
+    def stuff_image_lire(cle: CleStuff) -> FileResponse:
         from postgame.games.cs2 import stuffs
 
         image = stuffs.chemin_image(cfg.dossier_donnees, cle)
@@ -508,7 +512,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         return dossiers_captures(cfg.dossier_steam, cfg.steamid)
 
     @app.post("/api/cs2/stuffs/{cle}/capture", tags=["stuffs"])
-    def capture_demander(cle: str, demande: DemandeRevoir) -> dict[str, Any]:
+    def capture_demander(cle: CleStuff, demande: DemandeRevoir) -> dict[str, Any]:
         """Ouvre la démo pro figée au lancer, caméra sur le pro ; la prochaine capture
         d'écran Steam (F12) sera jointe au stuff."""
         demande.avance_s, demande.pause = AVANCE_CAPTURE_S, True
@@ -517,7 +521,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         return {**resultat, "dossiers": [str(d) for d in dossiers_steam()]}
 
     @app.get("/api/cs2/stuffs/{cle}/capture", tags=["stuffs"])
-    def capture_etat(cle: str) -> dict[str, Any]:
+    def capture_etat(cle: CleStuff) -> dict[str, Any]:
         """Capture d'écran Steam arrivée depuis la demande ? Si oui, elle est jointe."""
         from postgame.games.cs2 import stuffs
 
@@ -545,7 +549,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
 
     @app.get("/api/cs2/pros/proches", tags=["revoir"])
     def pros_proches(
-        carte: str, x: float, y: float, camp: str | None = None
+        carte: Carte, x: float, y: float, camp: str | None = None
     ) -> list[dict[str, Any]]:
         """Vrais rounds pros où un joueur du même camp était au même endroit."""
         from postgame.games.cs2 import revoir as rv
@@ -553,7 +557,7 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         return rv.moments_proches(base, carte, camp, x, y)
 
     @app.get("/api/cs2/stuffs/{cle}/pros", tags=["revoir"])
-    def stuff_pros(cle: str) -> list[dict[str, Any]]:
+    def stuff_pros(cle: CleStuff) -> list[dict[str, Any]]:
         """Vrais lancers pros de ce stuff, à revoir dans CS2."""
         from postgame.games.cs2 import revoir as rv
 
@@ -563,13 +567,13 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
             raise HTTPException(404, "stuff inconnu") from exc
 
     @app.get("/api/cs2/stuffs/a_reviser", tags=["stuffs"])
-    def stuffs_a_reviser(carte: str, nombre: int = Query(5, ge=1, le=50)) -> list[dict[str, Any]]:
+    def stuffs_a_reviser(carte: Carte, nombre: int = Query(5, ge=1, le=50)) -> list[dict[str, Any]]:
         from postgame.games.cs2 import stuffs
 
         return stuffs.a_reviser(base, carte, nombre)
 
     @app.post("/api/cs2/stuffs/{cle}/revision", tags=["stuffs"])
-    def stuff_revision(cle: str, corps: CorpsRevision) -> dict[str, Any]:
+    def stuff_revision(cle: CleStuff, corps: CorpsRevision) -> dict[str, Any]:
         from postgame.games.cs2 import stuffs
 
         return stuffs.noter_revision(base, cle, corps.reussi)
