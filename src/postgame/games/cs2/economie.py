@@ -64,8 +64,9 @@ def type_achat(valeur: float) -> str:
     return "eco"
 
 
-def est_pistolet(numero: int) -> bool:
-    return numero in (1, ROUNDS_PAR_MOITIE + 1)
+def est_pistolet(numero: int, moitie: int = ROUNDS_PAR_MOITIE) -> bool:
+    """Premier round de chaque moitié (pas de pistolet en prolongation)."""
+    return numero in (1, moitie + 1)
 
 
 def _pct(n: float, total: float) -> float | None:
@@ -80,6 +81,7 @@ def analyser_economie(
         return r
     pos = pos or Positions(d.ticks)
     rounds = rounds if rounds is not None else decouper_rounds(d, pos)
+    moitie = d.rounds_par_moitie()  # 12 (MR12) ou 8 (Wingman)
 
     desync, comptes, victoires, restants = [], {}, {}, []
     for rnd in rounds:
@@ -95,11 +97,11 @@ def analyser_economie(
         moyenne = float(equipe["valeur_equipement"].mean())
         mon_type, type_equipe = type_achat(ma_valeur), type_achat(moyenne)
         comptes[mon_type] = comptes.get(mon_type, 0) + 1
-        if rnd.gagne is not None and not est_pistolet(rnd.numero):
+        if rnd.gagne is not None and not est_pistolet(rnd.numero, moitie):
             victoires.setdefault(type_equipe, []).append(rnd.gagne)
         if type_equipe == "complet":
             restants.append(int(moi["argent"].iloc[0]))
-        if est_pistolet(rnd.numero):
+        if est_pistolet(rnd.numero, moitie):
             continue
         different = mon_type != type_equipe
         desync.append(different)

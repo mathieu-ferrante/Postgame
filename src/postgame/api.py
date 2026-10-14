@@ -239,8 +239,9 @@ def creer_app(cfg: Config, base: Base | None = None, surveiller: bool = True) ->
         }
 
     @app.post("/api/import", tags=["import"])
-    async def import_manuel(fichier: UploadFile) -> dict[str, Any]:
-        """Import manuel d'un fichier (glisser-déposer dans l'interface)."""
+    def import_manuel(fichier: UploadFile) -> dict[str, Any]:
+        """Import manuel d'un fichier (glisser-déposer dans l'interface). Route synchrone :
+        FastAPI l'exécute dans un fil à part, l'analyse (~40 s) ne fige pas le service."""
         nom = Path(fichier.filename or "fichier").name
         with tempfile.TemporaryDirectory() as dossier:
             temporaire = Path(dossier) / nom

@@ -143,6 +143,27 @@ class DonneesMatch:
     # Trajectoire réelle de chaque lancer : (lanceur, tick du lancer) → JSON [[t, x, y, z]…]
     trajectoires: dict[tuple[str, int], str] = field(default_factory=dict)
 
+    def rounds_par_moitie(self) -> int:
+        """Longueur d'une moitié, d'après le premier changement de camp de Mathieu : 12 en
+        Premier / compétitif (MR12), 8 en Wingman. 12 si on ne peut pas le voir."""
+        if len(self.rounds) < 2 or not len(self.ticks):
+            return 12
+        mes = self.ticks[self.ticks["steamid"] == self.moi][["tick", "equipe"]].sort_values("tick")
+        if not len(mes):
+            return 12
+        camps = pd.merge_asof(
+            self.rounds[["numero", "debut"]].sort_values("debut").rename(columns={"debut": "tick"}),
+            mes,
+            on="tick",
+            direction="forward",
+        )
+        premier = camps["equipe"].iloc[0]
+        changement = camps[camps["equipe"].notna() & (camps["equipe"] != premier)]
+        if not len(changement):
+            return 12
+        moitie = int(changement["numero"].iloc[0]) - 1
+        return moitie if moitie >= 4 else 12
+
     def numero_round(self, tick: int) -> int | None:
         if not len(self.rounds):
             return None
@@ -427,7 +448,9 @@ def extraire_match(
         # Démos GOTV de tournoi : pas de round_end. Fin = juste avant la réapparition des
         # joueurs pour le round suivant ; vainqueur = équipe dont le score augmente.
         fins, gagnants = fins_sans_round_end(parser, evts, debuts)
-    rounds = construire_rounds(debuts, fins, gagnants)
+    rounds = construire_rounds(
+        debuts, fins, gagnants, int(brut["tick"].max()) if len(brut) else None
+    )
     bombe = extraire_bombe(evts)
 
     # Inventaires aux moments utiles : début et fin de round, juste avant chaque mort.
@@ -798,13 +821,48 @@ def fins_sans_round_end(
             continue
         app = next((s for s in ticks_app if debut < s < suivant), None)
         fins.append(app - 1 if app is not None else suivant)
+    fins = fins_au_score(parser, debuts, fins)
     par_round = gagnants_rounds(parser, debuts, dernier + 1)
     gagnants = {fins[n - 1]: equipe for n, equipe in par_round.items() if 0 < n <= len(fins)}
     return fins, gagnants
 
 
+PAS_FIN_ROUND = 8  # ticks (1/8 s) : précision de la fin de round retrouvée par le score
+
+
+def fins_au_score(parser: Any, debuts: list[int], bornes: list[int]) -> list[int]:
+    """Vraie fin de chaque round : premier tick où le score d'une équipe augmente (dernier
+    adversaire mort, bombe explosée ou désamorcée, temps écoulé). La réapparition arrive
+    ~7 s plus tard : poses et kills de ces secondes-là ne font pas partie du round.
+    Garde la borne si le score ne bouge pas dans l'intervalle."""
+    echantillons = sorted(
+        {t for d, b in zip(debuts, bornes, strict=True) for t in range(d, b + 1, PAS_FIN_ROUND)}
+    )
+    if not echantillons:
+        return bornes
+    try:
+        brut = parser.parse_ticks(["team_rounds_total"], ticks=echantillons)
+    except Exception:
+        return bornes
+    if not len(brut) or "team_rounds_total" not in brut:
+        return bornes
+    total = brut.dropna(subset=["team_rounds_total"]).groupby("tick")["team_rounds_total"].sum()
+    fins = []
+    for debut, borne in zip(debuts, bornes, strict=True):
+        serie = total[(total.index >= debut) & (total.index <= borne)]
+        if len(serie) < 2:
+            fins.append(borne)
+            continue
+        hausse = serie[serie > serie.iloc[0]]
+        fins.append(int(hausse.index[0]) if len(hausse) else borne)
+    return fins
+
+
 def construire_rounds(
-    debuts: list[int], fins: list[int], gagnants: dict[int, int] | None = None
+    debuts: list[int],
+    fins: list[int],
+    gagnants: dict[int, int] | None = None,
+    dernier_tick: int | None = None,
 ) -> pd.DataFrame:
     """Associe chaque fin de freeze à la fin de round suivante. Un round sans fin connue
     (deathmatch, démo coupée) court jusqu'au début suivant, ou à l'infini.
@@ -816,7 +874,8 @@ def construire_rounds(
         fin = next((f for f in fins if f > debut and (suivant is None or f <= suivant)), None)
         gagnant = gagnants.get(fin) if fin is not None else None
         if fin is None:
-            fin = suivant if suivant is not None else np.iinfo(np.int64).max
+            # Jamais « l'infini » : borné au dernier tick de la démo (démo coupée).
+            fin = suivant if suivant is not None else (dernier_tick or debut + 300 * 64)
         lignes.append({"numero": i + 1, "debut": debut, "fin": fin, "gagnant": gagnant})
     return pd.DataFrame(lignes, columns=["numero", "debut", "fin", "gagnant"])
 

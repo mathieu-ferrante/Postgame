@@ -45,3 +45,18 @@ def angle_entre(yaw1: float, pitch1: float, yaw2: float, pitch2: float) -> float
         return math.nan
     prod = max(-1.0, min(1.0, prod))
     return math.degrees(math.acos(prod))
+
+
+def distance_3d(a, b) -> float:
+    """Distance entre deux positions (x, y, z). En 3D : sur Nuke ou Vertigo, un joueur à
+    l'étage du dessous n'est pas « à côté » même s'il est juste en dessous."""
+
+    def z(p) -> float:
+        v = p.get("z") if hasattr(p, "get") else None
+        return 0.0 if v is None or v != v else float(v)
+
+    return math.sqrt(
+        (float(a["x"]) - float(b["x"])) ** 2
+        + (float(a["y"]) - float(b["y"])) ** 2
+        + (z(a) - z(b)) ** 2
+    )

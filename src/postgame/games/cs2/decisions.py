@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 from postgame.games.cs2.donnees import TICKS_PAR_SECONDE, DonneesMatch, Positions
+from postgame.games.cs2.geometrie import distance_3d
 from postgame.mesures import Preuve, ResultatAnalyse, definir, mesure
 
 CAMPS = {2: "T", 3: "CT"}
@@ -243,11 +244,14 @@ def ouvertures(d: DonneesMatch, rounds: list[Round]) -> ResultatAnalyse:
     r = ResultatAnalyse()
     impliques, gagnes, apres_v, apres_d = 0, 0, [], []
     for rnd in rounds:
+        # Un vrai duel : un joueur d'une équipe tue un joueur de l'autre. Les morts par la
+        # bombe, le décor ou un coéquipier ne sont pas des duels d'ouverture.
+        adverses = set(rnd.vivants_debut[rnd.adverse])
+        allies = set(rnd.vivants_debut[rnd.mon_equipe])
+        att, vic = rnd.morts["attaquant"], rnd.morts["victime"]
         duels = rnd.morts[
-            rnd.morts["attaquant"].isin(rnd.vivants_debut[rnd.adverse])
-            | rnd.morts["victime"].isin(rnd.vivants_debut[rnd.adverse])
+            (att.isin(adverses) & vic.isin(allies)) | (att.isin(allies) & vic.isin(adverses))
         ]
-        duels = duels[duels["attaquant"] != duels["victime"]]
         if not len(duels):
             continue
         premier = duels.iloc[0]
@@ -299,18 +303,19 @@ def rotations(d: DonneesMatch, rounds: list[Round], pos: Positions) -> ResultatA
         moi = pos.etat(d.moi, t_pose)
         if poseur is None or moi is None:
             continue
-        bombe = np.array([poseur["x"], poseur["y"]], dtype=float)
-        if np.hypot(moi["x"] - bombe[0], moi["y"] - bombe[1]) <= DISTANCE_SITE_LOIN:
+        bombe = {"x": poseur["x"], "y": poseur["y"], "z": poseur.get("z")}
+        if distance_3d(moi, bombe) <= DISTANCE_SITE_LOIN:
             continue
         total += 1
-        limite = min(rnd.fin, rnd.ma_mort if rnd.ma_mort is not None else rnd.fin)
+        limite = min(
+            rnd.fin,
+            rnd.ma_mort if rnd.ma_mort is not None else rnd.fin,
+            int(d.ticks["tick"].max()) if len(d.ticks) else rnd.fin,
+        )
         arrivee = None
         for t in range(t_pose, limite + 1, PAS_ROTATION_TICKS):
             e = pos.etat(d.moi, t)
-            if (
-                e is not None
-                and np.hypot(e["x"] - bombe[0], e["y"] - bombe[1]) <= DISTANCE_SITE_ARRIVEE
-            ):
+            if e is not None and distance_3d(e, bombe) <= DISTANCE_SITE_ARRIVEE:
                 arrivee = t
                 break
         if arrivee is not None:
@@ -529,10 +534,11 @@ def strategie(d: DonneesMatch, rounds: list[Round]) -> ResultatAnalyse:
                 None,
             )
         )
+    m = d.rounds_par_moitie()  # 12 (MR12) ou 8 (Wingman)
     moities = (
-        ("1", [x for x in rounds if x.numero <= ROUNDS_PAR_MOITIE]),
-        ("2", [x for x in rounds if ROUNDS_PAR_MOITIE < x.numero <= 2 * ROUNDS_PAR_MOITIE]),
-        ("prolongation", [x for x in rounds if x.numero > 2 * ROUNDS_PAR_MOITIE]),
+        ("1", [x for x in rounds if x.numero <= m]),
+        ("2", [x for x in rounds if m < x.numero <= 2 * m]),
+        ("prolongation", [x for x in rounds if x.numero > 2 * m]),
     )
     for nom, lot in moities:
         connus = [x.gagne for x in lot if x.gagne is not None]

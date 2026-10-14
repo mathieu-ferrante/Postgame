@@ -13,6 +13,7 @@ from postgame.games.cs2.donnees import (
     DonneesMatch,
     Positions,
 )
+from postgame.games.cs2.geometrie import distance_3d
 from postgame.mesures import Preuve, ResultatAnalyse, definir, mesure
 
 SEUIL_AVEUGLE_S = 1.0  # en dessous, un aveuglement ne gêne pas vraiment
@@ -238,13 +239,13 @@ def molotovs(d: DonneesMatch, pos: Positions) -> ResultatAnalyse:
             avant = pos.etat(sid, t)
             if avant is None or not bool(avant["vivant"]):
                 continue
-            if np.hypot(avant["x"] - g["x"], avant["y"] - g["y"]) > RAYON_MOLOTOV:
+            if distance_3d(avant, g) > RAYON_MOLOTOV:
                 continue
             apres = pos.etat(sid, min(fin, t + DELAI_DELOGE_TICKS))
             if (
                 apres is not None
                 and bool(apres["vivant"])
-                and np.hypot(apres["x"] - g["x"], apres["y"] - g["y"]) > RAYON_MOLOTOV
+                and distance_3d(apres, g) > RAYON_MOLOTOV
             ):
                 sortis.append(str(avant["nom"]))
         deloges.append(len(sortis))

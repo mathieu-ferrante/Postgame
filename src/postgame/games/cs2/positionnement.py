@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 from postgame.games.cs2.donnees import TICKS_PAR_SECONDE, DonneesMatch, Positions
+from postgame.games.cs2.geometrie import distance_3d
 from postgame.mesures import Preuve, ResultatAnalyse, definir, mesure
 
 FENETRE_TRADE_TICKS = 5 * TICKS_PAR_SECONDE
@@ -121,7 +122,7 @@ def _coequipiers_vivants(
         e = pos.etat(sid, tick)
         if e is None or not bool(e["vivant"]) or int(e["equipe"]) != int(moi["equipe"]):
             continue
-        dist = float(np.hypot(e["x"] - moi["x"], e["y"] - moi["y"]))
+        dist = distance_3d(e, moi)
         resultat.append((sid, str(e["nom"]), dist))
     return sorted(resultat, key=lambda c: c[2])
 
@@ -147,6 +148,15 @@ def isolement_et_trades(d: DonneesMatch, pos: Positions) -> ResultatAnalyse:
     # Morts de Mathieu : isolement, vengeance.
     distances, isolees, tradees, tradables, non_tradees = [], 0, 0, 0, 0
     mes_morts = d.morts[(d.morts["victime"] == d.moi) & (d.morts["attaquant"] != d.moi)]
+    # Seulement les morts face à un adversaire (pas la bombe, le décor ou un coéquipier).
+    mes_morts = mes_morts[
+        [
+            bool(a)
+            and pos.equipe(a, max(0, int(t) - 1))
+            not in (None, pos.equipe(d.moi, max(0, int(t) - 1)))
+            for a, t in zip(mes_morts["attaquant"], mes_morts["tick"], strict=True)
+        ]
+    ]
     for _, m in mes_morts.iterrows():
         t = int(m["tick"])
         rnd = d.numero_round(t)
@@ -221,7 +231,7 @@ def isolement_et_trades(d: DonneesMatch, pos: Positions) -> ResultatAnalyse:
         e_victime = pos.etat(victime, avant)
         if e_victime is None:
             continue
-        distance = float(np.hypot(e_victime["x"] - moi["x"], e_victime["y"] - moi["y"]))
+        distance = distance_3d(e_victime, moi)
         if distance <= DISTANCE_TRADABLE and vengeance is None:
             manques += 1
             r.preuves.append(

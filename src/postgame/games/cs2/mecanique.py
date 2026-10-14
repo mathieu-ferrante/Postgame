@@ -265,7 +265,12 @@ def preparer_tirs(d: DonneesMatch) -> pd.DataFrame:
             "en_l_air",
         ]
     ].sort_values("tick")
-    t = pd.merge_asof(tirs, etats, on="tick", direction="backward")
+    t = pd.merge_asof(tirs, etats.drop(columns=["lunette"]), on="tick", direction="backward")
+    # Lunette au tick qui PRÉCÈDE le tir : au tick même de weapon_fire, le jeu l'a déjà
+    # refermée (vérifié sur 80 tirs d'AWP de vraies démos : t−1 lunette, t fermée).
+    t = pd.merge_asof(
+        t, etats[["tick", "lunette"]], on="tick", direction="backward", allow_exact_matches=False
+    )
     t["vitesse"] = np.hypot(t["vx"].fillna(0.0), t["vy"].fillna(0.0))
     t["lunette"] = t["lunette"].fillna(False).astype(bool)
     t["en_l_air"] = t["en_l_air"].fillna(False).astype(bool)
@@ -756,12 +761,38 @@ def viseur_et_reaction(
 # --- CS-AIM-06 : statistiques par arme ---------------------------------------------------
 
 
+def adversaires_seulement(d: DonneesMatch, lignes: pd.DataFrame) -> pd.DataFrame:
+    """Garde les lignes dont la victime est un adversaire de Mathieu à ce moment-là : les
+    kills et dégâts sur coéquipiers ne comptent pas dans ses stats d'armes (hors DM)."""
+    if d.est_deathmatch() or not len(lignes) or not len(d.ticks):
+        return lignes
+    equipes = d.ticks[["tick", "steamid", "equipe"]].sort_values("tick")
+    lien = lignes.reset_index().sort_values("tick")
+    lien = pd.merge_asof(
+        lien,
+        equipes.rename(columns={"steamid": "victime", "equipe": "equipe_victime"}),
+        on="tick",
+        by="victime",
+        direction="backward",
+    )
+    mien = equipes[equipes["steamid"] == d.moi][["tick", "equipe"]].rename(
+        columns={"equipe": "mon_equipe"}
+    )
+    lien = pd.merge_asof(lien, mien, on="tick", direction="backward")
+    garder = lien.loc[lien["equipe_victime"] != lien["mon_equipe"], "index"]
+    return lignes.loc[lignes.index.isin(garder)]
+
+
 def par_arme(d: DonneesMatch, tirs: pd.DataFrame) -> ResultatAnalyse:
     r = ResultatAnalyse()
-    kills = d.morts[(d.morts["attaquant"] == d.moi) & (d.morts["victime"] != d.moi)]
+    kills = adversaires_seulement(
+        d, d.morts[(d.morts["attaquant"] == d.moi) & (d.morts["victime"] != d.moi)]
+    )
     kills = kills[kills["arme"].map(est_arme_a_feu).astype(bool)]
     kills = kills.assign(categorie=kills["arme"].map(lambda a: arme(a).categorie))
-    degats = d.degats[(d.degats["attaquant"] == d.moi) & (d.degats["victime"] != d.moi)]
+    degats = adversaires_seulement(
+        d, d.degats[(d.degats["attaquant"] == d.moi) & (d.degats["victime"] != d.moi)]
+    )
     codes = set(tirs["arme"]) if len(tirs) else set()
     codes |= set(kills["arme"])
     for code in sorted(codes):

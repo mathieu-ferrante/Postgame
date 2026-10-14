@@ -209,6 +209,6 @@ def test_fins_et_vainqueurs_sans_round_end():
         "player_death": pd.DataFrame({"tick": [4500]}),
     }
     fins, gagnants = fins_sans_round_end(Parser(), evts, [1000, 3000])
-    # Fin du round 1 juste avant la réapparition ; dernier round : dernier tick vu.
-    assert fins == [2499, 4500]
-    assert gagnants == {2499: 2, 4500: 3}
+    # Fin = moment où le score change (pas la réapparition, ~7 s plus tard).
+    assert fins == [2000, 4000]
+    assert gagnants == {2000: 2, 4000: 3}
