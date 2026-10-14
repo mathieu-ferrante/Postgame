@@ -186,7 +186,7 @@ donk à la place de Mathieu. Corrigé :
 Mathieu : seulement les meilleures grenades (pas celles « à l'arrache »), avec timing et
 pourquoi ce timing ; toutes les cartes, même hors pool ; le plus d'infos possible.
 - [x] Testé sur **2 vraies démos** HLTV (ESL Pro League S24, Falcons vs Spirit : Mirage,
-      Anubis) : 775 grenades → **67 lineups** retenus
+      Anubis) : 775 grenades → **71 lineups** retenus (après corrections de relecture)
 - [x] Vrai lâcher retrouvé (le clic est relâché 5 à 10 ticks avant grenade_thrown) : position,
       visée et technique prises à ce moment-là (jumpthrow, W + saut, clic gauche/droit…)
 - [x] Lineup = même point de lancer (48 u), même visée (3°), au moins 3 fois ou 2 joueurs
