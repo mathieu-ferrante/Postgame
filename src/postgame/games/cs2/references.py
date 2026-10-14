@@ -82,6 +82,12 @@ D_MOLO_RECONNUES = definir(
     "%",
     "Part des molotovs de Mathieu qui arrivent à moins de 150 u d'un molotov de référence.",
 )
+D_FLASH_RECONNUES = definir(
+    "cs2.flash.part_reconnues",
+    1,
+    "%",
+    "Part des flashs de Mathieu qui éclatent à moins de 150 u d'une flash de référence pro.",
+)
 D_POSITIONS_PRO = definir(
     "cs2.position.part_positions_pro",
     1,
@@ -102,6 +108,57 @@ DELAI_MAX_ECLATEMENT = {
     "smoke": 15 * TICKS_PAR_SECONDE,
     "decoy": 5 * TICKS_PAR_SECONDE,
 }
+
+
+def avec_lancers_sans_eclatement(
+    associees: pd.DataFrame,
+    lancers: pd.DataFrame,
+    grenades: pd.DataFrame,
+    trajectoires: dict[tuple[str, int], str],
+) -> pd.DataFrame:
+    """Ajoute les lancers qui n'ont jamais éclaté (molotov tombé dans une smoke, fin de round
+    pendant le vol) : un lineup bien lancé reste un lineup même si la grenade s'éteint.
+    Point d'arrivée = dernier point de la vraie trajectoire. Colonne « issue » : eclatee,
+    eteinte_smoke (arrivée dans une smoke active à ce moment-là) ou sans_eclatement."""
+    associees = associees.assign(issue="eclatee")
+    if not len(lancers):
+        return associees
+    utilises = set(zip(associees["lanceur"].astype(str), associees["tick_lancer"], strict=True))
+    smokes = grenades[grenades["type"] == "smoke"] if len(grenades) else grenades
+    lignes = []
+    for _, jet in lancers.iterrows():
+        cle = (str(jet["steamid"]), int(jet["tick"]))
+        if (cle[0], float(cle[1])) in utilises or (cle[0], cle[1]) in utilises:
+            continue
+        vol = trajectoires.get(cle)
+        if not vol:
+            continue
+        t, x, y, z = json.loads(vol)[-1]
+        issue = "sans_eclatement"
+        if len(smokes):
+            actives = smokes[(smokes["tick"] <= t) & (smokes["fin"] >= t)]
+            if (
+                len(actives)
+                and (np.hypot(actives["x"] - x, actives["y"] - y) <= RAYON_SMOKE + 40).any()
+            ):
+                issue = "eteinte_smoke"
+        lignes.append(
+            {
+                "tick": int(t),
+                "lanceur": cle[0],
+                "type": jet["type"],
+                "x": float(x),
+                "y": float(y),
+                "z": float(z),
+                "entite": -1,
+                "fin": int(t),
+                "tick_lancer": cle[1],
+                "issue": issue,
+            }
+        )
+    if not lignes:
+        return associees
+    return pd.concat([associees, pd.DataFrame(lignes)], ignore_index=True)
 
 
 def associer_lancers(lancers: pd.DataFrame, grenades: pd.DataFrame) -> pd.DataFrame:
@@ -162,6 +219,7 @@ def observations_depuis(
         "accroupi",
         "technique",
         "tick",
+        "issue",
         "joueur",
         "round",
         *COLONNES_CONTEXTE,
@@ -205,7 +263,9 @@ def observations_depuis(
         except KeyError:
             return None
 
-    for _, g in associer_lancers(lancers, grenades).iterrows():
+    for _, g in avec_lancers_sans_eclatement(
+        associer_lancers(lancers, grenades), lancers, grenades, contexte.trajectoires
+    ).iterrows():
         if g["type"] not in TYPES_REFERENCE or pd.isna(g["x"]):
             continue
         e = etat(g["tick_lancer"], g["lanceur"]) if pd.notna(g["tick_lancer"]) else None
@@ -242,6 +302,7 @@ def observations_depuis(
                 "accroupi": int(bool(e.get("accroupi"))) if e is not None else None,
                 "technique": vrai.technique if vrai is not None else lacher,
                 "tick": int(g["tick_lancer"]) if pd.notna(g["tick_lancer"]) else None,
+                "issue": g.get("issue", "eclatee"),
                 "joueur": nom(e),
                 "round": numero_round(g["tick_lancer"]) if pd.notna(g["tick_lancer"]) else None,
                 **(
@@ -571,6 +632,7 @@ def construire_catalogue(
         "exemple_tick",
         "exemple_tick_lacher",
         "exemple_joueur",
+        "part_eteinte",
     ]
     colonnes_p = ["carte", "camp", "lieu", "x", "y", "nb", "part"]
     return (
@@ -640,6 +702,7 @@ COLONNES_OBSERVATION = [
     "accroupi",
     "technique",
     "tick",
+    "issue",
     "joueur",
     "round",
     *COLONNES_CONTEXTE,
@@ -996,16 +1059,56 @@ def analyser_references(
             if ecarts:
                 r.mesures.append(mesure(D_SMOKE_ECART, float(np.median(ecarts)), n=len(ecarts)))
 
-    # Molotovs : rattachement seulement.
-    mes_molos = d.grenades[(d.grenades["type"] == "molotov") & (d.grenades["lanceur"] == d.moi)]
-    refs_molos = (
-        catalogue.lancers[catalogue.lancers["type"] == "molotov"]
-        if len(catalogue.lancers)
-        else pd.DataFrame()
-    )
-    if len(mes_molos) and len(refs_molos):
-        ok = sum(_rattacher(m, refs_molos)[1] <= DISTANCE_RECONNUE for _, m in mes_molos.iterrows())
-        r.mesures.append(mesure(D_MOLO_RECONNUES, 100.0 * ok / len(mes_molos), n=len(mes_molos)))
+    # Molotovs et flashs : rattachement au lineup pro le plus proche. Une molotov éteinte
+    # par une smoke compte quand même : elle est jugée sur son point d'arrivée réel.
+    for type_, definition, nom_type in (
+        ("molotov", D_MOLO_RECONNUES, "Molotov"),
+        ("flash", D_FLASH_RECONNUES, "Flash"),
+    ):
+        refs = (
+            catalogue.lancers[catalogue.lancers["type"] == type_]
+            if len(catalogue.lancers)
+            else pd.DataFrame()
+        )
+        if not len(refs):
+            continue
+        miennes = d.grenades[(d.grenades["type"] == type_) & (d.grenades["lanceur"] == d.moi)]
+        mes_jets = mes_lancers[mes_lancers["type"] == type_] if len(mes_lancers) else mes_lancers
+        if len(mes_jets):
+            miennes = avec_lancers_sans_eclatement(
+                associer_lancers(mes_jets, miennes), mes_jets, d.grenades, d.trajectoires
+            )
+        else:
+            miennes = miennes.assign(issue="eclatee")
+        ok = 0
+        for _, m in miennes.iterrows():
+            ref, dist = _rattacher(m, refs)
+            ok += dist <= DISTANCE_RECONNUE
+            if dist <= DISTANCE_RECONNUE:
+                texte = f"{nom_type} reconnue : {_nom_reference(ref)}, à {dist:.0f} u"
+            elif dist <= DISTANCE_RATEE:
+                texte = f"{nom_type} ratée de {dist:.0f} u : {_nom_reference(ref)}"
+            else:
+                texte = f"{nom_type} hors référence"
+            if m.get("issue") == "eteinte_smoke":
+                texte += " — éteinte par une smoke (lancer jugé sur son point d'arrivée)"
+            r.preuves.append(
+                Preuve(
+                    definition.nom,
+                    int(m["tick"]),
+                    texte,
+                    d.numero_round(int(m["tick"])),
+                    {
+                        "x": m["x"],
+                        "y": m["y"],
+                        "stuff": ref.get("cle") if ref is not None else None,
+                        "ecart": round(dist, 1),
+                        "issue": m.get("issue", "eclatee"),
+                    },
+                )
+            )
+        if len(miennes):
+            r.mesures.append(mesure(definition, 100.0 * ok / len(miennes), n=len(miennes)))
 
     # Positions installées comparées aux pros (CS-POS-04).
     if len(catalogue.positions) and len(d.lieux):

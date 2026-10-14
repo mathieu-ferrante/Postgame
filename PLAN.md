@@ -186,10 +186,14 @@ donk à la place de Mathieu. Corrigé :
 Mathieu : seulement les meilleures grenades (pas celles « à l'arrache »), avec timing et
 pourquoi ce timing ; toutes les cartes, même hors pool ; le plus d'infos possible.
 - [x] Testé sur **2 vraies démos** HLTV (ESL Pro League S24, Falcons vs Spirit : Mirage,
-      Anubis) : 775 grenades → **71 lineups** retenus (après corrections de relecture)
+      Anubis) : 781 grenades (molotovs éteintes comprises) → **72 lineups** retenus
 - [x] Vrai lâcher retrouvé (le clic est relâché 5 à 10 ticks avant grenade_thrown) : position,
       visée et technique prises à ce moment-là (jumpthrow, W + saut, clic gauche/droit…)
 - [x] Lineup = même point de lancer (48 u), même visée (3°), au moins 3 fois ou 2 joueurs
+- [x] Un lancer de lineup qui n'éclate pas (molotov tombée dans une smoke, fin de round)
+      reste dans le lineup : arrivée tirée de sa vraie trajectoire, « éteinte par une smoke »
+      dans la raison ; pareil pour les molotovs de Mathieu (maîtrise du stuff), et ses
+      flashs sont désormais rattachées aux lineups comme ses smokes
 - [x] Contexte réel de chaque lancer : secondes depuis le début du round, pose de bombe qui
       suit (site, délai), round gagné (score des équipes, les démos GOTV n'ont pas
       round_end), aveuglement des joueurs, dégâts, durée réelle de la smoke, trajectoire

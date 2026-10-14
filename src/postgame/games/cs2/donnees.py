@@ -140,6 +140,8 @@ class DonneesMatch:
             columns=["tick", "steamid", "argent", "valeur_equipement", "depense_round"]
         )
     )
+    # Trajectoire réelle de chaque lancer : (lanceur, tick du lancer) → JSON [[t, x, y, z]…]
+    trajectoires: dict[tuple[str, int], str] = field(default_factory=dict)
 
     def numero_round(self, tick: int) -> int | None:
         if not len(self.rounds):
@@ -496,7 +498,21 @@ def extraire_match(
         lieux=lieux,
         bombe=bombe,
         economie=economie,
+        trajectoires=_trajectoires(parser, lancers),
     )
+
+
+def _trajectoires(parser: Any, lancers: pd.DataFrame) -> dict[tuple[str, int], str]:
+    """Vraies trajectoires des grenades (une molotov éteinte par une smoke n'a pas d'autre
+    trace de son point d'arrivée)."""
+    if not len(lancers):
+        return {}
+    from postgame.games.cs2.lineups import trajectoires_lancers
+
+    try:
+        return trajectoires_lancers(parser.parse_grenades(), lancers)
+    except Exception:
+        return {}
 
 
 PROPS_ECONOMIE = ["balance", "current_equip_value", "cash_spent_this_round"]

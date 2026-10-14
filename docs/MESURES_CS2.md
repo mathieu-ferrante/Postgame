@@ -101,7 +101,8 @@ chaque lieu est tenu à l'installation, par carte et par camp.
 | `cs2.smoke.part_reconnues` | Smokes de Mathieu à moins de 150 u (2D) d'une smoke de référence. Preuves : « reconnue : smoke Window depuis TSpawn, à 40 u », « ratée de 220 u : … », ou « hors référence ». | Absente tant que le catalogue de la carte est vide. |
 | `cs2.smoke.ecart_median_reference` | Écart médian à la référence la plus proche, pour les smokes à moins de 400 u. | |
 | `cs2.smoke.part_ligne_coupee` | Smoke qui, pendant sa durée (échantillonnée toutes les 0,5 s), traverse au moins une ligne adversaire–allié de moins de 3000 u (distance du centre au segment ≤ 144 u). | Approximation 2D sans murs : une ligne déjà bloquée par un mur compte comme coupée. Calculée même sans catalogue. |
-| `cs2.molotov.part_reconnues` | Idem pour les molotovs. | |
+| `cs2.molotov.part_reconnues` | Idem pour les molotovs, **y compris celles qui ne s'allument jamais** (tombées dans une smoke, fin de round) : jugées sur le point d'arrivée de leur vraie trajectoire ; preuve « éteinte par une smoke ». | Arrivée = dernier point où le projectile existe dans la démo. |
+| `cs2.flash.part_reconnues` | Flashs de Mathieu qui éclatent à moins de 150 u d'une flash de référence pro. | Point d'éclatement en 2D (une flash éclate en l'air). |
 | `cs2.position.part_positions_pro` | Rounds où le lieu tenu par Mathieu 20 s après le freeze est tenu par les pros (même carte, même camp) dans au moins 5 % des rounds. Les preuves citent les 3 lieux pros les plus courants quand Mathieu en est loin. | Granularité du lieu (un nom de zone, pas un point précis). |
 
 ## L4 — Décisions, économie, stratégie (CS-DEC-*, CS-ECO-01, CS-STR-01)

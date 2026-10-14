@@ -255,6 +255,11 @@ MIGRATIONS: list[list[str]] = [
         "ALTER TABLE cs2_ref_demos ADD COLUMN version INTEGER NOT NULL DEFAULT 1",
         "ALTER TABLE cs2_ref_demos ADD COLUMN extrait TEXT",
     ],
+    # 11 — lancers sans éclatement gardés (molotov éteint par une smoke…)
+    [
+        "ALTER TABLE cs2_ref_observations ADD COLUMN issue TEXT",
+        "ALTER TABLE cs2_ref_lancers ADD COLUMN part_eteinte REAL",
+    ],
 ]
 
 

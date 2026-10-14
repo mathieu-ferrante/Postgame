@@ -223,3 +223,40 @@ def test_valeurs_manquantes_et_echauffement():
     # Exemple : on ignore les lancers sans visée ; visée autour de ±180° bien gérée.
     g = _lancers(3, yaw=179.5).assign(lyaw=[179.0, -179.5, nan], lx=[1000.0, 1001.0, 1000.5])
     assert lu.exemple(g)["lyaw"] in (179.0, -179.5)
+
+
+def test_molotov_eteinte_par_une_smoke_reste_dans_le_lineup():
+    from postgame.games.cs2.references import associer_lancers, avec_lancers_sans_eclatement
+
+    lancers = pd.DataFrame(
+        {"tick": [1000, 5000, 9000], "steamid": ["a", "a", "a"], "type": ["molotov"] * 3}
+    )
+    grenades = pd.DataFrame(
+        {
+            "tick": [1100, 4000],
+            "lanceur": ["a", "b"],
+            "type": ["molotov", "smoke"],
+            "x": [500.0, 500.0],
+            "y": [0.0, 0.0],
+            "z": [0.0, 0.0],
+            "entite": [1, 2],
+            "fin": [1500, 4000 + 22 * 64],
+        }
+    )
+    trajectoires = {
+        ("a", 5000): json.dumps([[5000, 0, 0, 0], [5090, 505, 10, 0]]),  # dans la smoke
+        ("a", 9000): json.dumps([[9000, 0, 0, 0], [9090, 2000, 0, 0]]),  # fin de round
+    }
+    g = avec_lancers_sans_eclatement(
+        associer_lancers(lancers, grenades), lancers, grenades, trajectoires
+    )
+    molly = g[g["type"] == "molotov"].sort_values("tick_lancer")
+    assert molly["issue"].tolist() == ["eclatee", "eteinte_smoke", "sans_eclatement"]
+    assert molly["x"].tolist()[1] == 505.0  # arrivée = fin de la vraie trajectoire
+
+    e = lu.expliquer(
+        _lancers(3, camp="T", temps=20.0, issue=["eclatee", "eteinte_smoke", "eclatee"]),
+        "molotov",
+    )
+    assert e["part_eteinte"] == 1 / 3
+    assert "1 fois sur 3, la grenade est tombée dans une smoke et s'est éteinte" in e["raison"]

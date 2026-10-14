@@ -115,10 +115,19 @@ def enregistrer_image(dossier_donnees: Path, cle: str, nom_fichier: str, contenu
 # --- Maîtrise en match -------------------------------------------------------------------
 
 
+# Smokes, molotovs (même éteintes par une smoke) et flashs rattachées aux lineups pros.
+MESURES_RATTACHEMENT = (
+    "cs2.smoke.part_reconnues",
+    "cs2.molotov.part_reconnues",
+    "cs2.flash.part_reconnues",
+)
+
+
 def maitrise(base: Base, carte: str) -> dict[str, dict[str, Any]]:
     """Par stuff : tentatives, réussites, dernier écart, date de la dernière réussite."""
     resultat: dict[str, dict[str, Any]] = {}
-    for p in base.preuves_toutes_parties("cs2.smoke.part_reconnues", "cs2"):
+    preuves = [p for nom in MESURES_RATTACHEMENT for p in base.preuves_toutes_parties(nom, "cs2")]
+    for p in sorted(preuves, key=lambda p: (p["date_partie"], p["tick"] or 0)):
         cle = p["donnees"].get("stuff")
         ecart = p["donnees"].get("ecart")
         if p["carte"] != carte or not cle or ecart is None or ecart > DISTANCE_RATEE:

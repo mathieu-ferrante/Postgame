@@ -396,6 +396,18 @@ def expliquer(groupe: pd.DataFrame, type_: str) -> dict[str, Any]:
         )
     elif principale == "début de round":
         phrases.append(f"Lancée en début de round dans {nb_phase} cas sur {n}.")
+    # Lancers du lineup qui n'ont pas éclaté : le lineup reste bon, on dit pourquoi.
+    issues = col("issue", pd.Series(["eclatee"] * n)).fillna("eclatee")
+    eteintes = int((issues == "eteinte_smoke").sum())
+    ratees = int((issues == "sans_eclatement").sum())
+    sortie["part_eteinte"] = eteintes / n if n else None
+    if eteintes:
+        phrases.append(
+            f"{eteintes} fois sur {n}, la grenade est tombée dans une smoke et s'est éteinte : "
+            "le lineup était bon, c'est la smoke adverse qui l'a annulée."
+        )
+    if ratees:
+        phrases.append(f"{ratees} fois sur {n}, la grenade n'a pas éclaté (fin de round…).")
     effet = pd.to_numeric(col("effet", pd.Series(dtype=float)), errors="coerce").dropna()
     sortie["effet_moyen"] = float(effet.mean()) if len(effet) else None
     if type_ == "flash" and len(effet):

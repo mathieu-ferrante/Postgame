@@ -280,3 +280,38 @@ def test_stockage_catalogue(base, tmp_path, monkeypatch):
     assert ref.resume_catalogue(base) == [
         {"carte": "de_test", "demos": 1, "lancers": 1, "positions": 3}
     ]
+
+
+def test_ma_molotov_eteinte_compte_pour_le_lineup():
+    import json
+
+    s = Scenario(nb_ticks=4000)
+    s.debuts_rounds, s.fins_rounds = [0, 2000], [1800, 3800]
+    s.joueur(MOI, equipe=2, nom="Mathieu")
+    s.joueur(ADV, equipe=3, nom="Adv", x=1000)
+    s.grenade(ADV, 200, "smoke", x=500, y=0, fin=200 + 22 * 64)  # smoke adverse sur le point
+    d = s.donnees()
+    # Ma molotov lancée au tick 300 : jamais allumée (aucun inferno), tombée dans la smoke.
+    d.lancers = pd.concat(
+        [d.lancers, pd.DataFrame([{"tick": 300, "steamid": MOI, "type": "molotov"}])],
+        ignore_index=True,
+    )
+    d.trajectoires = {(MOI, 300): json.dumps([[300, 0, 0, 0], [380, 505, 5, 0]])}
+    refs = pd.DataFrame(
+        [
+            {
+                "carte": "de_test",
+                "type": "molotov",
+                "x": 500.0,
+                "y": 0.0,
+                "cle": "molo1",
+                "lieu_arrivee": "Window",
+                "lieu_lancer": "TSpawn",
+            }
+        ]
+    )
+    r = ref.analyser_references(d, ref.Catalogue(refs, pd.DataFrame()))
+    assert _valeur(r, "cs2.molotov.part_reconnues") == 100.0
+    preuve = next(p for p in r.preuves if p.mesure == "cs2.molotov.part_reconnues")
+    assert preuve.donnees["stuff"] == "molo1" and preuve.donnees["issue"] == "eteinte_smoke"
+    assert "éteinte par une smoke" in preuve.texte

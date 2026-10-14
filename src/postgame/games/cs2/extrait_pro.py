@@ -34,7 +34,7 @@ from postgame.games.base import ErreurLecture
 journal = logging.getLogger(__name__)
 
 FORMAT = 1
-VERSION_EXTRACTION = 3  # à augmenter quand la lecture des démos change (relecture)
+VERSION_EXTRACTION = 4  # à augmenter quand la lecture des démos change (relecture)
 EXTENSION = ".pgpro"
 PAS_POSITIONS = 16  # ticks : 4 positions par seconde
 TICKS_AVANT_LACHER = 64  # 1 s d'état complet avant chaque lancer
