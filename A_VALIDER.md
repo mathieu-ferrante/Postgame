@@ -4,6 +4,33 @@ Ce que seul Mathieu peut faire ou tester, lot par lot. Chaque point dit **quoi f
 quelle machine, et le résultat attendu**. Une fois fait, cocher la case et noter le
 résultat (ou me le dire).
 
+## Par où commencer (ordre conseillé)
+
+Les points ci-dessous sont rangés par lot ; voici dans quel ordre les faire pour que chaque
+étape serve à la suivante. Les numéros renvoient aux sections.
+
+**Une fois, avant tout (≈ 1 h, n'importe quelle machine sauf mention)**
+1. Clés : Riot (21), Gemini (11) ; FACEIT si tu y joues (24). Toutes dans `secrets.toml`.
+2. PC de jeu : installer le service (4) et l'interface (14), puis les radars officiels (15).
+3. Téléphone : ouvrir l'interface et l'installer (16).
+
+**Première soirée de jeu (PC de jeu)**
+4. CS2 : config GSI (17), enregistrement du deathmatch avec F8 (3), puis une partie Premier
+   et un deathmatch normalement. Le lendemain : fiches et débriefs de ces parties (12).
+5. Codes de partage Steam (25) pour que les parties Premier arrivent seules.
+6. LoL : une partie avec le service lancé (second écran + import automatique, 23).
+
+**Démos pros (quand tu veux, n'importe quel PC)**
+7. Démos de toutes les cartes (32) dans le dossier pros ; le service fait le reste.
+8. Puis stuffs en jeu : revoir un pro (29), capturer la vue d'un lineup (31), annotations (26).
+
+**Geometry Dash (PC de jeu)**
+9. Compiler et installer le mod (19), une vraie séance (20) avec le second écran (20 bis).
+
+**Au fil des semaines**
+10. Vérifier les mesures à la main (5, 7, 9, 10) et les marquer fiables (13) : tant qu'une
+    mesure n'est pas marquée fiable, le débrief la signale « en cours de validation ».
+
 ## L0 — Socle
 
 ### 1. Fournir des démos (n'importe quelle machine)
